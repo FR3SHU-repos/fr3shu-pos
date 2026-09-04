@@ -1,9 +1,7 @@
-import { NextResponse } from "next/server";
-import { clearAuthCookie } from "@/shared/lib/auth";
-import { success } from "@/app/api/v1/utils/responses";
+import { NextRequest } from "next/server";
+import { proxyGoMutation } from "@/shared/lib/api/go-proxy";
 
-export async function POST() {
-  const res = NextResponse.json(success(null, "Logged out"));
-  res.cookies.set(clearAuthCookie());
-  return res;
+/** @deprecated Compatibility route; Go owns POS staff authentication. */
+export function POST(request: NextRequest) {
+  return proxyGoMutation(request, "/pos/auth/logout");
 }

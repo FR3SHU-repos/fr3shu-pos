@@ -13,11 +13,13 @@ export interface ApiResult<T> {
   status: number;
 }
 
-const BASE = (process.env.NEXT_PUBLIC_API_BASE_URL ?? "").replace(/\/$/, "");
+export function apiBase(value: string | undefined): string { return (value?.trim() ?? "").replace(/\/+$/, "").replace(/\/api\/v1$/i, ""); }
+const BASE = apiBase(process.env.NEXT_PUBLIC_API_BASE_URL);
+const CATALOGUE_BASE = apiBase(process.env.NEXT_PUBLIC_CATALOGUE_API_BASE_URL ?? BASE);
 
-function url(path: string): string {
-  const clean = path.startsWith("/") ? path : `/${path}`;
-  return `${BASE}/api/v1${clean}`;
+export function apiURL(path: string, base = BASE): string {
+  const clean = path.replace(/^\/+/, "");
+	return `${apiBase(base)}/api/v1/${clean}`;
 }
 
 async function normalize<T>(res: Response): Promise<ApiResult<T>> {
@@ -45,9 +47,13 @@ export interface RequestOptions {
 }
 
 export async function request<T>(path: string, opts: RequestOptions = {}): Promise<ApiResult<T>> {
+  return requestAt<T>(BASE, path, opts);
+}
+
+async function requestAt<T>(base: string, path: string, opts: RequestOptions = {}): Promise<ApiResult<T>> {
   const { method = "GET", body, query, signal, headers } = opts;
 
-  let target = url(path);
+  let target = apiURL(path, base);
   if (query) {
     const qs = new URLSearchParams();
     for (const [k, v] of Object.entries(query)) {
@@ -77,4 +83,11 @@ export async function request<T>(path: string, opts: RequestOptions = {}): Promi
       status: 0,
     };
   }
+}
+
+// Catalogue reads can be cut over independently from POS authentication and
+// mutation workflows. Remove this compatibility boundary once all POS APIs use
+// the centralized backend.
+export async function catalogueRequest<T>(path: string, opts: RequestOptions = {}): Promise<ApiResult<T>> {
+  return requestAt<T>(CATALOGUE_BASE, path, opts);
 }
