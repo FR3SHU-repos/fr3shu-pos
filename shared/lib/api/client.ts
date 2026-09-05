@@ -69,6 +69,22 @@ export interface RequestOptions {
   idempotencyKey?: string;
 }
 
+/** The current Supabase access token (browser only), for `Authorization: Bearer`. */
+async function supabaseBearer(): Promise<string | null> {
+  if (typeof window === "undefined") return null;
+  try {
+    const { createAuthBrowserClient } = await import(
+      "@/shared/lib/supabase/auth-client"
+    );
+    const {
+      data: { session },
+    } = await createAuthBrowserClient().auth.getSession();
+    return session?.access_token ?? null;
+  } catch {
+    return null;
+  }
+}
+
 async function requestAt<T>(base: string, path: string, opts: RequestOptions = {}): Promise<ApiResult<T>> {
   const { method = "GET", body, query, signal, headers, idempotencyKey } = opts;
 
@@ -82,6 +98,8 @@ async function requestAt<T>(base: string, path: string, opts: RequestOptions = {
     if (s) target += `?${s}`;
   }
 
+  const bearer = await supabaseBearer();
+
   try {
     const res = await fetch(target, {
       method,
@@ -89,6 +107,7 @@ async function requestAt<T>(base: string, path: string, opts: RequestOptions = {
       headers: {
         ...(body !== undefined ? { "Content-Type": "application/json" } : {}),
         ...(idempotencyKey ? { "Idempotency-Key": idempotencyKey } : {}),
+        ...(bearer ? { Authorization: `Bearer ${bearer}` } : {}),
         ...headers,
       },
       body: body !== undefined ? JSON.stringify(body) : undefined,

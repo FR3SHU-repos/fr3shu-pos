@@ -5,31 +5,81 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import toast from "react-hot-toast";
 import { Loader2, Lock } from "lucide-react";
-import { authApi } from "@/shared/lib/api";
+
 import { usePosUser } from "@/shared/context/PosUserContext";
 import { cardCls, inputCls, primaryBtnCls } from "@/shared/components/ui";
+import { createAuthBrowserClient } from "@/shared/lib/supabase/auth-client";
+import { bridgeLogin, reconcileIdentity } from "@/shared/lib/auth/gin";
+import {
+  Divider,
+  GoogleButton,
+  PasswordField,
+  WhatsAppButton,
+} from "@/shared/components/auth/parts";
+
+function safeNext(n: string | null): string {
+  return n && n.startsWith("/") && !n.startsWith("//") && !n.includes("://")
+    ? n
+    : "/dashboard";
+}
 
 function LoginForm() {
   const router = useRouter();
   const params = useSearchParams();
-  const { setUser } = usePosUser();
+  const next = safeNext(params.get("next"));
+  const { refresh } = usePosUser();
+  const supabase = createAuthBrowserClient();
+
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
+  const [googleBusy, setGoogleBusy] = useState(false);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (busy) return;
     setBusy(true);
-    const res = await authApi.login(email.trim(), password);
-    setBusy(false);
-    if (!res.success || !res.data) {
-      toast.error(res.message || "Login failed");
+    const normEmail = email.trim().toLowerCase();
+
+    let { error } = await supabase.auth.signInWithPassword({
+      email: normEmail,
+      password,
+    });
+    if (error && /invalid login credentials/i.test(error.message)) {
+      const { migrated } = await bridgeLogin(normEmail, password);
+      if (migrated) {
+        ({ error } = await supabase.auth.signInWithPassword({
+          email: normEmail,
+          password,
+        }));
+      }
+    }
+    if (error) {
+      setBusy(false);
+      toast.error(
+        /email not confirmed/i.test(error.message)
+          ? "Please verify your email first."
+          : "Invalid email or password.",
+      );
       return;
     }
-    setUser(res.data);
-    toast.success(`Welcome, ${res.data.name}`);
-    router.replace(params.get("next") || "/dashboard");
+    await reconcileIdentity();
+    await refresh();
+    setBusy(false);
+    router.replace(next);
+  }
+
+  async function onGoogle() {
+    setGoogleBusy(true);
+    const redirectTo = `${window.location.origin}/auth/callback?next=${encodeURIComponent(next)}`;
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: { redirectTo },
+    });
+    if (error) {
+      setGoogleBusy(false);
+      toast.error("Google sign-in is unavailable right now.");
+    }
   }
 
   return (
@@ -45,48 +95,56 @@ function LoginForm() {
           <p className="text-sm text-foreground-muted">Sign in to your seller account</p>
         </div>
 
-        <form onSubmit={onSubmit} className="space-y-3">
-          <div>
-            <label htmlFor="email" className="mb-1 block text-xs font-medium text-foreground-body">
-              Email
-            </label>
-            <input
-              id="email"
-              type="email"
-              autoComplete="username"
-              required
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className={inputCls}
-            />
-          </div>
-          <div>
-            <label
-              htmlFor="password"
-              className="mb-1 block text-xs font-medium text-foreground-body"
+        {params.get("error") === "oauth_denied" && (
+          <p className="mb-3 rounded-lg bg-red-50 px-3 py-2 text-xs text-red-700">
+            Google sign-in was cancelled.
+          </p>
+        )}
+
+        <div className="space-y-3">
+          <GoogleButton onClick={onGoogle} loading={googleBusy} />
+          <Divider />
+          <form onSubmit={onSubmit} className="space-y-3">
+            <div>
+              <label
+                htmlFor="email"
+                className="mb-1 block text-xs font-medium text-foreground-body"
+              >
+                Email
+              </label>
+              <input
+                id="email"
+                type="email"
+                autoComplete="username"
+                required
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className={inputCls}
+              />
+            </div>
+            <PasswordField label="Password" value={password} onChange={setPassword} />
+            <button
+              type="submit"
+              disabled={busy}
+              className={`${primaryBtnCls} w-full`}
             >
-              Password
-            </label>
-            <input
-              id="password"
-              type="password"
-              autoComplete="current-password"
-              required
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className={inputCls}
-            />
-          </div>
-          <button type="submit" disabled={busy} className={`${primaryBtnCls} w-full`}>
-            {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-            Sign in
-          </button>
-        </form>
+              {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+              Sign in
+            </button>
+          </form>
+          <Link
+            href="/auth/forgot-password"
+            className="block text-center text-xs font-medium text-primary hover:underline"
+          >
+            Forgot password?
+          </Link>
+          <WhatsAppButton />
+        </div>
 
         <p className="mt-5 text-center text-xs text-foreground-muted">
-          Don&apos;t have an account?{" "}
+          Need an account?{" "}
           <Link href="/register" className="font-medium text-primary hover:underline">
-            Register
+            Contact your administrator
           </Link>
         </p>
       </div>
