@@ -1,28 +1,50 @@
 import jwt from "jsonwebtoken";
 import { cookies } from "next/headers";
 
-export type PosRole = "Admin" | "Owner" | "Manager" | "Cashier" | "InventoryManager";
+export type PosRole =
+  | "Admin"
+  | "Owner"
+  | "Manager"
+  | "Cashier"
+  | "InventoryManager"
+  | "StoreOwner"
+  | "StoreManager";
 export type SellerOrgType = "Brand" | "FPO" | "Farmer";
 
+// One FR3SH session token, shared by every app. This app only *verifies* the
+// `token` cookie for the SSR redirect on "/"; issuance lives in go-api-backend.
 export interface PosTokenPayload {
-  /** User _id */
   sub: string;
   email: string;
   name: string;
-  role: PosRole;
-  /** Seller organisation scope. Empty string for a platform Admin with no org. */
+  type: string;
+  roles?: string[];
+  role?: PosRole;
   orgId: string;
   orgType: SellerOrgType | "Platform";
-  /** Default assigned location; may be overridden per-session within the same org. */
   locationId: string;
 }
 
-const COOKIE_NAME = "pos_token";
+const COOKIE_NAME = "token";
 const FALLBACK_SECRET = "dev-only-insecure-secret-change-me";
 
-// Token signing and cookie issuance now live in go-api-backend (`posauth`); the
-// login route here is a database-free proxy that relays Go's Set-Cookie. This
-// app only *verifies* the `pos_token` cookie for the SSR redirect on "/".
+const POS_TYPES = new Set([
+  "StoreOwner",
+  "StoreManager",
+  "Cashier",
+  "Admin",
+  "Owner",
+  "Manager",
+  "InventoryManager",
+]);
+const POS_ROLES = new Set([
+  "Owner",
+  "Manager",
+  "Cashier",
+  "InventoryManager",
+  "StoreOwner",
+  "StoreManager",
+]);
 
 const getSecret = (): string => {
   const secret = process.env.JWT_SECRET?.trim();
@@ -35,9 +57,27 @@ const getSecret = (): string => {
   return secret;
 };
 
+function isPosIdentity(p: { type?: string; roles?: string[] }): boolean {
+  if (p.type && POS_TYPES.has(p.type)) return true;
+  return (p.roles ?? []).some((r) => POS_ROLES.has(r));
+}
+
 export function verifyTokenString(token: string): PosTokenPayload | null {
   try {
-    return jwt.verify(token, getSecret()) as PosTokenPayload;
+    const raw = jwt.verify(token, getSecret()) as Record<string, unknown>;
+    const p: PosTokenPayload = {
+      sub: String(raw.sub ?? ""),
+      email: String(raw.email ?? ""),
+      name: String(raw.name ?? ""),
+      type: String(raw.type ?? ""),
+      roles: (raw.roles as string[]) ?? undefined,
+      role: raw.role ? (String(raw.role) as PosRole) : undefined,
+      orgId: String(raw.orgId ?? ""),
+      orgType: (String(raw.orgType ?? "Platform") as PosTokenPayload["orgType"]),
+      locationId: String(raw.locationId ?? ""),
+    };
+    if (!p.sub || !isPosIdentity(p)) return null;
+    return p;
   } catch {
     return null;
   }

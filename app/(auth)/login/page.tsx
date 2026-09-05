@@ -1,6 +1,7 @@
 "use client";
 
 import React, { Suspense, useState } from "react";
+import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import toast from "react-hot-toast";
 import { Loader2, Lock } from "lucide-react";
@@ -81,6 +82,13 @@ function LoginForm() {
             Sign in
           </button>
         </form>
+
+        <p className="mt-5 text-center text-xs text-foreground-muted">
+          Don&apos;t have an account?{" "}
+          <Link href="/register" className="font-medium text-primary hover:underline">
+            Register
+          </Link>
+        </p>
       </div>
     </div>
   );
