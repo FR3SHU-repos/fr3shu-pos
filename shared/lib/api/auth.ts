@@ -1,4 +1,4 @@
-import { request, type ApiResult } from "./client";
+import { goRequest, type ApiResult } from "./client";
 import type { PosRole, SellerOrgType } from "@/shared/lib/auth";
 
 export interface SessionUser {
@@ -11,10 +11,14 @@ export interface SessionUser {
   locationId: string;
 }
 
+// go-api-backend owns POS staff authentication at /api/v1/pos/auth/*. Calls are
+// relayed through this app's same-origin proxy so the httpOnly pos_token cookie
+// is set and sent.
+
 export const login = (email: string, password: string): Promise<ApiResult<SessionUser>> =>
-  request<SessionUser>("/auth/login", { method: "POST", body: { email, password } });
+  goRequest<SessionUser>("auth/login", { method: "POST", body: { email, password } });
 
 export const logout = (): Promise<ApiResult<null>> =>
-  request<null>("/auth/logout", { method: "POST" });
+  goRequest<null>("auth/logout", { method: "POST" });
 
-export const me = (): Promise<ApiResult<SessionUser>> => request<SessionUser>("/auth/me");
+export const me = (): Promise<ApiResult<SessionUser>> => goRequest<SessionUser>("auth/me");

@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 
 function goApiBase(): string | null {
-  const base = process.env.NEXT_PUBLIC_CATALOGUE_API_BASE_URL?.trim().replace(/\/+$/, "").replace(/\/api\/v1$/i, "");
+  const raw =
+    process.env.GO_API_BASE_URL ??
+    process.env.NEXT_PUBLIC_API_BASE_URL ??
+    process.env.NEXT_PUBLIC_CATALOGUE_API_BASE_URL;
+  const base = raw?.trim().replace(/\/+$/, "").replace(/\/api\/v1$/i, "");
   return base || null;
 }
 

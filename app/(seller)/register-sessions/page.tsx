@@ -54,7 +54,7 @@ export default function RegisterSessionsPage() {
     e.preventDefault();
     if (!current || busy) return;
     setBusy(true);
-    const res = await registersApi.close(current._id, {
+    const res = await registersApi.close(current.registerId, {
       countedCashPaise: rupeesToPaise(Number(countedCash || 0)),
       varianceNote: note.trim() || undefined,
     });

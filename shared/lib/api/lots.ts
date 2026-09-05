@@ -1,14 +1,47 @@
-import { request, type ApiResult } from "./client";
-import type { ILot } from "@/shared/interfaces/mongodb/inventory/lot";
-import type { ReceiveLotInput } from "@/shared/schemas/lot";
+import { goRequest, type ApiResult } from "./client";
 
-export type LotDTO = ILot & { _id: string };
+export interface LotDTO {
+  _id: string;
+  lotCode: string;
+  producerName?: string;
+  expiryDate?: string;
+  certificationSnapshot?: { isVerifiedOrganic?: boolean };
+  skuId?: string;
+}
 
-export const list = (params?: {
+interface GoLotRow {
+  skuId: string;
+  lotId?: string;
+  lotCode?: string;
+  qty: string;
+  expiresAt?: string;
+}
+
+export const list = async (params?: {
   productId?: string;
   locationId?: string;
-}): Promise<ApiResult<{ items: LotDTO[] }>> =>
-  request<{ items: LotDTO[] }>("/lots", { query: params });
+}): Promise<ApiResult<{ items: LotDTO[] }>> => {
+  const res = await goRequest<{ items: GoLotRow[] }>("inventory/lots", {
+    query: { skuId: params?.productId },
+  });
+  return {
+    ...res,
+    data: res.data
+      ? {
+          items: res.data.items.map((l) => ({
+            _id: l.lotId ?? `${l.skuId}:${l.lotCode ?? "none"}`,
+            lotCode: l.lotCode ?? "—",
+            expiryDate: l.expiresAt,
+            skuId: l.skuId,
+          })),
+        }
+      : null,
+  };
+};
 
-export const receive = (body: ReceiveLotInput): Promise<ApiResult<LotDTO>> =>
-  request<LotDTO>("/lots", { method: "POST", body });
+export const receive = async (_body?: unknown): Promise<ApiResult<LotDTO>> => ({
+  success: false,
+  message: "Lot receiving is handled in the warehouse app; POS reads canonical inventory only.",
+  data: null,
+  status: 501,
+});

@@ -1,9 +1,11 @@
 /**
  * The single client -> server boundary. Every UI call goes through here.
  *
- * Today `request()` hits this app's own /api/v1 route handlers. To move onto the
- * FR3SH Go/Gin service later, set NEXT_PUBLIC_API_BASE_URL and (if the envelope
- * differs) adapt `normalize()` — no component code changes.
+ * The POS web app no longer has a database of its own: `go-api-backend` owns
+ * the entire POS runtime (catalogue reads, inventory, registers, shifts, sales,
+ * tenders, voids, returns). `goRequest()` targets that service directly at
+ * `/api/v1/pos/*`; the same-origin `/api/v1/*` route handlers are now thin
+ * database-free proxies kept only for compatibility.
  */
 
 export interface ApiResult<T> {
@@ -11,15 +13,27 @@ export interface ApiResult<T> {
   message: string;
   data: T | null;
   status: number;
+  /** Machine-readable error code from the Go envelope, when present. */
+  code?: string;
 }
 
-export function apiBase(value: string | undefined): string { return (value?.trim() ?? "").replace(/\/+$/, "").replace(/\/api\/v1$/i, ""); }
-const BASE = apiBase(process.env.NEXT_PUBLIC_API_BASE_URL);
-const CATALOGUE_BASE = apiBase(process.env.NEXT_PUBLIC_CATALOGUE_API_BASE_URL ?? BASE);
+export function apiBase(value: string | undefined): string {
+  return (value?.trim() ?? "").replace(/\/+$/, "").replace(/\/api\/v1$/i, "");
+}
 
-export function apiURL(path: string, base = BASE): string {
+/**
+ * The Go backend base URL. `NEXT_PUBLIC_API_BASE_URL` is preferred;
+ * `NEXT_PUBLIC_CATALOGUE_API_BASE_URL` is accepted as the historical name from
+ * the incremental catalogue migration. An empty value means "same origin",
+ * which reaches the compatibility proxies.
+ */
+const GO_BASE = apiBase(
+  process.env.NEXT_PUBLIC_API_BASE_URL ?? process.env.NEXT_PUBLIC_CATALOGUE_API_BASE_URL,
+);
+
+export function apiURL(path: string, base = GO_BASE): string {
   const clean = path.replace(/^\/+/, "");
-	return `${apiBase(base)}/api/v1/${clean}`;
+  return `${apiBase(base)}/api/v1/${clean}`;
 }
 
 async function normalize<T>(res: Response): Promise<ApiResult<T>> {
@@ -29,12 +43,19 @@ async function normalize<T>(res: Response): Promise<ApiResult<T>> {
   } catch {
     /* empty / non-JSON body */
   }
-  const b = (body ?? {}) as { success?: boolean; message?: string; data?: T; error?: string };
+  const b = (body ?? {}) as {
+    success?: boolean;
+    message?: string;
+    data?: T;
+    error?: string;
+    code?: string;
+  };
   return {
     success: b.success ?? res.ok,
     message: b.message ?? (res.ok ? "Success" : `Request failed (${res.status})`),
     data: (b.data ?? null) as T | null,
     status: res.status,
+    code: b.code,
   };
 }
 
@@ -44,14 +65,12 @@ export interface RequestOptions {
   query?: Record<string, string | number | boolean | undefined>;
   signal?: AbortSignal;
   headers?: Record<string, string>;
-}
-
-export async function request<T>(path: string, opts: RequestOptions = {}): Promise<ApiResult<T>> {
-  return requestAt<T>(BASE, path, opts);
+  /** Sent as the `Idempotency-Key` header on mutations. */
+  idempotencyKey?: string;
 }
 
 async function requestAt<T>(base: string, path: string, opts: RequestOptions = {}): Promise<ApiResult<T>> {
-  const { method = "GET", body, query, signal, headers } = opts;
+  const { method = "GET", body, query, signal, headers, idempotencyKey } = opts;
 
   let target = apiURL(path, base);
   if (query) {
@@ -69,6 +88,7 @@ async function requestAt<T>(base: string, path: string, opts: RequestOptions = {
       credentials: "include",
       headers: {
         ...(body !== undefined ? { "Content-Type": "application/json" } : {}),
+        ...(idempotencyKey ? { "Idempotency-Key": idempotencyKey } : {}),
         ...headers,
       },
       body: body !== undefined ? JSON.stringify(body) : undefined,
@@ -85,9 +105,21 @@ async function requestAt<T>(base: string, path: string, opts: RequestOptions = {
   }
 }
 
-// Catalogue reads can be cut over independently from POS authentication and
-// mutation workflows. Remove this compatibility boundary once all POS APIs use
-// the centralized backend.
-export async function catalogueRequest<T>(path: string, opts: RequestOptions = {}): Promise<ApiResult<T>> {
-  return requestAt<T>(CATALOGUE_BASE, path, opts);
+/** Call an arbitrary `/api/v1/<path>` operation on the Go backend. */
+export async function request<T>(path: string, opts: RequestOptions = {}): Promise<ApiResult<T>> {
+  return requestAt<T>(GO_BASE, path, opts);
 }
+
+/**
+ * Call a `/api/v1/pos/<path>` operation on the canonical POS API.
+ *
+ * Always routed through this app's own same-origin `/api/v1/pos/*` proxy so the
+ * httpOnly `pos_token` cookie is sent on every call and a login `Set-Cookie`
+ * relays back to the browser. The proxy itself has no database access.
+ */
+export async function goRequest<T>(path: string, opts: RequestOptions = {}): Promise<ApiResult<T>> {
+  return requestAt<T>("", `pos/${path.replace(/^\/+/, "")}`, opts);
+}
+
+/** Historical alias; catalogue reads share the same backend now. */
+export const catalogueRequest = request;
