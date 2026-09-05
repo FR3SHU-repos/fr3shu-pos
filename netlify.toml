@@ -1,0 +1,7 @@
+[build.environment]
+  # These keys hold non-secret values: a public backend origin (intentionally
+  # embedded by Next.js in the browser bundle) and stock numeric constants
+  # (28800 = 8h in seconds, 12) that also appear verbatim inside Next.js /
+  # @types/node, so Netlify's secret scanner false-positives on them.
+  # Real secrets (JWT_SECRET) are NOT listed here — they stay scanned.
+  SECRETS_SCAN_OMIT_KEYS = "GO_API_BASE_URL,NEXT_PUBLIC_API_BASE_URL,NEXT_PUBLIC_CATALOGUE_API_BASE_URL,JWT_COOKIE_MAX_AGE,JWT_EXPIRES_IN,BCRYPT_SALT_ROUNDS,POS_CASH_VARIANCE_NOTE_THRESHOLD_PAISE"
