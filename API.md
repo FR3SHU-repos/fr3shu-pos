@@ -1,4 +1,4 @@
-# FR3SHU Organic POS — API (`/api/v1`)
+# KOMOLA Organic POS — API (`/api/v1`)
 
 All responses use the standard envelope:
 

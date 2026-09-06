@@ -122,7 +122,7 @@ function Brand() {
       <span className="grid h-8 w-8 place-items-center rounded-lg bg-primary text-primary-foreground">
         <span className="text-sm font-bold">F3</span>
       </span>
-      <span className="text-sm font-semibold text-foreground-heading">FR3SHU POS</span>
+      <span className="text-sm font-semibold text-foreground-heading">KOMOLA POS</span>
     </Link>
   );
 }

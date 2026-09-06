@@ -1,7 +1,7 @@
-# FR3SHU Organic POS
+# KOMOLA Organic POS
 
 A seller-side, mobile-first Point of Sale for **verified organic** products, built for
-organic brands, FPOs and farmers in Visakhapatnam. Part of the FR3SH workspace.
+organic brands, FPOs and farmers in Visakhapatnam. Part of the KOMOLA workspace.
 
 > **Scope of this build — thin vertical slice.** One working path end to end:
 > auth → minimal multi-tenancy → products & inventory → open a register → fast `/pos`
@@ -42,11 +42,11 @@ cp .env.example .env.local     # then fill in real values
 
 | var | notes |
 |---|---|
-| `MONGODB_URI` | point at a database isolated from the other FR3SH apps, e.g. `.../fr3sh_pos` |
+| `MONGODB_URI` | point at a database isolated from the other KOMOLA apps, e.g. `.../fr3sh_pos` |
 | `JWT_SECRET` | long random string (`node -e "console.log(require('crypto').randomBytes(48).toString('base64url'))"`) |
 | `JWT_EXPIRES_IN` / `JWT_COOKIE_MAX_AGE` | token + cookie lifetime (default `8h` / `28800`) |
 | `BCRYPT_SALT_ROUNDS` | default `12` |
-| `NEXT_PUBLIC_API_BASE_URL` | empty ⇒ same-origin `/api/v1`. Set to the FR3SH Go/Gin service to swap backends. |
+| `NEXT_PUBLIC_API_BASE_URL` | empty ⇒ same-origin `/api/v1`. Set to the KOMOLA Go/Gin service to swap backends. |
 | `POS_CASH_VARIANCE_NOTE_THRESHOLD_PAISE` | variance above which a close note is mandatory (default `20000` = ₹200) |
 | `SEED_*` | optional fixed dev credentials; otherwise the seed generates and prints them |
 

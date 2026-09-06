@@ -15,33 +15,33 @@
 }
 
 @theme {
-  /* Primary — dark emerald: CTAs, links, active states */
-  --color-primary: #065f46;
-  --color-primary-hover: #022c22;
+  /* Primary — Komola orange: CTAs, links, active states */
+  --color-primary: #ff5733;
+  --color-primary-hover: #b83218;
   --color-primary-foreground: #ffffff;
 
-  /* Secondary — lime accent: badges, chips, highlights */
-  --color-secondary: #bef264;
-  --color-secondary-subtle: #d9f99d;
-  --color-secondary-foreground: #022c22;
+  /* Secondary — leaf green accent: badges, chips, highlights */
+  --color-secondary: #5a9f3a;
+  --color-secondary-subtle: #dcefd4;
+  --color-secondary-foreground: #b83218;
 
   /* Tertiary — stone neutral: subtle UI elements */
   --color-tertiary: #d6d3d1;
   --color-tertiary-foreground: #78716c;
 
   /* Surfaces */
-  --color-surface: #eff6e8;
+  --color-surface: #fff4ef;
   --color-surface-card: #ffffff;
 
   /* Text scale */
-  --color-foreground-heading: #022c22;
+  --color-foreground-heading: #b83218;
   --color-foreground-body: #44403c;
   --color-foreground-muted: #78716c;
-  --color-brand: #047857;
+  --color-brand: #e94727;
 
   /* Borders */
-  --color-border: #d1ead9;
-  --color-border-focus: #6ee7b7;
+  --color-border: #f4c8bb;
+  --color-border-focus: #ff9a80;
 
   /* Status tokens */
   --color-status-warning: #b45309;

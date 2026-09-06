@@ -90,7 +90,7 @@ function LoginForm() {
             <Lock className="h-6 w-6" />
           </span>
           <h1 className="mt-3 text-lg font-semibold text-foreground-heading">
-            FR3SHU Organic POS
+            KOMOLA Organic POS
           </h1>
           <p className="text-sm text-foreground-muted">Sign in to your seller account</p>
         </div>

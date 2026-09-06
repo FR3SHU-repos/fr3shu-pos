@@ -4,15 +4,16 @@ import { PosUserProvider } from "@/shared/context/PosUserContext";
 import { Toaster } from "react-hot-toast";
 
 export const metadata: Metadata = {
-  title: process.env.NEXT_PUBLIC_APP_NAME ?? "FR3SHU Organic POS",
+  title: process.env.NEXT_PUBLIC_APP_NAME ?? "KOMOLA Organic POS",
   description: "Seller-side Point of Sale for verified organic products.",
   manifest: "/manifest.webmanifest",
-  applicationName: "FR3SHU Organic POS",
-  appleWebApp: { capable: true, title: "FR3SHU POS", statusBarStyle: "default" },
+  applicationName: "KOMOLA Organic POS",
+  appleWebApp: { capable: true, title: "KOMOLA POS", statusBarStyle: "default" },
+  icons: { icon: "/komola-logo.png", apple: "/komola-logo.png" },
 };
 
 export const viewport: Viewport = {
-  themeColor: "#065f46",
+  themeColor: "#ff5733",
   width: "device-width",
   initialScale: 1,
   maximumScale: 1,
@@ -30,7 +31,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             style: {
               background: "#fff",
               color: "#1c1917",
-              border: "1px solid #d1ead9",
+              border: "1px solid #f4c8bb",
               fontSize: "14px",
             },
             success: { iconTheme: { primary: "#15803d", secondary: "#fff" } },

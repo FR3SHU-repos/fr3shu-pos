@@ -1,4 +1,4 @@
-# FR3SHU Organic POS — Project Context
+# KOMOLA Organic POS — Project Context
 
 ## 1. Purpose
 
@@ -26,7 +26,7 @@ Mongoose models  ── shared/models/mongodb/*   (interfaces separate: shared/i
 MongoDB (replica set)
 ```
 
-Rules carried from the FR3SH starter (`farmers-republic/starter.md`):
+Rules carried from the KOMOLA starter (`farmers-republic/starter.md`):
 
 - All reusable code under `shared/`; route code under `app/`.
 - Every route calls `await mongoDB()` before any DB op; responses use `success()/failure()`.
@@ -41,7 +41,7 @@ Rules carried from the FR3SH starter (`farmers-republic/starter.md`):
 `shared/lib/api/client.ts` builds every request from `NEXT_PUBLIC_API_BASE_URL`
 (empty ⇒ this app's `/api/v1`). Each resource module (`auth`, `products`, `lots`,
 `inventory`, `registers`, `sales`, `categories`) exposes typed functions returning
-`ApiResult<T>`. To move onto the central FR3SH Go/Gin service:
+`ApiResult<T>`. To move onto the central KOMOLA Go/Gin service:
 
 1. Set `NEXT_PUBLIC_API_BASE_URL` to the Go service.
 2. If its envelope differs, adapt `normalize()` in `client.ts` (or add per-module adapters).
