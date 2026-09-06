@@ -1,5 +1,16 @@
 # KOMOLA Organic POS — Project Context
 
+> **⚠️ Partly superseded (2026-09).** Sections 2 (architecture), 3 (roles /
+> `pos_token`) and 5–8 describe the earlier embedded-Mongoose "thin vertical
+> slice". This app now has **no database and no local JWT**: `go-api-backend`
+> owns every read/write and authentication is **Supabase Auth** via
+> `@supabase/ssr`. `shared/models/mongodb/*` and the `pos_token` cookie no
+> longer exist. The current architecture, data model and seller-tenancy design
+> are in `go-api-backend/docs/pos-architecture.md`,
+> `go-api-backend/docs/authentication.md` and `go-api-backend/schemas/pos/`. The
+> purpose (§1), organic-trust intent (§4) and deferred-scope list (§9) still
+> read true.
+
 ## 1. Purpose
 
 A focused **seller-side** POS for verified-organic sellers (Brands, FPOs, individual

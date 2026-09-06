@@ -1,5 +1,13 @@
 # KOMOLA Organic POS — API (`/api/v1`)
 
+> **⚠️ Superseded (2026-09).** This document describes the earlier embedded
+> Mongoose slice, where this app served `/api/v1/*` itself and auth was a local
+> `pos_token` JWT cookie. That is gone. The API now lives in `go-api-backend`
+> (`/api/v1/pos/*` + `/api/v1/seller-organizations` + the Supabase auth
+> endpoints); this app is a database-free proxy + Supabase-SSR client. Use
+> `go-api-backend/openapi/openapi.yaml` and `go-api-backend/docs/` as the
+> current contract. The sections below are kept for history only.
+
 All responses use the standard envelope:
 
 ```jsonc
@@ -9,10 +17,11 @@ All responses use the standard envelope:
 { "success": false, "message": "…", "error": "…" }
 ```
 
-Auth is a JWT in the `httpOnly` cookie `pos_token`. The session payload carries
-`sub, email, name, role, orgId, orgType, locationId`. **Tenant scope (`orgId`,
-`locationId`) is taken from the session — never from the request.** List endpoints that
-paginate return `data.meta = { total, page, limit, totalPages }`.
+_(Historical.)_ Auth was a local JWT in the `httpOnly` cookie `pos_token`. It is
+now **Supabase Auth** — an `@supabase/ssr` cookie session; `go-api-backend`
+verifies the access token and derives all tenant scope (`orgId`, `locationId`)
+from server-side records, never the request. List endpoints that paginate return
+`data.meta = { total, page, limit, totalPages }`.
 
 Roles: `Admin | Owner | Manager | Cashier | InventoryManager`.
 

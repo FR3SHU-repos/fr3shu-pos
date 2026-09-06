@@ -2,6 +2,15 @@
 
 Dates are absolute. This build was done on 2026-09-04.
 
+> **⚠️ Superseded by the Go cutover (2026-09).** D4 (embedded `fr3sh_pos`
+> Mongoose database, `npm run seed`), D6 (`mongoose.models` model typing) and the
+> `pos_token`/bcrypt auth assumptions no longer hold. This app now has no
+> database and no local JWT; `go-api-backend` owns the POS runtime and Supabase
+> Auth owns identity. POS business data lives in a dedicated `fr3sh_pos`
+> **database on the Go backend's cluster** (see
+> `go-api-backend/docs/pos-architecture.md`), not an embedded one here. The
+> scope/tradeoff reasoning below is kept for history.
+
 ## Scope
 
 **D1 — Thin vertical slice only.** The full brief is ~a month of work (≈20 models, ~35

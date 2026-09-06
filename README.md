@@ -3,11 +3,16 @@
 A seller-side, mobile-first Point of Sale for **verified organic** products, built for
 organic brands, FPOs and farmers in Visakhapatnam. Part of the KOMOLA workspace.
 
-> **Scope of this build — thin vertical slice.** One working path end to end:
-> auth → minimal multi-tenancy → products & inventory → open a register → fast `/pos`
-> checkout with an atomic sale + payment + stock + movement transaction and idempotency.
-> Offline PWA sync, reporting, admin verification, returns/day-close UI and deep
-> certification enforcement are **deliberately deferred** — see [`DECISIONS.md`](./DECISIONS.md).
+> **⚠️ Architecture change (2026-09).** This app no longer has a database or a
+> local JWT. `go-api-backend` owns the entire POS runtime; authentication is
+> **Supabase Auth** via `@supabase/ssr` cookie sessions (the old `pos_token`
+> cookie and the embedded Mongoose models are gone). The browser calls
+> `go-api-backend` directly for Supabase-authenticated endpoints and via this
+> app's same-origin `/api/v1/pos/*` proxy for POS register/sale calls. Parts of
+> this README and of `POS-PROJECT-CONTEXT.md` / `API.md` / `DECISIONS.md` still
+> describe the earlier Mongoose "thin vertical slice" and are kept only for
+> history — the current source of truth is `go-api-backend/docs/` (see
+> `pos-architecture.md`, `authentication.md`).
 
 ## Stack
 
@@ -16,9 +21,9 @@ organic brands, FPOs and farmers in Visakhapatnam. Part of the KOMOLA workspace.
 | Framework | Next.js 16 (App Router, Turbopack) |
 | Language | TypeScript (strict) |
 | Styling | Tailwind CSS v4, semantic design tokens (`app/globals.css`) |
-| Data | MongoDB via Mongoose 8, `mongoDB()` singleton |
-| Auth | JWT in a `httpOnly` cookie (`pos_token`) |
-| Validation | Zod (server-side) |
+| Data | **None in this app.** `go-api-backend` owns every read/write (MongoDB `farmers_republic` + `fr3sh_pos`). |
+| Auth | **Supabase Auth** (`@supabase/ssr`, cookie PKCE sessions); Go API verifies the JWT and is the authorization boundary. |
+| Validation | Zod (client-side form hints); the Go API is authoritative. |
 | Icons | `lucide-react` |
 | Tests | Vitest (pure-function unit tests) |
 
@@ -28,7 +33,8 @@ base units** (grams / millilitres / count); the sale/display unit is kept separa
 ## Prerequisites
 
 - Node.js 24+
-- A MongoDB replica set (Atlas works out of the box — transactions require a replica set)
+- A running `go-api-backend` (local or deployed) and a Supabase project. This app
+  has no database and no seed script.
 
 ## Setup
 
@@ -38,23 +44,22 @@ npm install
 cp .env.example .env.local     # then fill in real values
 ```
 
-`.env.local` (never committed):
+`.env.local` (never committed) — see [`.env.example`](./.env.example) for the full list:
 
 | var | notes |
 |---|---|
-| `MONGODB_URI` | point at a database isolated from the other KOMOLA apps, e.g. `.../fr3sh_pos` |
-| `JWT_SECRET` | long random string (`node -e "console.log(require('crypto').randomBytes(48).toString('base64url'))"`) |
-| `JWT_EXPIRES_IN` / `JWT_COOKIE_MAX_AGE` | token + cookie lifetime (default `8h` / `28800`) |
-| `BCRYPT_SALT_ROUNDS` | default `12` |
-| `NEXT_PUBLIC_API_BASE_URL` | empty ⇒ same-origin `/api/v1`. Set to the KOMOLA Go/Gin service to swap backends. |
-| `POS_CASH_VARIANCE_NOTE_THRESHOLD_PAISE` | variance above which a close note is mandatory (default `20000` = ₹200) |
-| `SEED_*` | optional fixed dev credentials; otherwise the seed generates and prints them |
+| `NEXT_PUBLIC_API_BASE_URL` | **required** — the `go-api-backend` origin (no `/api/v1` suffix). |
+| `GO_API_BASE_URL` | optional server-only override for the `/api/v1/pos/*` proxy. |
+| `NEXT_PUBLIC_SUPABASE_URL` / `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | **required** — Supabase project URL + publishable/anon key. |
+| `APP_URL` | this app's public URL (OAuth `redirectTo`). |
+| `NEXT_PUBLIC_AUTH_GOOGLE_ENABLED` / `NEXT_PUBLIC_AUTH_WHATSAPP_ENABLED` | provider button flags (default `false`). |
+
+The service-role key must **never** be added here.
 
 ## Commands
 
 ```bash
 npm run dev         # start dev server (Turbopack)
-npm run seed        # wipe this app's collections and load demo data; prints credentials
 npm run lint        # eslint (0 errors required)
 npm run typecheck   # tsc --noEmit
 npm test            # vitest run
@@ -62,45 +67,38 @@ npm run build       # production build (Turbopack)
 npm start           # serve the production build
 ```
 
-## Seed & demo
+## Data & demo
 
-`npm run seed` creates: 1 platform Admin, a Brand + FPO + Farmer organisation, 2 locations
-(`GHBR1`, `GHMVP`), 2 registers, one user per role, categories, three certifications
-(valid NPOP / expiring PGS / pending), six organic products sold by kg / litre / bunch /
-pack, two lots per staple with different expiry dates, opening inventory at `GHBR1`, and
-one demo sale executed through the real transactional service.
+There is no local seed. Seller organizations, locations, catalogue, inventory
+and sales are created through `go-api-backend`. To stand up a demo seller:
 
-Credentials are printed at the end of the seed run. `SEED_ADMIN_PASSWORD`,
-`SEED_OWNER_PASSWORD` and `SEED_CASHIER_PASSWORD` can pin the important ones.
-
-## Pilot checklist (configure a real seller)
-
-1. **Seed or create** a `SellerOrganization` (`type` Brand / FPO / Farmer), then set it
-   `status: "Approved"`.
-2. Add at least one **`Location`** (unique `code` within the org) and one **`POSRegister`**
-   at that location.
-3. Create **users**: one `Owner` (all locations), and `Cashier` / `InventoryManager`
-   scoped to a location via `locationIds`.
-4. Add a **`Certification`** (`verificationStatus: "Approved"`, valid dates) and reference
-   it from each **`Product`**; set the product's `organicStatus` to `Verified` only when
-   the certificate is genuinely approved and in-window.
-5. Add a **`ProductPrice`** row per product per location (paise), or a `basePricePaise`
-   fallback on the product.
-6. **Receive lots** at the location (`/inventory/lots`) — this writes the `InventoryBalance`
-   and an opening/receipt `StockMovement`.
-7. **Open a register** with opening cash (`/register-sessions`), then sell from `/pos`.
-8. **Close the register** at end of day; enter counted cash and a note if variance is large.
+1. Sign in through Supabase (`/login`) and let `/auth/callback` reconcile the
+   identity.
+2. `POST /api/v1/seller-organizations` (via `shared/lib/api/sellerOrgs.ts`) —
+   creates the organization (`Pending`), a first location and an Owner
+   membership.
+3. An admin approves the organization in `go-api-backend` before it can sell.
+4. Add products, prices, lots and inventory through the Go API (later phase).
 
 ## Documentation
 
-- [`POS-PROJECT-CONTEXT.md`](./POS-PROJECT-CONTEXT.md) — architecture, roles, data model,
-  workflows, ER diagram, and the Go/Gin migration boundary.
-- [`API.md`](./API.md) — every `/api/v1` route, payloads, auth and idempotency rules.
-- [`DECISIONS.md`](./DECISIONS.md) — assumptions, trade-offs, and what was deferred.
+**Current source of truth — `go-api-backend`:**
+
+- `docs/pos-architecture.md` — databases, seller tenancy, the onboarding saga, endpoints.
+- `docs/authentication.md` — Supabase Auth boundary, roles, reconciliation.
+- `schemas/pos/` — POS collection/field/index contracts (`fr3sh_pos`).
+
+**Historical (pre-Go-cutover Mongoose slice) — kept for reference only:**
+
+- [`POS-PROJECT-CONTEXT.md`](./POS-PROJECT-CONTEXT.md), [`API.md`](./API.md),
+  [`DECISIONS.md`](./DECISIONS.md) — describe the earlier embedded-database
+  design; the `pos_token` cookie, `shared/models/mongodb/*` and `npm run seed`
+  referenced there no longer exist.
 
 ## Deployment notes
 
-- Needs a MongoDB **replica set** (Atlas). Standalone `mongod` cannot run the sale
-  transaction.
+- No database. Point `NEXT_PUBLIC_API_BASE_URL` at a deployed `go-api-backend`
+  and set the Supabase vars. `go-api-backend` needs a MongoDB replica set;
+  this app does not.
 - `next build` output is a standard Next.js server; deploy on any Node host.
 - Do not commit `.env.local`. `.env.example` ships placeholders only.
