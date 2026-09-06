@@ -7,9 +7,12 @@ import toast from "react-hot-toast";
 import { Loader2, Lock } from "lucide-react";
 
 import { usePosUser } from "@/shared/context/PosUserContext";
+import { authApi } from "@/shared/lib/api";
 import { cardCls, inputCls, primaryBtnCls } from "@/shared/components/ui";
 import { createAuthBrowserClient } from "@/shared/lib/supabase/auth-client";
 import { bridgeLogin, reconcileIdentity } from "@/shared/lib/auth/gin";
+import { ADMIN_HOME, isPlatformAdmin } from "@/shared/lib/auth/routing";
+import { getMyOrganization, sellerDestination } from "@/shared/lib/api/sellerOrgs";
 import {
   Divider,
   GoogleButton,
@@ -27,7 +30,7 @@ function LoginForm() {
   const router = useRouter();
   const params = useSearchParams();
   const next = safeNext(params.get("next"));
-  const { refresh } = usePosUser();
+  const { setUser } = usePosUser();
   const supabase = createAuthBrowserClient();
 
   const [email, setEmail] = useState("");
@@ -64,9 +67,23 @@ function LoginForm() {
       return;
     }
     await reconcileIdentity();
-    await refresh();
+    // Resolve platform authorization before applying seller-org routing. An
+    // Admin intentionally has no seller organization.
+    const profile = await authApi.me();
+    if (!profile.success || !profile.data) {
+      setBusy(false);
+      toast.error("Unable to load your account permissions.");
+      return;
+    }
+    setUser(profile.data);
+    if (isPlatformAdmin(profile.data)) {
+      setBusy(false);
+      router.replace(ADMIN_HOME);
+      return;
+    }
+    const org = await getMyOrganization();
     setBusy(false);
-    router.replace(next);
+    router.replace(org.status === 404 ? "/seller/onboarding" : sellerDestination(org.data?.approvalStatus) || next);
   }
 
   async function onGoogle() {
@@ -144,7 +161,7 @@ function LoginForm() {
         <p className="mt-5 text-center text-xs text-foreground-muted">
           Need an account?{" "}
           <Link href="/register" className="font-medium text-primary hover:underline">
-            Contact your administrator
+            Register as a seller
           </Link>
         </p>
       </div>

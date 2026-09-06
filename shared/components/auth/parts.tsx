@@ -2,6 +2,7 @@
 
 import { useId, useState } from "react";
 import { Eye, EyeOff } from "lucide-react";
+import { googleAuthEnabled, whatsappAuthEnabled } from "@/shared/lib/auth/providers";
 
 export const INPUT_CLS =
   "mt-1.5 w-full rounded-xl border border-border bg-surface px-4 py-2.5 text-sm text-foreground-heading placeholder:text-foreground-muted outline-none transition focus:border-primary focus:ring-4 focus:ring-primary/10";
@@ -96,7 +97,7 @@ export function GoogleButton({
   onClick: () => void;
   loading?: boolean;
 }) {
-  const enabled = process.env.NEXT_PUBLIC_AUTH_GOOGLE_ENABLED === "true";
+  const enabled = googleAuthEnabled();
   return (
     <button
       type="button"
@@ -114,7 +115,9 @@ export function GoogleButton({
 
 /** "Continue with WhatsApp" — disabled pill while the feature flag is off. */
 export function WhatsAppButton() {
-  const enabled = process.env.NEXT_PUBLIC_AUTH_WHATSAPP_ENABLED === "true";
+  // Session issuance through Supabase has not received architectural approval;
+  // keep discovery visible but fail closed even if a flag is set accidentally.
+  const enabled = whatsappAuthEnabled();
   return (
     <button
       type="button"

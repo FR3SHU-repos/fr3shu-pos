@@ -13,9 +13,9 @@
 import { request, type ApiResult } from "./client";
 
 export type SellerOrgType = "Farmer" | "FPO" | "Retailer" | "Brand";
-export type SellerOrgStatus = "Pending" | "Approved" | "Suspended";
+export type SellerOrgStatus = "Pending" | "Approved" | "Rejected" | "Suspended";
 export type OnboardingState = "provisioning" | "linked" | "complete";
-export type MembershipRole = "Owner" | "Manager" | "Cashier" | "InventoryManager";
+export type MembershipRole = "SellerOwner" | "Manager" | "Cashier" | "InventoryManager";
 
 export interface SellerAddress {
   line1?: string;
@@ -72,6 +72,7 @@ export interface RegisterSellerBody {
   organization: {
     legalName: string;
     displayName?: string;
+    contactName: string;
     type: SellerOrgType;
     phoneE164?: string;
     whatsappPhoneE164?: string;
@@ -98,14 +99,27 @@ export interface OnboardingResult {
 }
 
 export interface MyOrganization {
+  organizationId: string;
+  displayName: string;
+  sellerType: SellerOrgType;
+  approvalStatus: SellerOrgStatus;
+  onboardingComplete: boolean;
+  rejectionReason?: string | null;
   organization: SellerOrganization;
   locations: PosLocation[];
   membership: OrganizationMembership | null;
 }
 
+export function sellerDestination(status?: SellerOrgStatus): string {
+  if (!status) return "/seller/onboarding";
+  if (status === "Approved") return "/dashboard";
+  if (status === "Rejected") return "/seller/rejected";
+  return status === "Pending" ? "/seller/pending" : "/seller/suspended";
+}
+
 /**
  * Register the current Supabase user as a seller: creates the organization
- * (status `Pending`), its first location, and an Owner membership, then links
+ * (immediately active), its first location, and an Owner membership, then links
  * the org to the canonical user. Idempotent — calling again returns the
  * existing organization (`reused: true`).
  *
@@ -127,6 +141,27 @@ export function registerSeller(
 /** The caller's organization, its locations, and their membership. 404 if none. */
 export function getMyOrganization(): Promise<ApiResult<MyOrganization>> {
   return request<MyOrganization>("seller-organizations/me");
+}
+
+/** Platform-admin view of seller organizations and their access states. */
+export function listSellerApplications(
+  status?: SellerOrgStatus,
+): Promise<ApiResult<{ items: SellerOrganization[] }>> {
+  return request<{ items: SellerOrganization[] }>("admin/seller-applications", {
+    query: { status },
+  });
+}
+
+/** Restrict or reactivate a seller organization. */
+export function setSellerAccess(
+  organizationId: string,
+  decision: "Approved" | "Rejected" | "Suspended",
+  reason = "",
+): Promise<ApiResult<{ organizationId: string; approvalStatus: SellerOrgStatus }>> {
+  return request(`admin/seller-applications/${encodeURIComponent(organizationId)}`, {
+    method: "PATCH",
+    body: { decision, reason },
+  });
 }
 
 /** Add a POS location to an organization the caller owns or manages. */

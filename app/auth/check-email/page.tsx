@@ -1,0 +1,2 @@
+import Link from "next/link";
+export default function CheckEmailPage(){return <main className="grid min-h-screen place-items-center bg-surface p-4"><section className="max-w-md rounded-xl bg-white p-8 text-center shadow"><h1 className="text-xl font-semibold">Check your email</h1><p className="mt-3 text-sm text-foreground-muted">Open the verification link to continue your Komola seller application.</p><Link className="mt-5 inline-block text-primary" href="/login">Return to sign in</Link></section></main>}

@@ -1,0 +1,3 @@
+"use client";
+import { useEffect,useState } from "react"; import { getMyOrganization } from "@/shared/lib/api/sellerOrgs";
+export default function Rejected(){const [reason,setReason]=useState<string|null>(null);useEffect(()=>{getMyOrganization().then(x=>setReason(x.data?.rejectionReason||null))},[]);return <main className="grid min-h-screen place-items-center bg-surface p-4"><section className="rounded-xl bg-white p-8 text-center shadow"><h1 className="text-xl font-semibold">Seller access restricted</h1><p className="mt-3 text-sm text-foreground-muted">{reason||"This account was explicitly restricted. Contact support for more information."}</p></section></main>}

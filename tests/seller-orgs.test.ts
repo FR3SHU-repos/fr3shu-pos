@@ -3,11 +3,12 @@ import {
   createLocation,
   isLinkPending,
   registerSeller,
+  sellerDestination,
   type RegisterSellerBody,
 } from "@/shared/lib/api/sellerOrgs";
 
 const body: RegisterSellerBody = {
-  organization: { legalName: "Green Harvest FPO", type: "FPO" },
+  organization: { legalName: "Green Harvest FPO", contactName: "Test Owner", type: "FPO" },
   location: { code: "GHMVP", name: "MVP Stall" },
 };
 
@@ -30,13 +31,13 @@ describe("sellerOrgs client", () => {
     const fetchMock = mockFetchOnce(201, {
       success: true,
       message: "ok",
-      data: { organization: { id: "o1", status: "Pending" }, created: true, reused: false },
+      data: { organization: { id: "o1", status: "Approved" }, created: true, reused: false },
     });
 
     const res = await registerSeller(body, "idem-123");
 
     expect(res.success).toBe(true);
-    expect(res.data?.organization.status).toBe("Pending");
+    expect(res.data?.organization.status).toBe("Approved");
     const [url, init] = fetchMock.mock.calls[0];
     expect(String(url)).toMatch(/\/api\/v1\/seller-organizations$/);
     expect(init?.method).toBe("POST");
@@ -58,5 +59,13 @@ describe("sellerOrgs client", () => {
 
     const [url] = fetchMock.mock.calls[0];
     expect(String(url)).toMatch(/\/seller-organizations\/org%2F1\/locations$/);
+  });
+
+  it("routes every approval state safely", () => {
+    expect(sellerDestination()).toBe("/seller/onboarding");
+    expect(sellerDestination("Pending")).toBe("/seller/pending");
+    expect(sellerDestination("Approved")).toBe("/dashboard");
+    expect(sellerDestination("Rejected")).toBe("/seller/rejected");
+    expect(sellerDestination("Suspended")).toBe("/seller/suspended");
   });
 });

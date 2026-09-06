@@ -9,7 +9,8 @@ export type PosRole =
   | "Cashier"
   | "InventoryManager"
   | "StoreOwner"
-  | "StoreManager";
+  | "StoreManager"
+  | "SellerOwner";
 
 export type SellerOrgType = "Brand" | "FPO" | "Farmer";
 
