@@ -6,7 +6,7 @@ import toast from "react-hot-toast";
 import { Loader2 } from "lucide-react";
 import { categoriesApi, productsApi } from "@/shared/lib/api";
 import type { CategoryDTO } from "@/shared/lib/api/categories";
-import { BASE_PER_SALE_UNIT, SALE_UNIT_BASE, type SaleUnit } from "@/shared/lib/units";
+import { type SaleUnit } from "@/shared/lib/units";
 import { rupeesToPaise } from "@/shared/lib/money";
 import {
   cardCls,
@@ -67,8 +67,6 @@ export default function NewProductPage() {
       barcode: form.barcode.trim() || undefined,
       categoryId: form.categoryId || undefined,
       saleUnit: form.saleUnit,
-      baseUnit: SALE_UNIT_BASE[form.saleUnit],
-      basePerSaleUnit: BASE_PER_SALE_UNIT[form.saleUnit],
       taxRateBps: Math.round(Number(form.taxRatePct || 0) * 100),
       basePricePaise: form.basePriceRupees
         ? rupeesToPaise(Number(form.basePriceRupees))

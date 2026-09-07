@@ -50,12 +50,20 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
 
   async function save(e: React.FormEvent) {
     e.preventDefault();
-    if (busy) return;
+    if (busy || !product) return;
     setBusy(true);
     const res = await productsApi.update(id, {
+      name: product.name,
+      sku: product.sku,
+      barcode: product.barcode,
+      description: product.description,
+      categoryId: product.categoryId,
+      saleUnit: product.saleUnit,
       basePricePaise: priceRupees ? rupeesToPaise(Number(priceRupees)) : undefined,
+      taxRateBps: product.taxRateBps,
       organicStatus,
       status,
+      isPinned: product.isPinned,
     });
     setBusy(false);
     if (!res.success || !res.data) return toast.error(res.message);

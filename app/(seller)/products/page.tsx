@@ -18,21 +18,23 @@ import { formatPaise } from "@/shared/lib/money";
 export default function ProductsPage() {
   const [items, setItems] = useState<ProductDTO[]>([]);
   const [q, setQ] = useState("");
+  const [page, setPage] = useState(1);
+  const [pages, setPages] = useState(0);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const ctrl = new AbortController();
     const timer = setTimeout(async () => {
       setLoading(true);
-      const res = await productsApi.list({ q: q || undefined, limit: 50 });
-      if (res.success && res.data) setItems(res.data.items);
+      const res = await productsApi.list({ q: q || undefined, page, limit: 50, signal: ctrl.signal });
+      if (res.success && res.data) { setItems(res.data.items); setPages(res.data.meta.totalPages); }
       setLoading(false);
     }, 250);
     return () => {
       clearTimeout(timer);
       ctrl.abort();
     };
-  }, [q]);
+  }, [q, page]);
 
   return (
     <div className="mx-auto max-w-4xl space-y-5">
@@ -48,8 +50,8 @@ export default function ProductsPage() {
         <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-foreground-muted" />
         <input
           value={q}
-          onChange={(e) => setQ(e.target.value)}
-          placeholder="Search by name, SKU or barcode"
+          onChange={(e) => { setQ(e.target.value); setPage(1); }}
+          placeholder="Search by product name"
           className={`${inputCls} pl-9`}
         />
       </div>
@@ -94,6 +96,7 @@ export default function ProductsPage() {
               </li>
             ))}
           </ul>
+          {pages > 1 ? <div className="flex items-center justify-between border-t border-border pt-3 text-sm"><button disabled={page<=1} onClick={()=>setPage((p)=>p-1)}>Previous</button><span>Page {page} of {pages}</span><button disabled={page>=pages} onClick={()=>setPage((p)=>p+1)}>Next</button></div> : null}
         </div>
       )}
     </div>

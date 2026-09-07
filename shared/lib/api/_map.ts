@@ -43,13 +43,17 @@ export interface GoProduct {
   name: string;
   category: string;
   unit: string;
-  packQuantity: number;
-  unitPriceMinor: number;
+  packQuantity?: number;
+  unitPriceMinor: number | null;
   taxRateBps: number;
-  availableQty: string;
-  available: boolean;
-  lots: Array<{ lotId?: string; lotCode?: string; qty: string; expiresAt?: string }>;
+  availableQty?: string;
+  available?: boolean;
+  lots?: Array<{ lotId?: string; lotCode?: string; qty: string; expiresAt?: string }>;
   status: string;
+  description?: string;
+  categoryId?: string;
+  organicStatus?: OrganicStatus;
+  isPinned?: boolean;
 }
 
 export type OrganicStatus =
@@ -92,15 +96,17 @@ export function mapProduct(p: GoProduct): ProductDTO {
     saleUnit: (p.unit || "piece") as SaleUnit,
     baseUnit: unitBase(p.unit),
     basePerSaleUnit: unitFactor(p.unit),
-    basePricePaise: p.unitPriceMinor || undefined,
+    basePricePaise: p.unitPriceMinor ?? undefined,
     taxRateBps: p.taxRateBps ?? 0,
+    categoryId: p.categoryId || undefined,
     category: p.category || undefined,
-    organicStatus: "PendingVerification",
+    description: p.description || undefined,
+    organicStatus: p.organicStatus ?? "PendingVerification",
     status: (["active", "inactive", "archived"].includes(p.status) ? p.status : "active") as ProductStatus,
     // The POS quick-pick grid keys off `isPinned`; use in-stock as the stand-in
     // since the canonical catalogue does not carry a POS pin flag.
-    isPinned: !!p.available,
-    availableBase: Math.round(Number(p.availableQty || 0) * unitFactor(p.unit)),
+    isPinned: p.isPinned ?? false,
+    availableBase: Math.round(Number(p.availableQty ?? 0) * unitFactor(p.unit)),
   };
 }
 

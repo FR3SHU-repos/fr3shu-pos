@@ -67,7 +67,7 @@ export default function PosPage() {
   const load = useCallback(async () => {
     const [ov, pl] = await Promise.all([
       registersApi.overview(),
-      productsApi.list({ limit: 200, status: "active" }),
+      productsApi.list({ limit: 12, status: "active" }),
     ]);
     if (ov.success && ov.data) setSession(ov.data.currentSession);
     if (pl.success && pl.data) setCatalog(pl.data.items);
@@ -91,18 +91,16 @@ export default function PosPage() {
     searchRef.current?.focus();
   }, [loading]);
 
-  const results = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    if (!q) return catalog.filter((p) => p.isPinned).slice(0, 12);
-    return catalog
-      .filter(
-        (p) =>
-          p.name.toLowerCase().includes(q) ||
-          p.sku.toLowerCase().includes(q) ||
-          (p.barcode ?? "").toLowerCase().includes(q),
-      )
-      .slice(0, 24);
-  }, [catalog, query]);
+  useEffect(() => {
+    const ctrl = new AbortController();
+    const timer = setTimeout(async () => {
+      const res = await productsApi.list({ q: query.trim() || undefined, limit: query.trim() ? 24 : 12, signal: ctrl.signal });
+      if (res.success && res.data) setCatalog(res.data.items);
+    }, 250);
+    return () => { clearTimeout(timer); ctrl.abort(); };
+  }, [query]);
+
+  const results = catalog;
 
   const lineTotals = useMemo(
     () =>
@@ -142,14 +140,13 @@ export default function PosPage() {
     searchRef.current?.focus();
   }
 
-  function onSearchKey(e: React.KeyboardEvent<HTMLInputElement>) {
+  async function onSearchKey(e: React.KeyboardEvent<HTMLInputElement>) {
     if (e.key !== "Enter") return;
-    const q = query.trim().toLowerCase();
+    const q = query.trim();
     if (!q) return;
-    const exact =
-      catalog.find((p) => (p.barcode ?? "").toLowerCase() === q) ??
-      catalog.find((p) => p.sku.toLowerCase() === q) ??
-      results[0];
+    const byBarcode = await productsApi.lookup({ barcode: q });
+    const bySKU = byBarcode.success ? byBarcode : await productsApi.lookup({ sku: q });
+    const exact = bySKU.data ?? results[0];
     if (exact) addProduct(exact);
   }
 
