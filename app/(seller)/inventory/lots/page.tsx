@@ -17,11 +17,8 @@ import {
 } from "@/shared/components/ui";
 import { toBaseQuantity, formatBaseQuantity, type SaleUnit } from "@/shared/lib/units";
 
-const RECEIVABLE_ROLES = ["Owner", "Manager", "InventoryManager", "Admin"];
-
 export default function LotsPage() {
   const { user } = usePosUser();
-  const canReceive = !!user && RECEIVABLE_ROLES.includes(user.role);
   const locationId = user?.locationId ?? "";
 
   const [lots, setLots] = useState<LotDTO[]>([]);
@@ -90,91 +87,89 @@ export default function LotsPage() {
     <div className="mx-auto max-w-4xl space-y-6">
       <h1 className="text-xl font-semibold text-foreground-heading">Inventory &amp; lots</h1>
 
-      {canReceive ? (
-        <section className={cardCls}>
-          <h2 className="mb-3 text-sm font-semibold text-foreground-heading">Receive a lot</h2>
-          {products.length === 0 ? (
-            <p className="text-sm text-foreground-muted">Create a product first.</p>
-          ) : (
-            <form onSubmit={receive} className="grid gap-3 sm:grid-cols-2">
-              <div className="sm:col-span-2">
-                <Label>Product</Label>
+      <section className={cardCls}>
+        <h2 className="mb-3 text-sm font-semibold text-foreground-heading">Receive a lot</h2>
+        {products.length === 0 ? (
+          <p className="text-sm text-foreground-muted">Create a product first.</p>
+        ) : (
+          <form onSubmit={receive} className="grid gap-3 sm:grid-cols-2">
+            <div className="sm:col-span-2">
+              <Label>Product</Label>
+              <select
+                value={form.productId}
+                onChange={(e) => setForm((f) => ({ ...f, productId: e.target.value }))}
+                className={inputCls}
+              >
+                {products.map((p) => (
+                  <option key={p._id} value={p._id}>
+                    {p.name} ({p.sku})
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <Label>Lot code</Label>
+              <input
+                required
+                value={form.lotCode}
+                onChange={(e) => setForm((f) => ({ ...f, lotCode: e.target.value }))}
+                className={inputCls}
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <Label>Quantity</Label>
+                <input
+                  type="number"
+                  min="0"
+                  step="0.001"
+                  required
+                  value={form.qty}
+                  onChange={(e) => setForm((f) => ({ ...f, qty: e.target.value }))}
+                  className={inputCls}
+                />
+              </div>
+              <div>
+                <Label>Unit</Label>
                 <select
-                  value={form.productId}
-                  onChange={(e) => setForm((f) => ({ ...f, productId: e.target.value }))}
+                  value={form.unit}
+                  onChange={(e) => setForm((f) => ({ ...f, unit: e.target.value as SaleUnit }))}
                   className={inputCls}
                 >
-                  {products.map((p) => (
-                    <option key={p._id} value={p._id}>
-                      {p.name} ({p.sku})
+                  {(["kg", "g", "l", "ml", "piece", "bunch", "pack"] as SaleUnit[]).map((u) => (
+                    <option key={u} value={u}>
+                      {u}
                     </option>
                   ))}
                 </select>
               </div>
-              <div>
-                <Label>Lot code</Label>
-                <input
-                  required
-                  value={form.lotCode}
-                  onChange={(e) => setForm((f) => ({ ...f, lotCode: e.target.value }))}
-                  className={inputCls}
-                />
-              </div>
-              <div className="grid grid-cols-2 gap-2">
-                <div>
-                  <Label>Quantity</Label>
-                  <input
-                    type="number"
-                    min="0"
-                    step="0.001"
-                    required
-                    value={form.qty}
-                    onChange={(e) => setForm((f) => ({ ...f, qty: e.target.value }))}
-                    className={inputCls}
-                  />
-                </div>
-                <div>
-                  <Label>Unit</Label>
-                  <select
-                    value={form.unit}
-                    onChange={(e) => setForm((f) => ({ ...f, unit: e.target.value as SaleUnit }))}
-                    className={inputCls}
-                  >
-                    {(["kg", "g", "l", "ml", "piece", "bunch", "pack"] as SaleUnit[]).map((u) => (
-                      <option key={u} value={u}>
-                        {u}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-              <div>
-                <Label>Producer / farm name</Label>
-                <input
-                  value={form.producerName}
-                  onChange={(e) => setForm((f) => ({ ...f, producerName: e.target.value }))}
-                  className={inputCls}
-                />
-              </div>
-              <div>
-                <Label>Expiry / best-before</Label>
-                <input
-                  type="date"
-                  value={form.expiryDate}
-                  onChange={(e) => setForm((f) => ({ ...f, expiryDate: e.target.value }))}
-                  className={inputCls}
-                />
-              </div>
-              <div className="sm:col-span-2">
-                <button type="submit" disabled={busy} className={primaryBtnCls}>
-                  {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-                  Receive lot
-                </button>
-              </div>
-            </form>
-          )}
-        </section>
-      ) : null}
+            </div>
+            <div>
+              <Label>Producer / farm name</Label>
+              <input
+                value={form.producerName}
+                onChange={(e) => setForm((f) => ({ ...f, producerName: e.target.value }))}
+                className={inputCls}
+              />
+            </div>
+            <div>
+              <Label>Expiry / best-before</Label>
+              <input
+                type="date"
+                value={form.expiryDate}
+                onChange={(e) => setForm((f) => ({ ...f, expiryDate: e.target.value }))}
+                className={inputCls}
+              />
+            </div>
+            <div className="sm:col-span-2">
+              <button type="submit" disabled={busy} className={primaryBtnCls}>
+                {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                Receive lot
+              </button>
+            </div>
+          </form>
+        )}
+      </section>
 
       <section className={cardCls}>
         <h2 className="mb-3 text-sm font-semibold text-foreground-heading">

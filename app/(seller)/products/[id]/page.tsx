@@ -8,7 +8,6 @@ import { productsApi } from "@/shared/lib/api";
 import type { ProductDTO } from "@/shared/lib/api/products";
 import { rupeesToPaise, paiseToRupees } from "@/shared/lib/money";
 import { cardCls, ghostBtnCls, inputCls, primaryBtnCls, Skeleton, StatusBadge } from "@/shared/components/ui";
-import { usePosUser } from "@/shared/context/PosUserContext";
 
 const ORGANIC = [
   "Verified",
@@ -22,8 +21,6 @@ const ORGANIC = [
 export default function ProductDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const router = useRouter();
-  const { user } = usePosUser();
-  const canEdit = !!user && ["Owner", "Manager", "Admin"].includes(user.role);
 
   const [product, setProduct] = useState<ProductDTO | null>(null);
   const [loading, setLoading] = useState(true);
@@ -95,7 +92,6 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
             type="number"
             min="0"
             step="0.01"
-            disabled={!canEdit}
             value={priceRupees}
             onChange={(e) => setPriceRupees(e.target.value)}
             className={inputCls}
@@ -104,7 +100,6 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
         <div>
           <label className="mb-1 block text-xs font-medium text-foreground-body">Organic status</label>
           <select
-            disabled={!canEdit}
             value={organicStatus}
             onChange={(e) => setOrganicStatus(e.target.value as (typeof ORGANIC)[number])}
             className={inputCls}
@@ -119,7 +114,6 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
         <div>
           <label className="mb-1 block text-xs font-medium text-foreground-body">Status</label>
           <select
-            disabled={!canEdit}
             value={status}
             onChange={(e) => setStatus(e.target.value as typeof status)}
             className={inputCls}
@@ -130,19 +124,15 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
           </select>
         </div>
 
-        {canEdit ? (
-          <div className="flex gap-2">
-            <button type="submit" disabled={busy} className={primaryBtnCls}>
-              {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-              Save changes
-            </button>
-            <button type="button" onClick={() => router.push("/products")} className={ghostBtnCls}>
-              Back
-            </button>
-          </div>
-        ) : (
-          <p className="text-xs text-foreground-muted">Your role cannot edit products.</p>
-        )}
+        <div className="flex gap-2">
+          <button type="submit" disabled={busy} className={primaryBtnCls}>
+            {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+            Save changes
+          </button>
+          <button type="button" onClick={() => router.push("/products")} className={ghostBtnCls}>
+            Back
+          </button>
+        </div>
       </form>
     </div>
   );

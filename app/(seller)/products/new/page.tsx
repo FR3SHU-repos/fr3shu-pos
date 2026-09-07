@@ -12,10 +12,8 @@ import {
   cardCls,
   ghostBtnCls,
   inputCls,
-  PermissionDenied,
   primaryBtnCls,
 } from "@/shared/components/ui";
-import { usePosUser } from "@/shared/context/PosUserContext";
 
 const SALE_UNITS: SaleUnit[] = ["kg", "g", "l", "ml", "piece", "bunch", "pack"];
 const ORGANIC = [
@@ -29,7 +27,6 @@ const ORGANIC = [
 
 export default function NewProductPage() {
   const router = useRouter();
-  const { user } = usePosUser();
   const [categories, setCategories] = useState<CategoryDTO[]>([]);
   const [busy, setBusy] = useState(false);
 
@@ -49,10 +46,6 @@ export default function NewProductPage() {
       if (res.success && res.data) setCategories(res.data.items);
     });
   }, []);
-
-  if (user && !["Owner", "Manager", "Admin"].includes(user.role)) {
-    return <PermissionDenied />;
-  }
 
   const set = <K extends keyof typeof form>(k: K, v: (typeof form)[K]) =>
     setForm((f) => ({ ...f, [k]: v }));
