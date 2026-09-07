@@ -54,6 +54,27 @@ export interface GoProduct {
   categoryId?: string;
   organicStatus?: OrganicStatus;
   isPinned?: boolean;
+  producer?: Producer | null;
+}
+
+/** Where a product comes from: the seller's own farm, or an external supplier. */
+export type ProducerKind = "self" | "supplier";
+export interface Producer {
+  /** Set when the farmer is an existing row in the org's directory. */
+  supplierId?: string;
+  kind: ProducerKind;
+  name?: string;
+  phone?: string;
+  village?: string;
+}
+
+/** One farmer/supplier in the org's directory. */
+export interface SupplierDTO {
+  id: string;
+  name: string;
+  phone?: string;
+  village?: string;
+  isSelf: boolean;
 }
 
 export type OrganicStatus =
@@ -84,6 +105,7 @@ export interface ProductDTO {
   status: ProductStatus;
   isPinned: boolean;
   availableBase: number;
+  producer?: Producer;
 }
 
 export function mapProduct(p: GoProduct): ProductDTO {
@@ -107,6 +129,7 @@ export function mapProduct(p: GoProduct): ProductDTO {
     // since the canonical catalogue does not carry a POS pin flag.
     isPinned: p.isPinned ?? false,
     availableBase: Math.round(Number(p.availableQty ?? 0) * unitFactor(p.unit)),
+    producer: p.producer ?? undefined,
   };
 }
 

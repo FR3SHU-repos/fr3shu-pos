@@ -4,8 +4,9 @@ import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
 import { Loader2 } from "lucide-react";
-import { categoriesApi, productsApi } from "@/shared/lib/api";
+import { categoriesApi, productsApi, suppliersApi } from "@/shared/lib/api";
 import type { CategoryDTO } from "@/shared/lib/api/categories";
+import type { Producer, SupplierDTO } from "@/shared/lib/api/products";
 import { type SaleUnit } from "@/shared/lib/units";
 import { rupeesToPaise } from "@/shared/lib/money";
 import {
@@ -14,6 +15,7 @@ import {
   inputCls,
   primaryBtnCls,
 } from "@/shared/components/ui";
+import { ProducerFields, toProducerPayload } from "@/shared/components/products/ProducerFields";
 
 const SALE_UNITS: SaleUnit[] = ["kg", "g", "l", "ml", "piece", "bunch", "pack"];
 const ORGANIC = [
@@ -28,7 +30,9 @@ const ORGANIC = [
 export default function NewProductPage() {
   const router = useRouter();
   const [categories, setCategories] = useState<CategoryDTO[]>([]);
+  const [suppliers, setSuppliers] = useState<SupplierDTO[]>([]);
   const [busy, setBusy] = useState(false);
+  const [producer, setProducer] = useState<Producer>({ kind: "self" });
 
   const [form, setForm] = useState({
     name: "",
@@ -44,6 +48,9 @@ export default function NewProductPage() {
   useEffect(() => {
     categoriesApi.list().then((res) => {
       if (res.success && res.data) setCategories(res.data.items);
+    });
+    suppliersApi.list().then((res) => {
+      if (res.success && res.data) setSuppliers(res.data.items);
     });
   }, []);
 
@@ -66,6 +73,7 @@ export default function NewProductPage() {
         : undefined,
       organicStatus: form.organicStatus,
       isPinned: false,
+      producer: toProducerPayload(producer),
     });
     setBusy(false);
     if (!res.success || !res.data) return toast.error(res.message);
@@ -148,6 +156,8 @@ export default function NewProductPage() {
             Only <strong>Verified</strong> products are labelled as certified organic on receipts.
           </p>
         </div>
+
+        <ProducerFields value={producer} onChange={setProducer} suppliers={suppliers} />
 
         <div className="flex gap-2 pt-2">
           <button type="submit" disabled={busy} className={primaryBtnCls}>

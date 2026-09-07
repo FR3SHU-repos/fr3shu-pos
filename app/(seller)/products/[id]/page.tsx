@@ -4,10 +4,11 @@ import React, { use, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
 import { Loader2 } from "lucide-react";
-import { productsApi } from "@/shared/lib/api";
-import type { ProductDTO } from "@/shared/lib/api/products";
+import { productsApi, suppliersApi } from "@/shared/lib/api";
+import type { Producer, ProductDTO, SupplierDTO } from "@/shared/lib/api/products";
 import { rupeesToPaise, paiseToRupees } from "@/shared/lib/money";
 import { cardCls, ghostBtnCls, inputCls, primaryBtnCls, Skeleton, StatusBadge } from "@/shared/components/ui";
+import { ProducerFields, toProducerPayload } from "@/shared/components/products/ProducerFields";
 
 const ORGANIC = [
   "Verified",
@@ -28,8 +29,13 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
   const [priceRupees, setPriceRupees] = useState("");
   const [organicStatus, setOrganicStatus] = useState<(typeof ORGANIC)[number]>("PendingVerification");
   const [status, setStatus] = useState<"active" | "inactive" | "archived">("active");
+  const [producer, setProducer] = useState<Producer>({ kind: "self" });
+  const [suppliers, setSuppliers] = useState<SupplierDTO[]>([]);
 
   useEffect(() => {
+    suppliersApi.list().then((res) => {
+      if (res.success && res.data) setSuppliers(res.data.items);
+    });
     productsApi.get(id).then((res) => {
       if (res.success && res.data) {
         setProduct(res.data);
@@ -40,6 +46,7 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
         );
         setOrganicStatus(res.data.organicStatus);
         setStatus(res.data.status ?? "active");
+        setProducer(res.data.producer ?? { kind: "self" });
       }
       setLoading(false);
     });
@@ -61,6 +68,7 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
       organicStatus,
       status,
       isPinned: product.isPinned,
+      producer: toProducerPayload(producer),
     });
     setBusy(false);
     if (!res.success || !res.data) return toast.error(res.message);
@@ -123,6 +131,8 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
             <option value="archived">archived</option>
           </select>
         </div>
+
+        <ProducerFields value={producer} onChange={setProducer} suppliers={suppliers} />
 
         <div className="flex gap-2">
           <button type="submit" disabled={busy} className={primaryBtnCls}>

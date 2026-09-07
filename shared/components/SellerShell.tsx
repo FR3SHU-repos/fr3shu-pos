@@ -14,6 +14,7 @@ import {
   Menu,
   X,
 } from "lucide-react";
+// Boxes now labels "Stock"; the old warehouse-style "Inventory & lots" screen is gone.
 import { cx } from "@/shared/lib/utils";
 import { usePosUser } from "@/shared/context/PosUserContext";
 import { Skeleton } from "@/shared/components/ui";
@@ -24,7 +25,7 @@ const NAV = [
   { href: "/pos/history", label: "Sales history", icon: ReceiptText },
   { href: "/register-sessions", label: "Register sessions", icon: Calculator },
   { href: "/products", label: "Products", icon: Package },
-  { href: "/inventory/lots", label: "Inventory & lots", icon: Boxes },
+  { href: "/stock", label: "Stock", icon: Boxes },
 ];
 
 export default function SellerShell({ children }: { children: React.ReactNode }) {

@@ -1,8 +1,15 @@
 import { goRequest, type ApiResult } from "./client";
-import { mapProduct, type GoProduct, type ProductDTO } from "./_map";
+import {
+  mapProduct,
+  type GoProduct,
+  type Producer,
+  type ProducerKind,
+  type ProductDTO,
+  type SupplierDTO,
+} from "./_map";
 import type { PageMeta } from "@/app/api/v1/utils/responses";
 
-export type { ProductDTO };
+export type { ProductDTO, Producer, ProducerKind, SupplierDTO };
 
 export interface ProductListResult {
   items: ProductDTO[];
@@ -20,6 +27,7 @@ export interface ProductMutation {
   organicStatus: ProductDTO["organicStatus"];
   status?: ProductDTO["status"];
   isPinned?: boolean;
+  producer?: Producer;
 }
 
 export const list = async (params?: {

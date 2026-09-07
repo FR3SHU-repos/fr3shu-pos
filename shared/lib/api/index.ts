@@ -1,8 +1,9 @@
 export * as authApi from "./auth";
 export * as productsApi from "./products";
 export * as categoriesApi from "./categories";
-export * as lotsApi from "./lots";
+export * as suppliersApi from "./suppliers";
 export * as inventoryApi from "./inventory";
+export * as stockApi from "./stock";
 export * as registersApi from "./registers";
 export * as salesApi from "./sales";
 export * as sellerOrgsApi from "./sellerOrgs";
