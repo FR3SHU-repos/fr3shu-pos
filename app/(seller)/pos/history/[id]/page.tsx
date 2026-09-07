@@ -25,6 +25,11 @@ export default function SaleDetailPage({ params }: { params: Promise<{ id: strin
   if (!detail) return <p className="text-sm text-foreground-muted">Sale not found.</p>;
 
   const { sale, payments } = detail;
+  const receiptPayments = payments.map((p) => ({
+    method: p.method === "cash" ? "Cash" : (p.method || "Paid").toUpperCase(),
+    amountPaise: p.amountPaise,
+    reference: p.upiRef,
+  }));
 
   return (
     <div className="mx-auto max-w-md space-y-4">
@@ -43,7 +48,7 @@ export default function SaleDetailPage({ params }: { params: Promise<{ id: strin
         <StatusBadge status={sale.status} />
       </div>
 
-      <ReceiptView sale={sale} />
+      <ReceiptView sale={sale} payments={receiptPayments} />
 
       <div className="rounded-xl border border-border bg-surface-card p-4 text-sm no-print">
         <h2 className="mb-2 font-semibold text-foreground-heading">Payments</h2>

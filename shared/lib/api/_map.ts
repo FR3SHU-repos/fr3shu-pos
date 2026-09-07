@@ -294,7 +294,6 @@ export interface SaleItemDTO {
   taxRateBps: number;
   taxPaise: number;
   netPaise: number;
-  organic: { isVerifiedOrganic: boolean };
 }
 
 export interface SaleDTO {
@@ -335,7 +334,6 @@ function mapLine(l: GoSaleLine): SaleItemDTO {
     taxRateBps: l.taxRateBps,
     taxPaise: l.taxMinor,
     netPaise: l.netMinor,
-    organic: { isVerifiedOrganic: false },
   };
 }
 

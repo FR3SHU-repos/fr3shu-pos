@@ -5,7 +5,7 @@ import { Toaster } from "react-hot-toast";
 
 export const metadata: Metadata = {
   title: process.env.NEXT_PUBLIC_APP_NAME ?? "KOMOLA Organic POS",
-  description: "Seller-side Point of Sale for verified organic products.",
+  description: "Seller-side Point of Sale for small organic sellers.",
   manifest: "/manifest.webmanifest",
   applicationName: "KOMOLA Organic POS",
   appleWebApp: { capable: true, title: "KOMOLA POS", statusBarStyle: "default" },

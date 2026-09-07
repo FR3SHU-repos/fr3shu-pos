@@ -37,12 +37,11 @@ const en: Dict = {
   "pos.print_receipt": "Print receipt",
   "pos.hold": "Hold",
   "pos.resume": "Resume held cart",
-  "pos.customer_phone": "Customer phone (optional)",
+  "pos.customer_name": "Customer name",
+  "pos.customer_phone": "Customer phone",
   "pos.no_register": "Open a register session before selling.",
   "pos.lot": "Lot",
   "pos.remove": "Remove",
-  "pos.organic_verified": "Organic verified",
-  "pos.organic_unverified": "Not verified organic",
 };
 
 const te: Dict = {
@@ -69,12 +68,11 @@ const te: Dict = {
   "pos.print_receipt": "రసీదు ముద్రించండి",
   "pos.hold": "నిలిపివేయి",
   "pos.resume": "నిలిపిన బండిని కొనసాగించండి",
-  "pos.customer_phone": "కస్టమర్ ఫోన్ (ఐచ్ఛికం)",
+  "pos.customer_name": "కస్టమర్ పేరు",
+  "pos.customer_phone": "కస్టమర్ ఫోన్",
   "pos.no_register": "అమ్మకానికి ముందు రిజిస్టర్ సెషన్ తెరవండి.",
   "pos.lot": "లాట్",
   "pos.remove": "తీసివేయి",
-  "pos.organic_verified": "సేంద్రియ ధృవీకరించబడింది",
-  "pos.organic_unverified": "సేంద్రియంగా ధృవీకరించబడలేదు",
 };
 
 const DICTS: Record<Locale, Dict> = { en, te };

@@ -153,7 +153,7 @@ export default function NewProductPage() {
             ))}
           </select>
           <p className="mt-1 text-xs text-foreground-muted">
-            Only <strong>Verified</strong> products are labelled as certified organic on receipts.
+            For your own records. Not shown on customer receipts.
           </p>
         </div>
 

@@ -88,20 +88,185 @@ select {
   padding-bottom: max(0.5rem, env(safe-area-inset-bottom));
 }
 
+/* ============================================================
+   Point-of-sale receipt — shared by the on-screen preview and
+   the print stylesheet. Monospace body, branded header.
+   ============================================================ */
+#pos-receipt {
+  --rcpt-fg: #1c1917;
+  --rcpt-muted: #57534e;
+  --rcpt-rule: #d6d3d1;
+  width: 320px;
+  max-width: 100%;
+  margin: 0 auto;
+  padding: 20px 22px 18px;
+  background: #ffffff;
+  color: var(--rcpt-fg);
+  font-family: "SFMono-Regular", ui-monospace, "SF Mono", Menlo, Consolas,
+    "Liberation Mono", "Courier New", monospace;
+  font-size: 12px;
+  line-height: 1.5;
+  border: 1px solid var(--rcpt-rule);
+  border-radius: 14px;
+  box-shadow: 0 10px 34px rgba(28, 25, 23, 0.08);
+}
+#pos-receipt .rcpt-brand {
+  text-align: center;
+}
+#pos-receipt .rcpt-logo {
+  display: block;
+  width: 52px;
+  height: 52px;
+  margin: 0 auto 6px;
+  object-fit: contain;
+}
+#pos-receipt .rcpt-wordmark {
+  font-family: var(--font-sans), system-ui, sans-serif;
+  font-weight: 800;
+  letter-spacing: 0.22em;
+  font-size: 17px;
+}
+#pos-receipt .rcpt-tagline {
+  margin-top: 2px;
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--rcpt-muted);
+}
+#pos-receipt .rcpt-rule {
+  margin: 12px 0;
+  border-top: 1px dashed var(--rcpt-rule);
+}
+#pos-receipt .rcpt-rule--solid {
+  border-top-style: solid;
+}
+#pos-receipt .rcpt-store {
+  text-align: center;
+}
+#pos-receipt .rcpt-store-name {
+  font-family: var(--font-sans), system-ui, sans-serif;
+  font-weight: 700;
+  font-size: 13px;
+}
+#pos-receipt .rcpt-store-loc {
+  font-size: 11px;
+  color: var(--rcpt-muted);
+}
+#pos-receipt .rcpt-meta {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 11px;
+}
+#pos-receipt .rcpt-meta span:last-child {
+  text-align: right;
+}
+#pos-receipt .rcpt-items {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+#pos-receipt .rcpt-item + .rcpt-item {
+  margin-top: 8px;
+}
+#pos-receipt .rcpt-item-name {
+  font-weight: 600;
+}
+#pos-receipt .rcpt-organic {
+  margin-left: 6px;
+  font-weight: 400;
+  font-size: 10px;
+  color: var(--rcpt-muted);
+}
+#pos-receipt .rcpt-item-calc {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  color: var(--rcpt-muted);
+}
+#pos-receipt .rcpt-item-calc span:last-child {
+  color: var(--rcpt-fg);
+}
+#pos-receipt .rcpt-totals {
+  margin: 0;
+}
+#pos-receipt .rcpt-total-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+#pos-receipt .rcpt-total-row + .rcpt-total-row {
+  margin-top: 3px;
+}
+#pos-receipt .rcpt-total-row dt {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+#pos-receipt .rcpt-total-row dd {
+  margin: 0;
+  text-align: right;
+  white-space: nowrap;
+}
+#pos-receipt .rcpt-total-row--grand {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--rcpt-fg);
+  font-family: var(--font-sans), system-ui, sans-serif;
+  font-weight: 800;
+  font-size: 15px;
+}
+#pos-receipt .rcpt-footer {
+  text-align: center;
+}
+#pos-receipt .rcpt-thanks {
+  font-family: var(--font-sans), system-ui, sans-serif;
+  font-weight: 700;
+  font-size: 13px;
+}
+#pos-receipt .rcpt-footer-sub {
+  margin-top: 2px;
+  font-size: 10px;
+  color: var(--rcpt-muted);
+}
+
 /* Compact receipt printing: hide everything except #pos-receipt. */
+@page {
+  size: 80mm auto;
+  margin: 4mm;
+}
 @media print {
+  html,
+  body {
+    background: #ffffff !important;
+  }
   body * {
-    visibility: hidden;
+    visibility: hidden !important;
   }
   #pos-receipt,
   #pos-receipt * {
-    visibility: visible;
+    visibility: visible !important;
   }
   #pos-receipt {
     position: absolute;
     inset: 0 auto auto 0;
-    width: 80mm;
+    width: 72mm;
+    margin: 0;
+    padding: 2mm 3mm 4mm;
     border: none;
+    border-radius: 0;
+    box-shadow: none;
+    font-size: 10.5px;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  #pos-receipt .rcpt-logo {
+    width: 42px;
+    height: 42px;
+  }
+  #pos-receipt .rcpt-wordmark {
+    font-size: 15px;
   }
   .no-print {
     display: none !important;

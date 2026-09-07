@@ -38,7 +38,8 @@ export const list = async (params?: {
   signal?: AbortSignal;
 }): Promise<ApiResult<ProductListResult>> => {
   const res = await goRequest<{ items: GoProduct[]; meta: PageMeta }>("catalogue/products", {
-    query: { q: params?.q, page: params?.page, limit: params?.limit }, signal: params?.signal,
+    query: { q: params?.q, page: params?.page, limit: params?.limit, status: params?.status },
+    signal: params?.signal,
   });
   return {
     ...res,

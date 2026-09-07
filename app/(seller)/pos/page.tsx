@@ -14,7 +14,7 @@ import {
   PauseCircle,
   PlayCircle,
 } from "lucide-react";
-import { productsApi, registersApi, salesApi } from "@/shared/lib/api";
+import { productsApi, registersApi, salesApi, sellerOrgsApi } from "@/shared/lib/api";
 import type { ProductDTO } from "@/shared/lib/api/products";
 import type { SaleDTO } from "@/shared/lib/api/sales";
 import type { SessionDTO } from "@/shared/lib/api/registers";
@@ -31,7 +31,7 @@ import { cx } from "@/shared/lib/utils";
 import { computeLineTotals, formatPaise, sumCartTotals } from "@/shared/lib/money";
 import { SALE_UNIT_BASE, toBaseQuantity, type SaleUnit } from "@/shared/lib/units";
 import { translator, LOCALES, type Locale } from "@/shared/lib/i18n";
-import { ReceiptView } from "@/shared/components/pos/ReceiptView";
+import { ReceiptView, type ReceiptPaymentLine } from "@/shared/components/pos/ReceiptView";
 import { HELD_CARTS_KEY, type CartLine, type HeldCart } from "@/shared/components/pos/types";
 
 type PayMethod = "cash" | "upi" | "split";
@@ -54,11 +54,17 @@ export default function PosPage() {
   const [upiPart, setUpiPart] = useState("");
   const [upiRef, setUpiRef] = useState("");
   const [tendered, setTendered] = useState("");
+  const [customerName, setCustomerName] = useState("");
   const [customerPhone, setCustomerPhone] = useState("");
   const [marketingConsent, setMarketingConsent] = useState(false);
 
   const [submitting, setSubmitting] = useState(false);
   const [completed, setCompleted] = useState<SaleDTO | null>(null);
+  const [completedPayment, setCompletedPayment] = useState<{
+    lines: ReceiptPaymentLine[];
+    changePaise: number;
+  } | null>(null);
+  const [store, setStore] = useState<{ name?: string; location?: string }>({});
 
   const searchRef = useRef<HTMLInputElement>(null);
   // One idempotency key per cart attempt. Regenerated after a completed sale.
@@ -79,6 +85,15 @@ export default function PosPage() {
   }, [load]);
 
   useEffect(() => {
+    sellerOrgsApi.getMyOrganization().then((res) => {
+      if (!res.success || !res.data) return;
+      const locs = res.data.locations ?? [];
+      const active = locs.find((l) => l.active) ?? locs[0];
+      setStore({ name: res.data.displayName, location: active?.name });
+    });
+  }, []);
+
+  useEffect(() => {
     try {
       const raw = localStorage.getItem(HELD_CARTS_KEY);
       if (raw) setHeld(JSON.parse(raw) as HeldCart[]);
@@ -94,7 +109,7 @@ export default function PosPage() {
   useEffect(() => {
     const ctrl = new AbortController();
     const timer = setTimeout(async () => {
-      const res = await productsApi.list({ q: query.trim() || undefined, limit: query.trim() ? 24 : 12, signal: ctrl.signal });
+      const res = await productsApi.list({ q: query.trim() || undefined, limit: query.trim() ? 24 : 12, status: "active", signal: ctrl.signal });
       if (res.success && res.data) setCatalog(res.data.items);
     }, 250);
     return () => { clearTimeout(timer); ctrl.abort(); };
@@ -170,8 +185,10 @@ export default function PosPage() {
     setUpiPart("");
     setUpiRef("");
     setTendered("");
+    setCustomerName("");
     setCustomerPhone("");
     setMarketingConsent(false);
+    setCompletedPayment(null);
     idemRef.current = crypto.randomUUID();
   }
 
@@ -217,6 +234,10 @@ export default function PosPage() {
 
   async function completeSale() {
     if (submitting || lines.length === 0) return;
+    if (!customerName.trim() || !customerPhone.trim()) {
+      toast.error("Enter the customer's name and phone");
+      return;
+    }
 
     const payments: { method: "cash" | "upi"; amountPaise: number; upiRef?: string }[] = [];
     if (payMethod === "cash") {
@@ -244,7 +265,8 @@ export default function PosPage() {
         discountPaise: l.discountPaise || undefined,
       })),
       payments,
-      customerPhone: customerPhone.trim() || undefined,
+      customerName: customerName.trim(),
+      customerPhone: customerPhone.trim(),
       marketingConsent: marketingConsent || undefined,
     });
     setSubmitting(false);
@@ -253,6 +275,18 @@ export default function PosPage() {
       toast.error(res.message || "Sale failed");
       return;
     }
+    const label: Record<"cash" | "upi", string> = { cash: "Cash", upi: "UPI" };
+    setCompletedPayment({
+      lines: payments.map((p) => ({
+        method: label[p.method],
+        amountPaise: p.amountPaise,
+        reference: p.upiRef,
+      })),
+      changePaise:
+        payMethod === "cash"
+          ? Math.max(0, Math.round(Number(tendered || 0) * 100) - cart.netPaise)
+          : 0,
+    });
     setCompleted(res.data.sale);
     void load();
   }
@@ -276,7 +310,14 @@ export default function PosPage() {
             {completed.receiptNo} · {formatPaise(completed.totalPaise)} · sync {completed.syncState}
           </p>
         </div>
-        <ReceiptView sale={completed} orgName={user?.orgType} />
+        <ReceiptView
+          sale={completed}
+          orgName={store.name}
+          locationName={store.location}
+          cashierName={user?.name}
+          payments={completedPayment?.lines}
+          changePaise={completedPayment?.changePaise}
+        />
         <div className="flex justify-center gap-2 no-print">
           <button
             className={primaryBtnCls}
@@ -419,11 +460,6 @@ export default function PosPage() {
                     <div className="min-w-0">
                       <p className="truncate text-sm font-medium text-foreground-heading">
                         {l.product.name}
-                      </p>
-                      <p className="text-xs text-foreground-muted">
-                        {l.product.organicStatus === "Verified"
-                          ? t("pos.organic_verified")
-                          : t("pos.organic_unverified")}
                       </p>
                     </div>
                     <button
@@ -587,13 +623,23 @@ export default function PosPage() {
               </div>
             ) : null}
 
-            <input
-              placeholder={t("pos.customer_phone")}
-              value={customerPhone}
-              onChange={(e) => setCustomerPhone(e.target.value)}
-              className={inputCls}
-            />
-            {customerPhone.trim() ? (
+            <div className="space-y-2 rounded-lg border border-border p-2">
+              <p className="text-xs font-medium text-foreground-body">Customer details (required)</p>
+              <input
+                placeholder={t("pos.customer_name")}
+                value={customerName}
+                onChange={(e) => setCustomerName(e.target.value)}
+                className={inputCls}
+                autoComplete="off"
+              />
+              <input
+                placeholder={t("pos.customer_phone")}
+                value={customerPhone}
+                onChange={(e) => setCustomerPhone(e.target.value)}
+                className={inputCls}
+                inputMode="numeric"
+                autoComplete="off"
+              />
               <label className="flex items-center gap-2 text-xs text-foreground-muted">
                 <input
                   type="checkbox"
@@ -602,11 +648,11 @@ export default function PosPage() {
                 />
                 Customer consents to marketing messages
               </label>
-            ) : null}
+            </div>
 
             <button
               className={`${primaryBtnCls} w-full`}
-              disabled={submitting}
+              disabled={submitting || !customerName.trim() || !customerPhone.trim()}
               onClick={completeSale}
             >
               {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : null}

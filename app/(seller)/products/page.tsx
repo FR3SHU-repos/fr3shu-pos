@@ -26,7 +26,7 @@ export default function ProductsPage() {
     const ctrl = new AbortController();
     const timer = setTimeout(async () => {
       setLoading(true);
-      const res = await productsApi.list({ q: q || undefined, page, limit: 50, signal: ctrl.signal });
+      const res = await productsApi.list({ q: q || undefined, page, limit: 50, status: "all", signal: ctrl.signal });
       if (res.success && res.data) { setItems(res.data.items); setPages(res.data.meta.totalPages); }
       setLoading(false);
     }, 250);

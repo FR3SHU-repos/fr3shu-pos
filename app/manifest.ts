@@ -4,7 +4,7 @@ export default function manifest(): MetadataRoute.Manifest {
   return {
     name: "KOMOLA Organic POS",
     short_name: "KOMOLA POS",
-    description: "Seller-side Point of Sale for verified organic products.",
+    description: "Seller-side Point of Sale for small organic sellers.",
     start_url: "/pos",
     display: "standalone",
     background_color: "#f8faf5",

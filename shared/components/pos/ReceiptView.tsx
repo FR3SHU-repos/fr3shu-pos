@@ -3,63 +3,141 @@ import type { SaleDTO } from "@/shared/lib/api/sales";
 import { formatPaise } from "@/shared/lib/money";
 import { formatBaseQuantity, type SaleUnit } from "@/shared/lib/units";
 
-/** Compact, print-friendly receipt. Wrapped in #pos-receipt for the print stylesheet. */
-export function ReceiptView({ sale, orgName }: { sale: SaleDTO; orgName?: string }) {
+export interface ReceiptPaymentLine {
+  /** Display label, e.g. "Cash", "UPI", "Card". */
+  method: string;
+  amountPaise: number;
+  reference?: string;
+}
+
+/**
+ * Branded, thermal-friendly receipt. All visual styling lives in
+ * `#pos-receipt` rules in globals.css so it survives the print stylesheet.
+ */
+export function ReceiptView({
+  sale,
+  orgName,
+  locationName,
+  cashierName,
+  payments,
+  changePaise,
+}: {
+  sale: SaleDTO;
+  orgName?: string;
+  locationName?: string;
+  cashierName?: string;
+  payments?: ReceiptPaymentLine[];
+  changePaise?: number;
+}) {
+  const soldAt = new Date(sale.soldAt);
   return (
-    <div
-      id="pos-receipt"
-      className="mx-auto max-w-xs rounded-xl border border-border bg-surface-card p-4 text-sm text-foreground-body"
-    >
-      <div className="text-center">
-        <p className="font-semibold text-foreground-heading">{orgName ?? "Organic Store"}</p>
-        <p className="text-xs text-foreground-muted">Receipt {sale.receiptNo}</p>
-        <p className="text-xs text-foreground-muted">
-          {new Date(sale.soldAt).toLocaleString("en-IN")}
-        </p>
+    <div id="pos-receipt" className="rcpt">
+      <div className="rcpt-brand">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img className="rcpt-logo" src="/komola-logo.png" alt="" />
+        <div className="rcpt-wordmark">KOMOLA</div>
+        <div className="rcpt-tagline">Organic produce</div>
       </div>
 
-      <div className="my-3 border-t border-dashed border-border" />
+      <div className="rcpt-rule rcpt-rule--solid" />
 
-      <ul className="space-y-1">
+      <div className="rcpt-store">
+        <div className="rcpt-store-name">{orgName || "Organic stall"}</div>
+        {locationName ? <div className="rcpt-store-loc">{locationName}</div> : null}
+      </div>
+
+      <div className="rcpt-rule" />
+
+      <div className="rcpt-meta">
+        <span>Receipt</span>
+        <span>{sale.receiptNo}</span>
+      </div>
+      <div className="rcpt-meta">
+        <span>Date</span>
+        <span>
+          {soldAt.toLocaleDateString("en-IN")}{" "}
+          {soldAt.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" })}
+        </span>
+      </div>
+      {sale.customerPhone ? (
+        <div className="rcpt-meta">
+          <span>Customer</span>
+          <span>{sale.customerPhone}</span>
+        </div>
+      ) : null}
+
+      <div className="rcpt-rule" />
+
+      <ul className="rcpt-items">
         {sale.items.map((it, i) => (
-          <li key={i} className="flex justify-between gap-2">
-            <span className="min-w-0">
-              <span className="block truncate">{it.name}</span>
-              <span className="text-xs text-foreground-muted">
-                {formatBaseQuantity(it.qtyBase, it.saleUnit as SaleUnit)} @{" "}
+          <li key={i} className="rcpt-item">
+            <div className="rcpt-item-name">{it.name}</div>
+            <div className="rcpt-item-calc">
+              <span>
+                {formatBaseQuantity(it.qtyBase, it.saleUnit as SaleUnit)} ×{" "}
                 {formatPaise(it.unitPricePaise)}
-                {it.organic.isVerifiedOrganic ? " · organic ✓" : ""}
               </span>
-            </span>
-            <span className="whitespace-nowrap font-medium text-foreground-heading">
-              {formatPaise(it.netPaise)}
-            </span>
+              <span>{formatPaise(it.netPaise)}</span>
+            </div>
           </li>
         ))}
       </ul>
 
-      <div className="my-3 border-t border-dashed border-border" />
+      <div className="rcpt-rule" />
 
-      <dl className="space-y-1">
-        <Row label="Gross" value={formatPaise(sale.grossPaise)} />
-        <Row label="Discount" value={`- ${formatPaise(sale.discountPaise)}`} />
-        <Row label="Tax" value={formatPaise(sale.taxPaise)} />
-        <Row label="Total" value={formatPaise(sale.totalPaise)} strong />
+      <dl className="rcpt-totals">
+        <div className="rcpt-total-row">
+          <dt>Subtotal</dt>
+          <dd>{formatPaise(sale.grossPaise)}</dd>
+        </div>
+        {sale.discountPaise > 0 ? (
+          <div className="rcpt-total-row">
+            <dt>Discount</dt>
+            <dd>&minus; {formatPaise(sale.discountPaise)}</dd>
+          </div>
+        ) : null}
+        <div className="rcpt-total-row">
+          <dt>Tax (incl.)</dt>
+          <dd>{formatPaise(sale.taxPaise)}</dd>
+        </div>
+        <div className="rcpt-total-row rcpt-total-row--grand">
+          <dt>TOTAL</dt>
+          <dd>{formatPaise(sale.totalPaise)}</dd>
+        </div>
       </dl>
 
-      {sale.customerPhone ? (
-        <p className="mt-3 text-xs text-foreground-muted">Customer: {sale.customerPhone}</p>
+      {payments && payments.length > 0 ? (
+        <>
+          <div className="rcpt-rule" />
+          <dl className="rcpt-totals">
+            {payments.map((p, i) => (
+              <div key={i} className="rcpt-total-row">
+                <dt>
+                  {p.method}
+                  {p.reference ? ` · ${p.reference}` : ""}
+                </dt>
+                <dd>{formatPaise(p.amountPaise)}</dd>
+              </div>
+            ))}
+            {typeof changePaise === "number" && changePaise > 0 ? (
+              <div className="rcpt-total-row">
+                <dt>Change</dt>
+                <dd>{formatPaise(changePaise)}</dd>
+              </div>
+            ) : null}
+          </dl>
+        </>
       ) : null}
-      <p className="mt-3 text-center text-xs text-foreground-muted">Thank you</p>
-    </div>
-  );
-}
 
-function Row({ label, value, strong }: { label: string; value: string; strong?: boolean }) {
-  return (
-    <div className={`flex justify-between ${strong ? "font-semibold text-foreground-heading" : ""}`}>
-      <dt>{label}</dt>
-      <dd>{value}</dd>
+      <div className="rcpt-rule rcpt-rule--solid" />
+
+      <div className="rcpt-footer">
+        <div className="rcpt-thanks">Thank you!</div>
+        <div className="rcpt-footer-sub">Keep this receipt for returns &middot; komola.in</div>
+        {cashierName ? (
+          <div className="rcpt-footer-sub">Served by {cashierName}</div>
+        ) : null}
+      </div>
     </div>
   );
 }

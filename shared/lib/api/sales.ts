@@ -121,6 +121,7 @@ export const create = async (
     cartDiscountMinor: body.cartDiscountPaise ?? 0,
     customerName: body.customerName,
     customerPhone: body.customerPhone,
+    marketingConsent: body.marketingConsent ?? false,
   };
   const res = await goRequest<{ sale: GoSale; reused: boolean }>("sales", {
     method: "POST",
