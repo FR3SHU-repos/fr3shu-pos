@@ -39,6 +39,7 @@ export async function updateSession(request: NextRequest): Promise<NextResponse>
   } = await supabase.auth.getUser();
 
   const { pathname } = request.nextUrl;
+  if (pathname === "/") return response; // public landing page
   if (PUBLIC_PREFIXES.some((p) => pathname.startsWith(p))) return response;
   if (pathname.startsWith("/api/")) return response; // proxy relays its own auth
 
