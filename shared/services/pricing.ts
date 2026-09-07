@@ -1,6 +1,6 @@
 import { computeLineTotals, sumCartTotals, type CartTotals, type LineTotals } from "@/shared/lib/money";
-import type { IProduct } from "@/shared/interfaces/mongodb/catalog/product";
-import type { IProductPrice } from "@/shared/interfaces/mongodb/catalog/productPrice";
+import type { IProduct } from "@/shared/interfaces/domain/catalog/product";
+import type { IProductPrice } from "@/shared/interfaces/domain/catalog/productPrice";
 
 /**
  * Resolve the authoritative unit price (paise) for one product at one location.

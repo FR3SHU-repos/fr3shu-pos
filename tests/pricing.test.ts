@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { resolveUnitPricePaise, priceSaleLine } from "@/shared/services/pricing";
-import type { IProductPrice } from "@/shared/interfaces/mongodb/catalog/productPrice";
+import type { IProductPrice } from "@/shared/interfaces/domain/catalog/productPrice";
 
 const product = {
   _id: "p1",

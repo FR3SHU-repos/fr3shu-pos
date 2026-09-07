@@ -3,7 +3,7 @@ import { createSupabaseServerClient } from "@/shared/lib/supabase/server";
 import { ADMIN_HOME, isPlatformAdmin } from "@/shared/lib/auth/routing";
 
 function apiBase(): string {
-  return (process.env.NEXT_PUBLIC_API_BASE_URL ?? "")
+  return (process.env.GO_API_BASE_URL ?? process.env.NEXT_PUBLIC_API_URL ?? process.env.NEXT_PUBLIC_API_BASE_URL ?? "")
     .trim()
     .replace(/\/+$/, "")
     .replace(/\/api\/v1$/i, "");

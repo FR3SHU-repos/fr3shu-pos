@@ -18,5 +18,9 @@ export interface SessionUser {
 export const me = (): Promise<ApiResult<SessionUser>> =>
   goRequest<SessionUser>("auth/me");
 
-export const logout = (): Promise<ApiResult<null>> =>
-  goRequest<null>("auth/logout", { method: "POST" });
+export const logout = async (): Promise<ApiResult<null>> => {
+  const { createAuthBrowserClient } = await import("@/shared/lib/supabase/auth-client");
+  const { error } = await createAuthBrowserClient().auth.signOut();
+  if (error) return { success: false, message: error.message, data: null, status: 0 };
+  return goRequest<null>("auth/logout", { method: "POST" });
+};

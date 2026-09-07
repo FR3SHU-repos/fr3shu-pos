@@ -10,7 +10,7 @@ import { usePosUser } from "@/shared/context/PosUserContext";
 import { authApi } from "@/shared/lib/api";
 import { cardCls, inputCls, primaryBtnCls } from "@/shared/components/ui";
 import { createAuthBrowserClient } from "@/shared/lib/supabase/auth-client";
-import { bridgeLogin, reconcileIdentity } from "@/shared/lib/auth/gin";
+import { reconcileIdentity } from "@/shared/lib/auth/gin";
 import { ADMIN_HOME, isPlatformAdmin } from "@/shared/lib/auth/routing";
 import { getMyOrganization, sellerDestination } from "@/shared/lib/api/sellerOrgs";
 import {
@@ -44,19 +44,10 @@ function LoginForm() {
     setBusy(true);
     const normEmail = email.trim().toLowerCase();
 
-    let { error } = await supabase.auth.signInWithPassword({
+    const { error } = await supabase.auth.signInWithPassword({
       email: normEmail,
       password,
     });
-    if (error && /invalid login credentials/i.test(error.message)) {
-      const { migrated } = await bridgeLogin(normEmail, password);
-      if (migrated) {
-        ({ error } = await supabase.auth.signInWithPassword({
-          email: normEmail,
-          password,
-        }));
-      }
-    }
     if (error) {
       setBusy(false);
       toast.error(

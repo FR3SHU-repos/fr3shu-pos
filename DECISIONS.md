@@ -1,3 +1,5 @@
+> Historical reference. The current PostgreSQL architecture is documented in `cross-platform-assets/project-context.md`.
+
 # Decisions & Trade-offs
 
 Dates are absolute. This build was done on 2026-09-04.

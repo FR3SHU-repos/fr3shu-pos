@@ -1,5 +1,5 @@
 import type { SaleUnit } from "@/shared/lib/units";
-import type { CertificationSnapshot } from "@/shared/interfaces/mongodb/catalog/certification";
+import type { CertificationSnapshot } from "@/shared/interfaces/domain/catalog/certification";
 
 export type SaleStatus = "completed" | "partially_returned" | "returned" | "voided";
 

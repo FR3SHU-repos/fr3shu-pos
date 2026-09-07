@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 
-function goApiBase(): string | null {
+export function goApiBase(): string | null {
   const raw =
     process.env.GO_API_BASE_URL ??
+    process.env.NEXT_PUBLIC_API_URL ??
     process.env.NEXT_PUBLIC_API_BASE_URL ??
     process.env.NEXT_PUBLIC_CATALOGUE_API_BASE_URL;
   const base = raw?.trim().replace(/\/+$/, "").replace(/\/api\/v1$/i, "");
@@ -29,7 +30,7 @@ async function relay(upstream: Response): Promise<NextResponse> {
   if (contentType.includes("application/json")) {
     const res = new NextResponse(body, {
       status: upstream.status,
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", "Cache-Control": "no-store" },
     });
     if (setCookie) res.headers.set("Set-Cookie", setCookie);
     return res;
@@ -53,6 +54,10 @@ function relayHeaders(request: NextRequest, extra: Record<string, string> = {}):
   if (cookie) headers.Cookie = cookie;
   if (authorization) headers.Authorization = authorization;
   if (idempotencyKey) headers["Idempotency-Key"] = idempotencyKey;
+  for (const name of ["X-Organization-ID", "X-Location-ID"]) {
+    const value = request.headers.get(name);
+    if (value) headers[name] = value;
+  }
   if (ifMatch) headers["If-Match"] = ifMatch;
   return headers;
 }

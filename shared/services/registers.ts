@@ -1,4 +1,4 @@
-import type { PosSessionTotals } from "@/shared/interfaces/mongodb/pos/posSession";
+import type { PosSessionTotals } from "@/shared/interfaces/domain/pos/posSession";
 
 export const EMPTY_TOTALS: PosSessionTotals = {
   cashSalesPaise: 0,

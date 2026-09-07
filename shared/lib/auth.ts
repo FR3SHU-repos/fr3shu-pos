@@ -10,9 +10,10 @@ export type PosRole =
   | "InventoryManager"
   | "StoreOwner"
   | "StoreManager"
-  | "SellerOwner";
+  | "SellerOwner"
+  | "Member";
 
-export type SellerOrgType = "Brand" | "FPO" | "Farmer";
+export type SellerOrgType = "Brand" | "FPO" | "Farmer" | "Retailer";
 
 export interface PosTokenPayload {
   sub: string;

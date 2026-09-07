@@ -76,14 +76,14 @@ export const get = async (id: string): Promise<ApiResult<SaleDetail>> => {
 };
 
 /** Maps a legacy cart payment to a provider-neutral canonical tender. */
-function toTender(p: LegacyPayment) {
+function toTender(p: LegacyPayment, stableReference: string) {
   if (p.method === "cash") return { kind: "cash", amountMinor: p.amountPaise };
   // UPI/card are recorded as a "manual" tender carrying the external reference
   // the cashier confirmed; no gateway response is trusted as proof of payment.
   return {
     kind: "manual",
     amountMinor: p.amountPaise,
-    reference: p.upiRef?.trim() || `${p.method}-unref-${Date.now()}`,
+    reference: p.upiRef?.trim() || `${p.method}-${stableReference}`,
     reason: p.method,
   };
 }
@@ -117,7 +117,7 @@ export const create = async (
       lotId: i.lotId,
       lotOverrideReason: i.lotOverrideReason,
     })),
-    tenders: body.payments.map(toTender),
+    tenders: body.payments.map((p, index) => toTender(p, `${body.idempotencyKey}-${index}`)),
     cartDiscountMinor: body.cartDiscountPaise ?? 0,
     customerName: body.customerName,
     customerPhone: body.customerPhone,

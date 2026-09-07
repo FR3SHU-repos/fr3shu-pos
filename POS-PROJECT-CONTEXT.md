@@ -1,3 +1,5 @@
+> Historical reference. The current PostgreSQL architecture is documented in `cross-platform-assets/project-context.md`.
+
 # KOMOLA Organic POS — Project Context
 
 > **⚠️ Partly superseded (2026-09).** Sections 2 (architecture), 3 (roles /

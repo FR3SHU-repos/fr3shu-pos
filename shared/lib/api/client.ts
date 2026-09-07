@@ -1,12 +1,5 @@
-/**
- * The single client -> server boundary. Every UI call goes through here.
- *
- * The POS web app no longer has a database of its own: `go-api-backend` owns
- * the entire POS runtime (catalogue reads, inventory, registers, shifts, sales,
- * tenders, voids, returns). `goRequest()` targets that service directly at
- * `/api/v1/pos/*`; the same-origin `/api/v1/*` route handlers are now thin
- * database-free proxies kept only for compatibility.
- */
+/** Typed HTTP boundary. All browser application data goes through the same-origin
+ * /api/v1 proxy to Go. Supabase is used solely to obtain the Auth bearer token. */
 
 export interface ApiResult<T> {
   success: boolean;
@@ -28,7 +21,7 @@ export function apiBase(value: string | undefined): string {
  * which reaches the compatibility proxies.
  */
 const GO_BASE = apiBase(
-  process.env.NEXT_PUBLIC_API_BASE_URL ?? process.env.NEXT_PUBLIC_CATALOGUE_API_BASE_URL,
+  process.env.NEXT_PUBLIC_API_URL ?? process.env.NEXT_PUBLIC_API_BASE_URL ?? process.env.NEXT_PUBLIC_CATALOGUE_API_BASE_URL,
 );
 
 export function apiURL(path: string, base = GO_BASE): string {
@@ -51,7 +44,7 @@ async function normalize<T>(res: Response): Promise<ApiResult<T>> {
     code?: string;
   };
   return {
-    success: b.success ?? res.ok,
+    success: res.ok && b.success === true,
     message: b.message ?? (res.ok ? "Success" : `Request failed (${res.status})`),
     data: (b.data ?? null) as T | null,
     status: res.status,
@@ -126,16 +119,10 @@ async function requestAt<T>(base: string, path: string, opts: RequestOptions = {
 
 /** Call an arbitrary `/api/v1/<path>` operation on the Go backend. */
 export async function request<T>(path: string, opts: RequestOptions = {}): Promise<ApiResult<T>> {
-  return requestAt<T>(GO_BASE, path, opts);
+  return requestAt<T>("", path, opts);
 }
 
-/**
- * Call a `/api/v1/pos/<path>` operation on the canonical POS API.
- *
- * Always routed through this app's own same-origin `/api/v1/pos/*` proxy so the
- * httpOnly `pos_token` cookie is sent on every call and a login `Set-Cookie`
- * relays back to the browser. The proxy itself has no database access.
- */
+/** Call a POS operation through the database-free same-origin Go proxy. */
 export async function goRequest<T>(path: string, opts: RequestOptions = {}): Promise<ApiResult<T>> {
   return requestAt<T>("", `pos/${path.replace(/^\/+/, "")}`, opts);
 }
