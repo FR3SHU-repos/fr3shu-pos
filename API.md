@@ -43,45 +43,38 @@ Clears the cookie. → `data: null`.
 
 ## Categories
 
-### `GET /categories`
-Any authenticated user. → `{ items: Category[] }` (org-scoped, active only).
-
-### `POST /categories`  — `Owner | Manager | Admin`
-Body `{ name, sortOrder? }`. Slug is derived; `409` on duplicate slug.
+### `GET /pos/catalogue/categories`
+Any authenticated seller member. Returns the active organization category list.
+The backend maintains the standard list in `internal/data/categories.json` and
+seeds it for every organization.
 
 ---
 
 ## Products
 
-### `GET /products`
-Query `q?` (name / sku / barcode, regex-escaped), `status?`, `page?`, `limit?` (≤100).
+### `GET /pos/catalogue/products`
+Query `q?`, `status?`, `page?`, `limit?`.
 Org-scoped; excludes `archived` unless `status` is given. → `{ items, meta }`.
 
-### `POST /products`  — `Owner | Manager | Admin`
+### `POST /pos/catalogue/products`  — `Owner | Manager | Admin`
 Body (Zod `createProductSchema`):
 ```jsonc
 {
   "name": "Organic Tomatoes",
-  "sku": "GH-VEG-TOM",
-  "barcode": "8901…",           // optional
   "categoryId": "…",            // optional
   "saleUnit": "kg",             // kg|g|l|ml|piece|bunch|pack
-  "baseUnit": "g",              // g|ml|count — must match saleUnit's family
-  "basePerSaleUnit": 1000,      // must equal the canonical value for saleUnit
   "taxRateBps": 0,              // basis points, 0..10000
-  "basePricePaise": 6000,       // optional fallback price
-  "certificationId": "…",       // optional
+  "basePricePaise": 6000,
   "organicStatus": "Verified",  // Verified|InConversion|PendingVerification|Expired|Rejected|NotOrganic
   "isPinned": false
 }
 ```
-`409` on duplicate SKU within the org.
+The Go backend generates an immutable SKU and a valid printable EAN-13 barcode.
+Clients cannot supply either identifier.
 
-### `GET /products/:id`  — org-scoped
-### `PATCH /products/:id`  — `Owner | Manager | Admin`
-Whitelisted fields only: `name, barcode, categoryId, description, taxRateBps,
-basePricePaise, certificationId, organicStatus, isPinned, status`. The raw body is never
-`$set`.
+### `GET /pos/catalogue/products/:id`  — org-scoped
+### `PATCH /pos/catalogue/products/:id`  — `Owner | Manager | Admin`
+SKU and barcode remain immutable during updates.
 
 ---
 

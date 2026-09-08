@@ -3,8 +3,6 @@ import { saleUnitEnum, baseUnitEnum, paise } from "./common";
 
 export const createProductSchema = z.object({
   name: z.string().min(2).max(160),
-  sku: z.string().min(1).max(64),
-  barcode: z.string().max(64).optional(),
   categoryId: z.string().optional(),
   description: z.string().max(2000).optional(),
   saleUnit: saleUnitEnum,

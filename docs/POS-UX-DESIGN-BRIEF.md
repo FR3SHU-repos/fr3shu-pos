@@ -1,5 +1,9 @@
 # KOMOLA POS — UX & Product Design Brief (working document)
 
+The buyer–seller identity, invoice claiming, account recovery, and rewards
+extension is specified in
+[IDENTITY-INVOICING-REWARDS-DESIGN-BRIEF.md](./IDENTITY-INVOICING-REWARDS-DESIGN-BRIEF.md).
+
 Status: **design phase, not yet implemented.** Produced 2026-09-08.
 Scope of this document: the design deliverables requested in the product brief,
 plus a phased implementation plan for sign-off. No application code has been

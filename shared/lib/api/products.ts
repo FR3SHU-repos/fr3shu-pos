@@ -17,10 +17,6 @@ export interface ProductListResult {
 }
 export interface ProductMutation {
   name: string;
-  /** Ignored by the API — SKU is system-generated. */
-  sku?: string;
-  /** Ignored by the API — barcode is system-generated. */
-  barcode?: string;
   description?: string;
   categoryId?: string;
   saleUnit: string;
