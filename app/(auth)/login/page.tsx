@@ -104,6 +104,12 @@ function LoginForm() {
       toast.error("Google sign-in is unavailable right now.");
     }
   }
+  async function onWhatsAppVerified() {
+    await reconcileIdentity();
+    if (intent === "buyer") { router.replace(await destination()); return; }
+    const org = await getMyOrganization();
+    router.replace(org.status === 404 ? "/seller/onboarding" : sellerDestination(org.data?.approvalStatus) || next);
+  }
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-surface px-4">
@@ -169,7 +175,7 @@ function LoginForm() {
           >
             Forgot password?
           </Link>
-          <WhatsAppButton />
+          <WhatsAppButton onVerified={onWhatsAppVerified} />
         </div>
 
         <p className="mt-5 text-center text-xs text-foreground-muted">

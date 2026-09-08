@@ -8,6 +8,7 @@ import type { SellerOrgType } from "@/shared/lib/api/sellerOrgs";
 import { Divider, GoogleButton, WhatsAppButton } from "@/shared/components/auth/parts";
 import { identityApi } from "@/shared/lib/api";
 import { authIntent, type AuthIntent } from "@/shared/lib/auth/intent";
+import { reconcileIdentity } from "@/shared/lib/auth/gin";
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -39,7 +40,7 @@ export default function RegisterPage() {
     <h1 className="text-xl font-semibold">Create your KOMOLA account</h1>
     <div className="grid grid-cols-2 rounded-xl bg-surface p-1" role="tablist" aria-label="Choose experience">{(["buyer","seller"] as const).map(value=><button key={value} type="button" role="tab" aria-selected={intent===value} onClick={()=>setIntent(value)} className={`min-h-12 rounded-lg px-4 font-semibold capitalize ${intent===value?"bg-primary text-primary-foreground":"text-foreground-body"}`}>{value}</button>)}</div>
     <GoogleButton onClick={google} loading={googleBusy} />
-    <WhatsAppButton />
+    <WhatsAppButton onVerified={async()=>{await reconcileIdentity();router.replace(intent==="buyer"?"/buyer/setup":"/seller/onboarding")}} />
     <Divider />
     <input aria-label="Full name" className={inputCls} placeholder="Full name" value={form.fullName} onChange={e=>setForm({...form,fullName:e.target.value})} required />
     <input aria-label="Email" className={inputCls} type="email" placeholder="Email" value={form.email} onChange={e=>setForm({...form,email:e.target.value})} required />
