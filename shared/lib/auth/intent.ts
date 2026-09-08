@@ -11,3 +11,7 @@ export function destinationForCapabilities(
   if (intent === "buyer") return capabilities.buyer ? "/buyer" : "/buyer/setup";
   return capabilities.seller ? "/dashboard" : "/seller/onboarding";
 }
+
+export function isBuyerExperiencePath(pathname: string): boolean {
+  return pathname === "/buyer" || pathname.startsWith("/buyer/");
+}

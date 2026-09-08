@@ -24,8 +24,11 @@ export interface Capabilities {
   seller: boolean;
   availableExperiences: Array<"buyer" | "seller">;
 }
+export interface DiscoveryCode { code: string; url: string }
 
 export const profile = (): Promise<ApiResult<PersonProfile>> => request("me/profile");
 export const capabilities = (): Promise<ApiResult<Capabilities>> => request("me/capabilities");
 export const updateProfile = (displayName: string, buyer: boolean): Promise<ApiResult<PersonProfile>> =>
   request("me/profile", { method: "PUT", body: { displayName, buyer } });
+export const discoveryCode = (): Promise<ApiResult<DiscoveryCode>> => request("me/discovery-code");
+export const rotateDiscoveryCode = (): Promise<ApiResult<DiscoveryCode>> => request("me/discovery-code/rotate", { method: "POST" });

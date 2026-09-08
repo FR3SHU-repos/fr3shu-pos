@@ -46,6 +46,7 @@ export async function GET(request: NextRequest) {
       cache: "no-store",
     });
     if (!reconciled.ok) return NextResponse.redirect(`${origin}/login?error=reconcile_failed`);
+    if (next.startsWith("/buyer")) return NextResponse.redirect(`${origin}${next}`);
     const me = await fetch(`${apiBase()}/api/v1/pos/auth/me`, { headers, cache: "no-store" });
     if (!me.ok) return NextResponse.redirect(`${origin}/login?error=reconcile_failed`);
     const profile = await me.json();

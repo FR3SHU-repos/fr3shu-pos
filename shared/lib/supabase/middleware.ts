@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import { ADMIN_HOME, isPlatformAdmin } from "@/shared/lib/auth/routing";
+import { isBuyerExperiencePath } from "@/shared/lib/auth/intent";
 
 const URL = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
 const KEY =
@@ -50,6 +51,10 @@ export async function updateSession(request: NextRequest): Promise<NextResponse>
     if (safe(pathname)) url.searchParams.set("next", pathname);
     return NextResponse.redirect(url);
   }
+
+  // Buyer pages have their own capability/profile checks. Never require a
+  // seller organization merely because the same Auth user is a buyer.
+  if (isBuyerExperiencePath(pathname)) return response;
 
   // UX gate only; Go independently enforces administrative restrictions.
   if (!pathname.startsWith("/seller/") && pathname !== "/") {
