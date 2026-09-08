@@ -1,4 +1,7 @@
 [build.environment]
+  # WhatsApp OTP is enabled for the POS UI. Delivery credentials and the
+  # Supabase hook signing secret remain on the Render backend.
+  NEXT_PUBLIC_AUTH_WHATSAPP_ENABLED = "true"
   # These keys hold non-secret values: a public backend origin (intentionally
   # embedded by Next.js in the browser bundle) and stock numeric constants
   # (28800 = 8h in seconds, 12) that also appear verbatim inside Next.js /
