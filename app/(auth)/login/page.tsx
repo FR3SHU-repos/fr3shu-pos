@@ -7,12 +7,13 @@ import toast from "react-hot-toast";
 import { Loader2, Lock } from "lucide-react";
 
 import { usePosUser } from "@/shared/context/PosUserContext";
-import { authApi } from "@/shared/lib/api";
+import { authApi, identityApi } from "@/shared/lib/api";
 import { cardCls, inputCls, primaryBtnCls } from "@/shared/components/ui";
 import { createAuthBrowserClient } from "@/shared/lib/supabase/auth-client";
 import { reconcileIdentity } from "@/shared/lib/auth/gin";
 import { ADMIN_HOME, isPlatformAdmin } from "@/shared/lib/auth/routing";
 import { getMyOrganization, sellerDestination } from "@/shared/lib/api/sellerOrgs";
+import { authIntent, destinationForCapabilities, type AuthIntent } from "@/shared/lib/auth/intent";
 import {
   Divider,
   GoogleButton,
@@ -37,6 +38,13 @@ function LoginForm() {
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
   const [googleBusy, setGoogleBusy] = useState(false);
+  const [intent, setIntent] = useState<AuthIntent>(authIntent(params.get("as")));
+
+  async function destination(): Promise<string> {
+    const result = await identityApi.capabilities();
+    if (result.success && result.data) return destinationForCapabilities(intent, result.data);
+    return intent === "buyer" ? "/buyer/setup" : next;
+  }
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -72,6 +80,12 @@ function LoginForm() {
       router.replace(ADMIN_HOME);
       return;
     }
+    if (intent === "buyer") {
+      const target = await destination();
+      setBusy(false);
+      router.replace(target);
+      return;
+    }
     const org = await getMyOrganization();
     setBusy(false);
     router.replace(org.status === 404 ? "/seller/onboarding" : sellerDestination(org.data?.approvalStatus) || next);
@@ -79,7 +93,8 @@ function LoginForm() {
 
   async function onGoogle() {
     setGoogleBusy(true);
-    const redirectTo = `${window.location.origin}/auth/callback?next=${encodeURIComponent(next)}`;
+    const target = intent === "buyer" ? "/buyer" : next;
+    const redirectTo = `${window.location.origin}/auth/callback?next=${encodeURIComponent(target)}&as=${intent}`;
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
       options: { redirectTo },
@@ -100,7 +115,15 @@ function LoginForm() {
           <h1 className="mt-3 text-lg font-semibold text-foreground-heading">
             KOMOLA Organic POS
           </h1>
-          <p className="text-sm text-foreground-muted">Sign in to your seller account</p>
+          <p className="text-sm text-foreground-muted">One account for buying and selling</p>
+        </div>
+
+        <div className="mb-5 grid grid-cols-2 rounded-xl bg-surface p-1" role="tablist" aria-label="Choose experience">
+          {(["buyer", "seller"] as const).map((value) => (
+            <button key={value} type="button" role="tab" aria-selected={intent === value} onClick={() => setIntent(value)} className={`min-h-12 rounded-lg px-4 font-semibold capitalize ${intent === value ? "bg-primary text-primary-foreground" : "text-foreground-body"}`}>
+              {value}
+            </button>
+          ))}
         </div>
 
         {params.get("error") === "oauth_denied" && (
@@ -151,8 +174,8 @@ function LoginForm() {
 
         <p className="mt-5 text-center text-xs text-foreground-muted">
           Need an account?{" "}
-          <Link href="/register" className="font-medium text-primary hover:underline">
-            Register as a seller
+          <Link href={`/register?as=${intent}`} className="font-medium text-primary hover:underline">
+            Register as a {intent}
           </Link>
         </p>
       </div>

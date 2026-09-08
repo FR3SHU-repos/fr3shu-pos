@@ -1,7 +1,7 @@
 # KOMOLA identity, invoicing and rewards design
 
-Status: **design approved for implementation only after the open product decisions
-in section 15 are resolved.** Prepared 8 September 2026.
+Status: **major architecture finalized; implementation awaits the eight policy
+choices still listed in section 15.** Prepared 8 September 2026.
 
 KOMOLA uses one Supabase Auth identity, PostgreSQL for all business data, and the
 Go API as the only application-data authority. Redis may improve delivery or rate
@@ -65,7 +65,13 @@ available at every point.
 
 ## 4. Buyer and seller codes
 
-Buyer QR and short codes encode a signed, short-lived claim:
+Buyer and seller **profile QR codes are persistent discovery codes**. They use
+opaque, rotatable public codes such as `BYR-K8M4X2` and `SLR-Q7N5P9`; contain no
+database ID or contact detail; and may be revoked. They resolve only safe public
+profile information. Possessing one does not authenticate the holder or authorize
+invoice ownership, account linking, refund approval, or prize redemption.
+
+Checkout identification is a separate, signed, short-lived claim:
 
 ```json
 {
@@ -81,13 +87,12 @@ Buyer QR and short codes encode a signed, short-lived claim:
 
 The server signs the canonical payload with an asymmetric key. The QR contains
 the payload and signature; the six-character short code maps to the same claim.
-It never contains database IDs or contact details. Claims expire after five
-minutes and their nonce is consumed once per sale.
+It never contains database IDs or contact details. Its expiry is configurable
+and its nonce is consumed once per sale.
 
-Seller codes use the same envelope with purpose `seller-location-identification`
-and an opaque public reference. They may live longer and identify organization,
-location, and optional terminal after server resolution. They do not authenticate
-the scanner or transfer ownership.
+Seller profile codes may resolve the organization, public compliance status,
+location, and optional terminal. Starting an invoice claim from that page creates
+a separate single-use claim. Persistent discovery codes never transfer ownership.
 
 ## 5. Journey: buyer exists, seller does not
 
@@ -103,7 +108,7 @@ sequenceDiagram
   API-->>B: Invoice waiting for review
   B->>API: Accept invoice
   API->>API: Attach purchase; create pending reward
-  API-->>S: Prompt full seller verification
+  API-->>S: Prompt full seller registration
 ```
 
 Offline, the buyer creates the signed claim while last online. The seller stores
@@ -156,7 +161,9 @@ stateDiagram-v2
   NeedsReview --> Syncing: corrected and retried
 ```
 
-Offline QR claims may be used only within their signed expiry. OTP verification,
+Persistent profile codes may be scanned offline only to retain the opaque code;
+the profile is resolved after reconnection. Transaction claims may be used only
+within their signed expiry. OTP verification,
 message delivery, final ownership linking, reward confirmation, and redemption
 require connectivity. The UI says **Invoice waiting to sync** and never says a
 message was sent until the delivery provider acknowledges it.
@@ -175,18 +182,42 @@ organization customer relationship; attach or create the reward entry; mark the
 invitation claimed; write audit event; commit. Repeating the request returns the
 same result without another ownership or reward mutation.
 
-## 10. Reward lifecycle
+## 10. Reward and prize lifecycle
 
 Rewards use an append-only ledger. Entries are `pending`, `available`, `redeemed`,
 `reversed`, `expired`, or `disputed`. A balance is a projection, never the source
-of truth. The unique business key is `(sale_id, rule_version, entry_kind)`.
+of truth. Every buyer has one platform-wide account across all sellers and
+locations. Every entry retains its seller organization, location, sale, invoice,
+refund/reversal, and reward-rule version. Sellers cannot edit balances.
+
+One point is earned for each cumulative 10,000 eligible paise. A transactional
+account projection stores `available_points`, `pending_points`,
+`eligible_spend_remainder_minor`, `lifetime_points_earned`,
+`lifetime_points_redeemed`, and `version`. Integer division determines newly
+earned points and the modulus becomes the carried remainder; floating point is
+never used. The unique earn key is `(sale_id, rule_version, entry_kind)`.
 
 An anonymous sale has an unowned entitlement. Creating an invitation records a
-pending entitlement. A verified claim assigns it to the buyer. Seller validation
-and the configured return window make it available. Refunds and voids append
-reversals that reference the original earn entry. Offline screens show estimates;
-the server alone confirms them. Offline redemption is excluded from the first
-release.
+pending entitlement. A verified claim assigns it to the buyer. The configured
+availability policy moves points to available. Refunds and voids append reversals
+that reference the original earn entry. If earned points were already spent, the
+account enters a recoverable negative state and prize redemption is blocked until
+recovery; customer copy explains the recovery without showing a raw negative
+number. Offline screens show estimates and cannot redeem prizes.
+
+Admins manage prizes with name, description, private image reference, external
+information link, points required, active window, terms, per-customer limit, and
+eligible locations. Inventory is held per location. Redemption atomically locks
+the reward account and location inventory, validates points, dates, eligibility,
+limit and stock, appends a points debit, decrements stock, creates the redemption
+and audit events, and commits. An idempotency key prevents duplicate redemption.
+
+Post-sale refunds and cancellations require online customer OTP approval. The
+server challenges only the protected destination, records the authorizer, then
+atomically reverses payment/inventory effects and appends reward reversals while
+preserving the original invoice. Offline terminals may queue a refund request but
+cannot restore stock, money, or points. An exchange is a return against the
+original sale followed by a new sale and invoice.
 
 ## 11. PostgreSQL entity proposal
 
@@ -212,10 +243,13 @@ erDiagram
 Add `identity.people`, `identity.contact_methods`, `identity.buyer_profiles`,
 `identity.invites`, `identity.link_claims`, `identity.account_merge_requests`,
 `identity.person_aliases`, `identity.public_codes`, `billing.invoice_claims`,
-`loyalty.reward_rules`, and `messaging.outbox_messages`. Adapt `pos.customers` to
+`identity.organization_compliance`, `loyalty.reward_rules`, `loyalty.prizes`,
+`loyalty.prize_locations`, `loyalty.prize_inventory`, `loyalty.redemptions`,
+`loyalty.redemption_events`, `integration.messages`,
+`integration.message_attempts`, and `integration.outbox`. Adapt `pos.customers` to
 allow nullable `person_id` and protected provisional contact data. Adapt loyalty
-accounts to belong to a person while keeping organization scope where rewards are
-organization-specific.
+accounts to belong to a person without organization scope; originating
+organization and location remain mandatory on earning and reversal entries.
 
 Contact methods store type, normalized value, encrypted value where retrieval is
 needed, keyed lookup hash, verification state/time, Auth subject, primary flag,
@@ -224,9 +258,14 @@ unique index on `(type, lookup_hash)` where verified and active.
 
 Invitations store only a token hash, purpose, organization, invoice/sale,
 destination type and protected/hash value, expiry, attempt limit/count, state,
-and lifecycle timestamps. Outbox rows contain channel, template, protected
+and lifecycle timestamps. Integration outbox rows contain channel, template, protected
 destination, payload, attempts, next attempt, provider ID, acknowledgement time,
 and a unique deduplication key.
+
+`identity.organization_compliance` is optional and nullable in the first release.
+It stores legal identifiers, licence/certificate dates, verification state and
+controlled private-object references. Documents and public object URLs are not
+stored in PostgreSQL.
 
 ## 12. API contract proposal
 
@@ -250,6 +289,10 @@ All private routes use Supabase bearer authentication. Mutations accept an
 | `GET /api/v1/buyer/invoices` | Authenticated buyer invoice list |
 | `GET /api/v1/buyer/invoices/{id}` | Buyer-owned invoice detail |
 | `GET /api/v1/buyer/rewards` | Available/pending totals and ledger page |
+| `GET /api/v1/loyalty/prizes?locationId=` | Eligible active prizes and stock |
+| `POST /api/v1/loyalty/redemptions` | Atomically redeem a prize at a location |
+| `POST /api/v1/pos/sales/{id}/refund-challenges` | Start customer refund OTP |
+| `POST /api/v1/pos/sales/{id}/refunds` | Verify OTP and complete refund |
 | `POST /api/v1/account-links` | Begin recent-auth account linking |
 | `POST /api/v1/account-merge-requests` | Create reviewed duplicate-resolution case |
 | `GET /api/v1/pos/invitations` | Seller pending/claimed delivery status |
@@ -346,19 +389,20 @@ sheet. Tablet and desktop use a left rail and persistent cart. All primary touch
 targets are at least 48 px, states use text plus icons, and critical screens are
 available in English and Telugu.
 
-## 15. Product decisions required
+## 15. Remaining product decisions
 
-1. Are rewards platform-wide or separate per seller organization?
-2. What is the earn formula, rounding rule, availability delay, expiry, and who
-   funds redeemed value?
-3. Which seller evidence changes `provisional` to `verified`, and which authority
-   grants `verified-organic`?
-4. How long should buyer codes, seller invitations, and invoice invitations last?
-5. Which WhatsApp provider and email provider will send transactional messages?
-6. Is buyer-visible invoice acceptance mandatory for provisional-seller invoices,
-   and what is the dispute window?
-7. What retention periods apply to unclaimed contact data and financial audit data?
-8. May cashiers initiate recovery/merge cases, or only buyers and administrators?
+1. Are taxes part of eligible reward spending?
+2. Do discounts reduce eligible spending? Proposed default: yes.
+3. Are points available immediately or after a return window?
+4. Can prizes be redeemed only at their configured physical locations?
+5. Can a recoverable negative balance be cleared through future earning?
+6. May Owner, Manager and Cashier initiate refund OTP, or only Owner/Manager?
+7. What recovery path applies when the original sale has no buyer phone or email?
+8. How long is a refund OTP valid? Proposed default: five minutes with limited
+   attempts.
+
+Messaging-provider selection remains deferred by design. The integration boundary
+is provider-neutral and supports WhatsApp, email, and a future SMS channel.
 
 ## 16. Acceptance coverage and implementation order
 
@@ -381,5 +425,5 @@ Implementation order:
 
 The schema and endpoint names in this document are the implementation contract
 proposal. Runtime migrations and APIs should begin after section 15 is resolved,
-because rewards ownership and verification policy affect keys, constraints, and
-state transitions that are expensive to reverse after financial records exist.
+because eligibility, availability, redemption and refund authorization rules
+affect financial constraints and state transitions that are expensive to reverse.

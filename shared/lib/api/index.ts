@@ -7,5 +7,6 @@ export * as stockApi from "./stock";
 export * as registersApi from "./registers";
 export * as salesApi from "./sales";
 export * as sellerOrgsApi from "./sellerOrgs";
+export * as identityApi from "./identity";
 export { request } from "./client";
 export type { ApiResult } from "./client";
