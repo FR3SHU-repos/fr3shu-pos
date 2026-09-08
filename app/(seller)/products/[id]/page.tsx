@@ -58,8 +58,6 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
     setBusy(true);
     const res = await productsApi.update(id, {
       name: product.name,
-      sku: product.sku,
-      barcode: product.barcode,
       description: product.description,
       categoryId: product.categoryId,
       saleUnit: product.saleUnit,
@@ -85,7 +83,8 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
         <div>
           <h1 className="text-xl font-semibold text-foreground-heading">{product.name}</h1>
           <p className="text-xs text-foreground-muted">
-            {product.sku} · {product.saleUnit} · base {product.baseUnit}
+            SKU {product.sku}
+            {product.barcode ? ` · barcode ${product.barcode}` : ""} · {product.saleUnit}
           </p>
         </div>
         <StatusBadge status={product.organicStatus} />

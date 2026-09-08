@@ -36,8 +36,6 @@ export default function NewProductPage() {
 
   const [form, setForm] = useState({
     name: "",
-    sku: "",
-    barcode: "",
     categoryId: "",
     saleUnit: "kg" as SaleUnit,
     basePriceRupees: "",
@@ -63,8 +61,6 @@ export default function NewProductPage() {
     setBusy(true);
     const res = await productsApi.create({
       name: form.name.trim(),
-      sku: form.sku.trim(),
-      barcode: form.barcode.trim() || undefined,
       categoryId: form.categoryId || undefined,
       saleUnit: form.saleUnit,
       taxRateBps: Math.round(Number(form.taxRatePct || 0) * 100),
@@ -87,10 +83,9 @@ export default function NewProductPage() {
 
       <form onSubmit={onSubmit} className={`${cardCls} space-y-4`}>
         <Text label="Name" value={form.name} onChange={(v) => set("name", v)} required />
-        <div className="grid grid-cols-2 gap-3">
-          <Text label="SKU" value={form.sku} onChange={(v) => set("sku", v)} required />
-          <Text label="Barcode" value={form.barcode} onChange={(v) => set("barcode", v)} />
-        </div>
+        <p className="-mt-2 text-xs text-foreground-muted">
+          A SKU code and a printable barcode are generated automatically.
+        </p>
 
         <div className="grid grid-cols-2 gap-3">
           <div>
@@ -100,7 +95,7 @@ export default function NewProductPage() {
               onChange={(e) => set("categoryId", e.target.value)}
               className={inputCls}
             >
-              <option value="">— none —</option>
+              <option value="">— choose —</option>
               {categories.map((c) => (
                 <option key={c._id} value={c._id}>
                   {c.name}
