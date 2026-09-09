@@ -3,6 +3,7 @@
 import React, { createContext, useCallback, useContext, useEffect, useState } from "react";
 import { authApi } from "@/shared/lib/api";
 import type { SessionUser } from "@/shared/lib/api/auth";
+import { createAuthBrowserClient } from "@/shared/lib/supabase/auth-client";
 
 interface PosUserContextValue {
   user: SessionUser | null;
@@ -37,6 +38,22 @@ export function PosUserProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     void refresh();
+
+    const supabase = createAuthBrowserClient();
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((event) => {
+      if (event === "SIGNED_OUT") {
+        setUser(null);
+        setLoading(false);
+        return;
+      }
+      if (event === "SIGNED_IN" || event === "TOKEN_REFRESHED" || event === "USER_UPDATED") {
+        void refresh();
+      }
+    });
+
+    return () => subscription.unsubscribe();
   }, [refresh]);
 
   return (

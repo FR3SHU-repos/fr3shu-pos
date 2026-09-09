@@ -1,6 +1,26 @@
+"use client";
+
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { LogOut } from "lucide-react";
+import { usePosUser } from "@/shared/context/PosUserContext";
+import { ADMIN_HOME, isPlatformAdmin } from "@/shared/lib/auth/routing";
 
 export function SiteHeader() {
+  const { user, loading, logout } = usePosUser();
+  const router = useRouter();
+  const accountHref = isPlatformAdmin(user)
+    ? ADMIN_HOME
+    : user?.orgId
+      ? "/dashboard"
+      : "/buyer";
+
+  async function handleLogout() {
+    await logout();
+    router.replace("/login");
+    router.refresh();
+  }
+
   return (
     <header className="no-print sticky top-0 z-50 border-b border-border bg-surface-card/95 backdrop-blur">
       <div className="mx-auto flex min-h-16 w-full max-w-7xl items-center justify-between gap-3 px-4 sm:px-6">
@@ -23,12 +43,38 @@ export function SiteHeader() {
           <Link href="/dashboard" className={navLinkClass}>
             Seller POS
           </Link>
-          <Link
-            href="/login"
-            className="min-h-10 rounded-lg bg-primary px-3 py-2.5 text-xs font-semibold text-primary-foreground transition hover:bg-primary-hover sm:px-4 sm:text-sm"
-          >
-            Sign in
-          </Link>
+          {loading ? (
+            <span
+              className="h-10 w-16 animate-pulse rounded-lg bg-border sm:w-24"
+              aria-label="Checking sign-in status"
+            />
+          ) : user ? (
+            <>
+              <Link
+                href={accountHref}
+                className="hidden min-h-10 max-w-40 items-center truncate rounded-lg bg-surface px-3 py-2.5 text-sm font-semibold text-foreground-heading sm:inline-flex"
+                title={user.name || user.email}
+              >
+                {user.name || "My account"}
+              </Link>
+              <button
+                type="button"
+                onClick={handleLogout}
+                className="inline-flex min-h-10 items-center gap-1.5 rounded-lg bg-primary px-3 py-2.5 text-xs font-semibold text-primary-foreground transition hover:bg-primary-hover sm:px-4 sm:text-sm"
+              >
+                <LogOut className="h-4 w-4" aria-hidden="true" />
+                <span className="hidden sm:inline">Sign out</span>
+                <span className="sm:hidden">Exit</span>
+              </button>
+            </>
+          ) : (
+            <Link
+              href="/login"
+              className="min-h-10 rounded-lg bg-primary px-3 py-2.5 text-xs font-semibold text-primary-foreground transition hover:bg-primary-hover sm:px-4 sm:text-sm"
+            >
+              Sign in
+            </Link>
+          )}
         </nav>
       </div>
     </header>
