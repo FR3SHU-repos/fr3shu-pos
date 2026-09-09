@@ -1,4 +1,4 @@
-import { goRequest, type ApiResult } from "./client";
+import { request, type ApiResult } from "./client";
 
 export interface RewardSummary {
   availableCoins: number;
@@ -28,6 +28,6 @@ export interface RewardLedgerEntry {
 
 export interface RewardLedgerPage { items: RewardLedgerEntry[]; nextCursor?: string }
 
-export const summary = (): Promise<ApiResult<RewardSummary>> => goRequest("buyer/rewards/summary");
+export const summary = (): Promise<ApiResult<RewardSummary>> => request("buyer/rewards/summary");
 export const ledger = (cursor?: string, limit = 10): Promise<ApiResult<RewardLedgerPage>> =>
-  goRequest("buyer/rewards/ledger", { query: { cursor, limit } });
+  request("buyer/rewards/ledger", { query: { cursor, limit } });
