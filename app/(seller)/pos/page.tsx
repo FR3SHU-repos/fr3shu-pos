@@ -346,7 +346,7 @@ export default function PosPage() {
       <div className="mx-auto max-w-md space-y-5 text-center">
         <CheckCircle2 className="mx-auto h-14 w-14 text-status-success" />
         <div>
-          <h1 className="text-xl font-semibold text-foreground-heading">Purchase verified</h1>
+          <h1 className="text-xl font-semibold text-foreground-heading">Purchase completed</h1>
           <p className="text-sm text-foreground-muted">
             {completed.receiptNo} · {formatPaise(completed.totalPaise)} · sync {completed.syncState}
           </p>
@@ -355,7 +355,7 @@ export default function PosPage() {
           <section className={`${cardCls} text-left`} aria-label="Authoritative purchase rewards">
             <div className="flex items-center gap-2 text-primary"><Coins className="h-6 w-6"/><h2 className="font-semibold">Komola Coins earned</h2></div>
             <dl className="mt-4 space-y-2 text-sm">
-              <div className="flex justify-between"><dt>Eligible verified purchase</dt><dd>{formatPaise(completed.reward.eligibleAmountMinor)}</dd></div>
+              <div className="flex justify-between"><dt>Eligible purchase</dt><dd>{formatPaise(completed.reward.eligibleAmountMinor)}</dd></div>
               <div className="flex justify-between"><dt>Base reward</dt><dd className="font-semibold">+{completed.reward.baseCoins}</dd></div>
               {completed.reward.bonusCoins > 0 ? <div className="flex justify-between"><dt>Bonus rewards</dt><dd className="font-semibold">+{completed.reward.bonusCoins}</dd></div> : null}
               <div className="flex justify-between border-t border-border pt-2 text-base font-bold"><dt>Total earned</dt><dd>+{completed.reward.totalCoins} Komola Coins</dd></div>
@@ -363,7 +363,7 @@ export default function PosPage() {
             {completed.reward.eligibleRemainderMinor > 0 ? <p className="mt-3 text-xs text-foreground-muted">{formatPaise(completed.reward.eligibleRemainderMinor)} carries toward the next coin.</p> : null}
           </section>
         ) : (
-          <p className="rounded-xl bg-surface-card p-4 text-sm text-foreground-muted">Receipt verified. Rewards will appear when this phone is linked to a verified KOMOLA buyer account.</p>
+          <p className="rounded-xl bg-surface-card p-4 text-sm text-foreground-muted">Purchase completed. Rewards will appear when this customer is linked to a KOMOLA buyer account.</p>
         )}
         <ReceiptView
           sale={completed}

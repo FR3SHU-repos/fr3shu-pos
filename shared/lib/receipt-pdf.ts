@@ -145,7 +145,7 @@ export async function createBuyerReceiptPdf(receipt: BuyerReceiptDetail) {
   pdf.text(`${receipt.coinsEarned} Komola Coin${receipt.coinsEarned === 1 ? "" : "s"} earned`, width / 2, y + 8, { align: "center" });
   pdf.setFont("helvetica", "normal");
   pdf.setFontSize(8);
-  pdf.text("Verified KOMOLA purchase", width / 2, y + 13, { align: "center" });
+  pdf.text("Completed KOMOLA purchase", width / 2, y + 13, { align: "center" });
 
   const pages = pdf.getNumberOfPages();
   for (let page = 1; page <= pages; page += 1) {
