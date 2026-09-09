@@ -36,6 +36,7 @@ import { SALE_UNIT_BASE, toBaseQuantity, type SaleUnit } from "@/shared/lib/unit
 import { translator, LOCALES, type Locale } from "@/shared/lib/i18n";
 import { ReceiptView, type ReceiptPaymentLine } from "@/shared/components/pos/ReceiptView";
 import { HELD_CARTS_KEY, type CartLine, type HeldCart } from "@/shared/components/pos/types";
+import { BuyerQrScanner } from "@/shared/components/pos/BuyerQrScanner";
 
 type PayMethod = "cash" | "upi" | "split";
 
@@ -300,8 +301,8 @@ export default function PosPage() {
     void load();
   }
 
-  async function findBuyer() {
-    const code = buyerCode.trim().toUpperCase();
+  const resolveBuyer = useCallback(async (value: string) => {
+    const code = value.trim().toUpperCase();
     if (!/^BYR-[A-F0-9]{10}$/.test(code)) {
       toast.error("Enter a buyer code like BYR-1A2B3C4D5E");
       return;
@@ -319,7 +320,17 @@ export default function PosPage() {
     setCustomerName(result.data.displayName);
     setCustomerPhone(result.data.phone);
     toast.success("Buyer attached to this sale");
+  }, []);
+
+  function findBuyer() {
+    void resolveBuyer(buyerCode);
   }
+
+  const attachScannedBuyer = useCallback((code: string) => {
+    setBuyerCode(code);
+    setResolvedBuyer(null);
+    void resolveBuyer(code);
+  }, [resolveBuyer]);
 
   if (loading) {
     return (
@@ -690,13 +701,14 @@ export default function PosPage() {
                   {resolvingBuyer ? <Loader2 className="h-4 w-4 animate-spin" /> : <UserRoundSearch className="h-4 w-4" />}
                   Find
                 </button>
+                <BuyerQrScanner disabled={resolvingBuyer} onScan={attachScannedBuyer} />
               </div>
               {resolvedBuyer ? (
                 <p className="rounded-lg bg-status-success-surface px-3 py-2 text-xs font-medium text-status-success">
                   {resolvedBuyer.displayName} is attached. Their receipt and rewards will update when the sale is confirmed.
                 </p>
               ) : (
-                <p className="text-xs text-foreground-muted">Enter the customer&apos;s KOMOLA buyer code to fill and link their details automatically.</p>
+                <p className="text-xs text-foreground-muted">Enter or scan the customer&apos;s KOMOLA buyer code to fill and link their details automatically.</p>
               )}
               <input
                 placeholder={t("pos.customer_name")}
