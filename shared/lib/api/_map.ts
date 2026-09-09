@@ -277,6 +277,18 @@ export interface GoSale {
   customerName?: string;
   customerPhone?: string;
   createdAt: string;
+  reward?: SaleRewardResult;
+}
+
+export interface SaleRewardResult {
+  linked: boolean;
+  status: "available" | "pending" | "reversed" | "unlinked";
+  eligibleAmountMinor: number;
+  baseCoins: number;
+  bonusCoins: number;
+  totalCoins: number;
+  eligibleRemainderMinor: number;
+  reason: string;
 }
 
 export interface SaleItemDTO {
@@ -315,6 +327,7 @@ export interface SaleDTO {
   syncState: "synced";
   idempotencyKey: string;
   paymentState: string;
+  reward?: SaleRewardResult;
 }
 
 function mapLine(l: GoSaleLine): SaleItemDTO {
@@ -357,6 +370,7 @@ export function mapSale(s: GoSale): SaleDTO {
     syncState: "synced",
     idempotencyKey: "",
     paymentState: s.paymentState,
+    reward: s.reward,
   };
 }
 
