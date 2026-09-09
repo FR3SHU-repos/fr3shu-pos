@@ -1,13 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
+import { serverGoApiBase } from "@/shared/lib/api/server-base";
 
 export function goApiBase(): string | null {
-  const raw =
-    process.env.GO_API_BASE_URL ??
-    process.env.NEXT_PUBLIC_API_URL ??
-    process.env.NEXT_PUBLIC_API_BASE_URL ??
-    process.env.NEXT_PUBLIC_CATALOGUE_API_BASE_URL;
-  const base = raw?.trim().replace(/\/+$/, "").replace(/\/api\/v1$/i, "");
-  return base || null;
+  return serverGoApiBase() || null;
 }
 
 function notConfigured(): NextResponse {

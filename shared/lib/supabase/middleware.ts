@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import { ADMIN_HOME, isPlatformAdmin } from "@/shared/lib/auth/routing";
 import { isBuyerExperiencePath } from "@/shared/lib/auth/intent";
+import { serverGoApiBase } from "@/shared/lib/api/server-base";
 
 const URL = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
 const KEY =
@@ -59,7 +60,7 @@ export async function updateSession(request: NextRequest): Promise<NextResponse>
   // UX gate only; Go independently enforces administrative restrictions.
   if (!pathname.startsWith("/seller/") && pathname !== "/") {
     const { data: { session } } = await supabase.auth.getSession();
-    const base = (process.env.GO_API_BASE_URL ?? process.env.NEXT_PUBLIC_API_URL ?? process.env.NEXT_PUBLIC_API_BASE_URL ?? "").replace(/\/+$/, "").replace(/\/api\/v1$/i, "");
+    const base = serverGoApiBase();
     if (base && session?.access_token) {
       try {
         const headers = { Authorization: `Bearer ${session.access_token}` };

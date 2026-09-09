@@ -1,13 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseServerClient } from "@/shared/lib/supabase/server";
 import { ADMIN_HOME, isPlatformAdmin } from "@/shared/lib/auth/routing";
-
-function apiBase(): string {
-  return (process.env.GO_API_BASE_URL ?? process.env.NEXT_PUBLIC_API_URL ?? process.env.NEXT_PUBLIC_API_BASE_URL ?? "")
-    .trim()
-    .replace(/\/+$/, "")
-    .replace(/\/api\/v1$/i, "");
-}
+import { serverGoApiBase } from "@/shared/lib/api/server-base";
 
 export async function GET(request: NextRequest) {
   const url = new URL(request.url);
@@ -39,7 +33,8 @@ export async function GET(request: NextRequest) {
       "Content-Type": "application/json",
       ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
     };
-    const reconciled = await fetch(`${apiBase()}/api/v1/auth/reconcile`, {
+    const apiBase = serverGoApiBase();
+    const reconciled = await fetch(`${apiBase}/api/v1/auth/reconcile`, {
       method: "POST",
       headers,
       body: "{}",
@@ -47,13 +42,13 @@ export async function GET(request: NextRequest) {
     });
     if (!reconciled.ok) return NextResponse.redirect(`${origin}/login?error=reconcile_failed`);
     if (next.startsWith("/buyer")) return NextResponse.redirect(`${origin}${next}`);
-    const me = await fetch(`${apiBase()}/api/v1/pos/auth/me`, { headers, cache: "no-store" });
+    const me = await fetch(`${apiBase}/api/v1/pos/auth/me`, { headers, cache: "no-store" });
     if (!me.ok) return NextResponse.redirect(`${origin}/login?error=reconcile_failed`);
     const profile = await me.json();
     if (isPlatformAdmin(profile?.data)) {
       destination = ADMIN_HOME;
     } else {
-      const status = await fetch(`${apiBase()}/api/v1/seller-organizations/me`, { headers, cache: "no-store" });
+      const status = await fetch(`${apiBase}/api/v1/seller-organizations/me`, { headers, cache: "no-store" });
       if (status.status === 404) destination = "/seller/onboarding";
       else if (status.ok) {
         const body = await status.json();
