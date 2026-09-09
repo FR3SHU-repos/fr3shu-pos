@@ -8,7 +8,7 @@ import {
 } from "@/shared/lib/api/sellerOrgs";
 
 const body: RegisterSellerBody = {
-  organization: { legalName: "Green Harvest FPO", contactName: "Test Owner", type: "FPO" },
+  organization: { legalName: "Green Harvest FPO", contactName: "Test Owner", type: "FPO", phoneE164: "+919876543210" },
   location: { code: "GHMVP", name: "MVP Stall" },
 };
 

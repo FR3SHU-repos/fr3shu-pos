@@ -74,7 +74,7 @@ export interface RegisterSellerBody {
     displayName?: string;
     contactName: string;
     type: SellerOrgType;
-    phoneE164?: string;
+    phoneE164: string;
     whatsappPhoneE164?: string;
     gstin?: string;
     billingAddress?: SellerAddress;
