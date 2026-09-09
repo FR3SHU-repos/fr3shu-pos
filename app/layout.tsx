@@ -10,7 +10,11 @@ export const metadata: Metadata = {
   manifest: "/manifest.webmanifest",
   applicationName: "KOMOLA Organic POS",
   appleWebApp: { capable: true, title: "KOMOLA POS", statusBarStyle: "default" },
-  icons: { icon: "/komola-logo.png", apple: "/komola-logo.png" },
+  icons: {
+    icon: [{ url: "/favicon.ico?v=komola-20260909", type: "image/x-icon", sizes: "64x64" }],
+    shortcut: "/favicon.ico?v=komola-20260909",
+    apple: "/komola-logo.png",
+  },
 };
 
 export const viewport: Viewport = {
