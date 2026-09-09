@@ -14,8 +14,10 @@ import {
   PauseCircle,
   PlayCircle,
   Coins,
+  UserRoundSearch,
 } from "lucide-react";
-import { productsApi, registersApi, salesApi, sellerOrgsApi } from "@/shared/lib/api";
+import { customersApi, productsApi, registersApi, salesApi, sellerOrgsApi } from "@/shared/lib/api";
+import type { ResolvedBuyer } from "@/shared/lib/api/customers";
 import type { ProductDTO } from "@/shared/lib/api/products";
 import type { SaleDTO } from "@/shared/lib/api/sales";
 import type { SessionDTO } from "@/shared/lib/api/registers";
@@ -57,6 +59,9 @@ export default function PosPage() {
   const [tendered, setTendered] = useState("");
   const [customerName, setCustomerName] = useState("");
   const [customerPhone, setCustomerPhone] = useState("");
+  const [buyerCode, setBuyerCode] = useState("");
+  const [resolvedBuyer, setResolvedBuyer] = useState<ResolvedBuyer | null>(null);
+  const [resolvingBuyer, setResolvingBuyer] = useState(false);
   const [marketingConsent, setMarketingConsent] = useState(false);
 
   const [submitting, setSubmitting] = useState(false);
@@ -188,6 +193,8 @@ export default function PosPage() {
     setTendered("");
     setCustomerName("");
     setCustomerPhone("");
+    setBuyerCode("");
+    setResolvedBuyer(null);
     setMarketingConsent(false);
     setCompletedPayment(null);
     idemRef.current = crypto.randomUUID();
@@ -235,8 +242,8 @@ export default function PosPage() {
 
   async function completeSale() {
     if (submitting || lines.length === 0) return;
-    if (!customerName.trim() || !customerPhone.trim()) {
-      toast.error("Enter the customer's name and phone");
+    if (!customerName.trim() || (!customerPhone.trim() && !resolvedBuyer)) {
+      toast.error("Enter the customer's details or find them with a buyer code");
       return;
     }
 
@@ -268,6 +275,7 @@ export default function PosPage() {
       payments,
       customerName: customerName.trim(),
       customerPhone: customerPhone.trim(),
+      buyerCode: resolvedBuyer?.code,
       marketingConsent: marketingConsent || undefined,
     });
     setSubmitting(false);
@@ -290,6 +298,27 @@ export default function PosPage() {
     });
     setCompleted(res.data.sale);
     void load();
+  }
+
+  async function findBuyer() {
+    const code = buyerCode.trim().toUpperCase();
+    if (!/^BYR-[A-F0-9]{10}$/.test(code)) {
+      toast.error("Enter a buyer code like BYR-1A2B3C4D5E");
+      return;
+    }
+    setResolvingBuyer(true);
+    const result = await customersApi.resolveBuyerCode(code);
+    setResolvingBuyer(false);
+    if (!result.success || !result.data) {
+      setResolvedBuyer(null);
+      toast.error(result.status === 404 ? "Buyer code not found" : result.message);
+      return;
+    }
+    setBuyerCode(result.data.code);
+    setResolvedBuyer(result.data);
+    setCustomerName(result.data.displayName);
+    setCustomerPhone(result.data.phone);
+    toast.success("Buyer attached to this sale");
   }
 
   if (loading) {
@@ -640,12 +669,42 @@ export default function PosPage() {
 
             <div className="space-y-2 rounded-lg border border-border p-2">
               <p className="text-xs font-medium text-foreground-body">Customer details (required)</p>
+              <div className="flex gap-2">
+                <input
+                  aria-label="Buyer code"
+                  placeholder="Buyer code · BYR-..."
+                  value={buyerCode}
+                  onChange={(e) => {
+                    setBuyerCode(e.target.value.toUpperCase());
+                    setResolvedBuyer(null);
+                  }}
+                  className={inputCls}
+                  autoComplete="off"
+                />
+                <button
+                  type="button"
+                  onClick={findBuyer}
+                  disabled={resolvingBuyer || !buyerCode.trim()}
+                  className={`${ghostBtnCls} shrink-0 px-3`}
+                >
+                  {resolvingBuyer ? <Loader2 className="h-4 w-4 animate-spin" /> : <UserRoundSearch className="h-4 w-4" />}
+                  Find
+                </button>
+              </div>
+              {resolvedBuyer ? (
+                <p className="rounded-lg bg-status-success-surface px-3 py-2 text-xs font-medium text-status-success">
+                  {resolvedBuyer.displayName} is attached. Their receipt and rewards will update when the sale is confirmed.
+                </p>
+              ) : (
+                <p className="text-xs text-foreground-muted">Enter the customer&apos;s KOMOLA buyer code to fill and link their details automatically.</p>
+              )}
               <input
                 placeholder={t("pos.customer_name")}
                 value={customerName}
                 onChange={(e) => setCustomerName(e.target.value)}
                 className={inputCls}
                 autoComplete="off"
+                readOnly={Boolean(resolvedBuyer)}
               />
               <input
                 placeholder={t("pos.customer_phone")}
@@ -654,6 +713,7 @@ export default function PosPage() {
                 className={inputCls}
                 inputMode="numeric"
                 autoComplete="off"
+                readOnly={Boolean(resolvedBuyer)}
               />
               <label className="flex items-center gap-2 text-xs text-foreground-muted">
                 <input
@@ -667,7 +727,7 @@ export default function PosPage() {
 
             <button
               className={`${primaryBtnCls} w-full`}
-              disabled={submitting || !customerName.trim() || !customerPhone.trim()}
+              disabled={submitting || !customerName.trim() || (!customerPhone.trim() && !resolvedBuyer)}
               onClick={completeSale}
             >
               {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
