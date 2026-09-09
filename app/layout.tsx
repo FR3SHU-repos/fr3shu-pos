@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { PosUserProvider } from "@/shared/context/PosUserContext";
+import { SiteFooter, SiteHeader } from "@/shared/components/SiteChrome";
 import { Toaster } from "react-hot-toast";
 
 export const metadata: Metadata = {
@@ -23,7 +24,13 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en">
       <body className="antialiased">
-        <PosUserProvider>{children}</PosUserProvider>
+        <PosUserProvider>
+          <div className="flex min-h-screen flex-col">
+            <SiteHeader />
+            <div className="min-h-0 flex-1">{children}</div>
+            <SiteFooter />
+          </div>
+        </PosUserProvider>
         <Toaster
           position="top-right"
           toastOptions={{

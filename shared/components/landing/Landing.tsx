@@ -17,27 +17,7 @@ export function Landing({ signedIn }: { signedIn: boolean }) {
   const [audience, setAudience] = useState<Audience>("seller");
 
   return (
-    <main className="flex min-h-screen flex-col overflow-x-hidden bg-surface">
-      <header className="mx-auto flex w-full max-w-4xl items-center justify-between gap-2 px-4 py-4">
-        <span className="flex items-center gap-2">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src="/komola-logo.png"
-            alt=""
-            className="h-9 w-9 rounded-lg object-contain"
-          />
-          <span className="text-sm font-semibold text-foreground-heading">
-            KOMOLA Organic POS
-          </span>
-        </span>
-        <Link
-          href={signedIn ? "/dashboard" : "/login"}
-          className="text-sm font-medium text-primary hover:underline"
-        >
-          {signedIn ? "Go to dashboard" : "Sign in"}
-        </Link>
-      </header>
-
+    <main className="flex flex-col overflow-x-hidden bg-surface">
       <section className="mx-auto w-full max-w-3xl flex-1 px-4 pb-16 pt-8 text-center sm:pt-14">
         <h1 className="text-2xl font-semibold text-foreground-heading sm:text-3xl">
           Simple point of sale for organic sellers
@@ -129,10 +109,6 @@ export function Landing({ signedIn }: { signedIn: boolean }) {
           text="Track every harvest batch and its certification."
         />
       </section>
-
-      <footer className="border-t border-border py-6 text-center text-xs text-foreground-muted">
-        KOMOLA Organic POS · Visakhapatnam
-      </footer>
     </main>
   );
 }

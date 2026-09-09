@@ -86,7 +86,7 @@ export default function SellerShell({ children }: { children: React.ReactNode })
       {/* Mobile top bar */}
       <div className="flex min-w-0 flex-1 flex-col">
         <header className="flex items-center justify-between border-b border-border bg-surface-card px-4 py-3 lg:hidden">
-          <Brand />
+          <span className="text-sm font-semibold text-foreground-heading">Seller workspace</span>
           <button
             type="button"
             aria-label="Toggle menu"
