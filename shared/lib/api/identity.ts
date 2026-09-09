@@ -27,7 +27,10 @@ export interface Capabilities {
 export interface DiscoveryCode { code: string; url: string }
 
 export const profile = (): Promise<ApiResult<PersonProfile>> => request("me/profile");
-export const capabilities = (): Promise<ApiResult<Capabilities>> => request("me/capabilities");
+export const capabilities = (accessToken?: string): Promise<ApiResult<Capabilities>> =>
+  request("me/capabilities", {
+    headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : undefined,
+  });
 export const updateProfile = (displayName: string, buyer: boolean): Promise<ApiResult<PersonProfile>> =>
   request("me/profile", { method: "PUT", body: { displayName, buyer } });
 export const discoveryCode = (): Promise<ApiResult<DiscoveryCode>> => request("me/discovery-code");

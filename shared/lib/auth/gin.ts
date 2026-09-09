@@ -6,16 +6,21 @@ import { createAuthBrowserClient } from "@/shared/lib/supabase/auth-client";
 export async function ginFetch(
   path: string,
   init: RequestInit = {},
+  accessToken?: string,
 ): Promise<Response> {
-  const supabase = createAuthBrowserClient();
-  const {
-    data: { session },
-  } = await supabase.auth.getSession();
+  let token = accessToken;
+  if (!token) {
+    const supabase = createAuthBrowserClient();
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+    token = session?.access_token;
+  }
 
   const headers = new Headers(init.headers);
   headers.set("Content-Type", "application/json");
-  if (session?.access_token) {
-    headers.set("Authorization", `Bearer ${session.access_token}`);
+  if (token) {
+    headers.set("Authorization", `Bearer ${token}`);
   }
   return fetch(`/api/v1${path}`, {
     ...init,
@@ -24,9 +29,9 @@ export async function ginFetch(
   });
 }
 
-export async function reconcileIdentity(): Promise<{ onboardingComplete: boolean } | null> {
+export async function reconcileIdentity(accessToken?: string): Promise<{ onboardingComplete: boolean } | null> {
   try {
-    const res = await ginFetch("/auth/reconcile", { method: "POST", body: "{}" });
+    const res = await ginFetch("/auth/reconcile", { method: "POST", body: "{}" }, accessToken);
     if (!res.ok) return null;
     const json = await res.json();
     return { onboardingComplete: Boolean(json?.data?.onboardingComplete) };

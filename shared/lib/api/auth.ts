@@ -15,8 +15,10 @@ export interface SessionUser {
 // profile echo at /pos/auth/me and a cookie-clear at /pos/auth/logout; login
 // and registration are handled by Supabase, not here.
 
-export const me = (): Promise<ApiResult<SessionUser>> =>
-  goRequest<SessionUser>("auth/me");
+export const me = (accessToken?: string): Promise<ApiResult<SessionUser>> =>
+  goRequest<SessionUser>("auth/me", {
+    headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : undefined,
+  });
 
 export const logout = async (): Promise<ApiResult<null>> => {
   const { createAuthBrowserClient } = await import("@/shared/lib/supabase/auth-client");

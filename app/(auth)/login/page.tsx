@@ -40,8 +40,8 @@ function LoginForm() {
   const [googleBusy, setGoogleBusy] = useState(false);
   const [intent, setIntent] = useState<AuthIntent>(authIntent(params.get("as")));
 
-  async function destination(): Promise<string> {
-    const result = await identityApi.capabilities();
+  async function destination(accessToken?: string): Promise<string> {
+    const result = await identityApi.capabilities(accessToken);
     if (result.success && result.data) return destinationForCapabilities(intent, result.data);
     return intent === "buyer" ? "/buyer/setup" : next;
   }
@@ -52,7 +52,7 @@ function LoginForm() {
     setBusy(true);
     const normEmail = email.trim().toLowerCase();
 
-    const { error } = await supabase.auth.signInWithPassword({
+    const { data, error } = await supabase.auth.signInWithPassword({
       email: normEmail,
       password,
     });
@@ -65,10 +65,21 @@ function LoginForm() {
       );
       return;
     }
-    await reconcileIdentity();
+    const accessToken = data.session?.access_token;
+    if (!accessToken) {
+      setBusy(false);
+      toast.error("Unable to start your secure session.");
+      return;
+    }
+    const reconciled = await reconcileIdentity(accessToken);
+    if (!reconciled) {
+      setBusy(false);
+      toast.error("Unable to verify your account with the POS service.");
+      return;
+    }
     // Resolve platform authorization before applying seller-org routing. An
     // Admin intentionally has no seller organization.
-    const profile = await authApi.me();
+    const profile = await authApi.me(accessToken);
     if (!profile.success || !profile.data) {
       setBusy(false);
       toast.error("Unable to load your account permissions.");
@@ -81,12 +92,12 @@ function LoginForm() {
       return;
     }
     if (intent === "buyer") {
-      const target = await destination();
+      const target = await destination(accessToken);
       setBusy(false);
       router.replace(target);
       return;
     }
-    const org = await getMyOrganization();
+    const org = await getMyOrganization(accessToken);
     setBusy(false);
     router.replace(org.status === 404 ? "/seller/onboarding" : sellerDestination(org.data?.approvalStatus) || next);
   }

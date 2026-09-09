@@ -139,8 +139,10 @@ export function registerSeller(
 }
 
 /** The caller's organization, its locations, and their membership. 404 if none. */
-export function getMyOrganization(): Promise<ApiResult<MyOrganization>> {
-  return request<MyOrganization>("seller-organizations/me");
+export function getMyOrganization(accessToken?: string): Promise<ApiResult<MyOrganization>> {
+  return request<MyOrganization>("seller-organizations/me", {
+    headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : undefined,
+  });
 }
 
 /** Platform-admin view of seller organizations and their access states. */
