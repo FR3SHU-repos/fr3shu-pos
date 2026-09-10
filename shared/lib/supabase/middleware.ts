@@ -53,9 +53,31 @@ export async function updateSession(request: NextRequest): Promise<NextResponse>
     return NextResponse.redirect(url);
   }
 
-  // Buyer pages have their own capability/profile checks. Never require a
-  // seller organization merely because the same Auth user is a buyer.
-  if (isBuyerExperiencePath(pathname)) return response;
+  // Buyer reward pages require the exclusive buyer capability. Seller
+  // membership takes precedence and routes the identity to its POS dashboard.
+  if (isBuyerExperiencePath(pathname)) {
+    if (pathname === "/buyer/setup") return response;
+    const { data: { session } } = await supabase.auth.getSession();
+    const base = serverGoApiBase();
+    if (base && session?.access_token) {
+      try {
+        const capabilities = await fetch(`${base}/api/v1/me/capabilities`, {
+          headers: { Authorization: `Bearer ${session.access_token}` },
+          cache: "no-store",
+        });
+        if (capabilities.ok) {
+          const body = await capabilities.json();
+          if (!body?.data?.buyer) {
+            const url = request.nextUrl.clone();
+            url.pathname = body?.data?.seller ? "/dashboard" : "/buyer/setup";
+            url.search = "";
+            return NextResponse.redirect(url);
+          }
+        }
+      } catch { /* page API requests show backend availability errors */ }
+    }
+    return response;
+  }
 
   // UX gate only; Go independently enforces administrative restrictions.
   if (!pathname.startsWith("/seller/") && pathname !== "/") {
