@@ -7,7 +7,7 @@ import type { DiscoveryCode, PersonProfile } from "@/shared/lib/api/identity";
 import type { RewardLedgerEntry, RewardSummary } from "@/shared/lib/api/rewards";
 import { cardCls, EmptyState, Skeleton } from "@/shared/components/ui";
 import { formatPaise } from "@/shared/lib/money";
-import { Check, Coins, Copy, Download, Eye, ReceiptText, Share2 } from "lucide-react";
+import { Check, ChevronLeft, ChevronRight, Coins, Copy, Download, Eye, Loader2, ReceiptText, Share2 } from "lucide-react";
 import Link from "next/link";
 import toast from "react-hot-toast";
 import { BuyerCodeQr } from "@/shared/components/buyer/BuyerCodeQr";
@@ -19,6 +19,9 @@ export default function BuyerDashboardPage() {
   const [summary, setSummary] = useState<RewardSummary | null>(null);
   const [entries, setEntries] = useState<RewardLedgerEntry[]>([]);
   const [receipts, setReceipts] = useState<BuyerReceiptSummary[]>([]);
+  const [receiptPage, setReceiptPage] = useState(1);
+  const [receiptPages, setReceiptPages] = useState(1);
+  const [receiptsLoading, setReceiptsLoading] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [copied, setCopied] = useState(false);
@@ -29,10 +32,27 @@ export default function BuyerDashboardPage() {
       if (discovery.success) setCode(discovery.data);
       if (rewards.success) setSummary(rewards.data); else setError(rewards.message);
       if (history.success) setEntries(history.data?.items ?? []);
-      if (purchases.success) setReceipts(purchases.data?.items ?? []);
+      if (purchases.success) {
+        setReceipts(purchases.data?.items ?? []);
+        setReceiptPages(Math.max(1, purchases.data?.meta?.totalPages ?? 1));
+      }
       setLoading(false);
     });
   }, []);
+
+  async function loadReceiptPage(page: number) {
+    if (receiptsLoading || page < 1 || page > receiptPages) return;
+    setReceiptsLoading(true);
+    const result = await receiptsApi.list(10, page);
+    setReceiptsLoading(false);
+    if (!result.success || !result.data) {
+      toast.error(result.message || "Could not load receipts");
+      return;
+    }
+    setReceipts(result.data.items);
+    setReceiptPage(result.data.meta.page);
+    setReceiptPages(Math.max(1, result.data.meta.totalPages));
+  }
 
   async function shareCode() {
     if (!code) return;
@@ -80,6 +100,19 @@ export default function BuyerDashboardPage() {
       <div className={cardCls}><p className="text-sm text-foreground-muted">Lifetime earned</p><p className="mt-2 text-2xl font-bold">{summary?.lifetimeEarnedCoins ?? 0} coins</p></div>
     </section>
     <section className={`${cardCls} mt-4`} aria-labelledby="reward-history-title"><div className="mb-4 flex items-center gap-2"><ReceiptText className="h-6 w-6 text-primary"/><h2 id="reward-history-title" className="text-xl font-semibold">Reward history</h2></div>{entries.length===0?<EmptyState title="No rewards yet" description="Your Komola Coins will appear after a seller completes a purchase linked with your buyer code."/>:<ul className="divide-y divide-border">{entries.map(entry=><li key={entry.id} className="flex items-center justify-between gap-4 py-4"><div><p className="font-medium text-foreground-heading">{entry.reason === "Verified farm-produce purchase" ? "Purchase reward" : entry.reason}</p><p className="mt-1 text-xs text-foreground-muted">{new Date(entry.effectiveAt).toLocaleString("en-IN")} · {formatPaise(Math.abs(entry.eligibleAmountMinor))}</p></div><p className={`text-lg font-bold ${entry.coinAmount>=0?"text-status-success":"text-status-danger"}`}>{entry.coinAmount>=0?"+":""}{entry.coinAmount}</p></li>)}</ul>}</section>
-    <section className={`${cardCls} mt-4`} aria-labelledby="receipts-title"><div className="mb-4 flex items-center gap-2"><Download className="h-6 w-6 text-primary"/><h2 id="receipts-title" className="text-xl font-semibold">My e-receipts</h2></div>{receipts.length===0?<EmptyState title="No e-receipts yet" description="Receipts linked with your buyer code will appear here."/>:<ul className="divide-y divide-border">{receipts.map(receipt=><li key={receipt.id} className="flex flex-col justify-between gap-3 py-4 sm:flex-row sm:items-center"><div><p className="font-semibold text-foreground-heading">{receipt.storeName}</p><p className="text-sm text-foreground-muted">{receipt.receiptNo} · {new Date(receipt.purchasedAt).toLocaleString("en-IN")}</p><p className="mt-1 text-sm font-medium">{formatPaise(receipt.totalMinor)} · {receipt.coinsEarned} coin{receipt.coinsEarned===1?"":"s"}</p></div><Link href={`/buyer/receipts/${receipt.id}`} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-border px-4 font-semibold text-primary"><Eye className="h-4 w-4"/>View & download</Link></li>)}</ul>}</section>
+    <section className={`${cardCls} mt-4`} aria-labelledby="receipts-title">
+      <div className="mb-4 flex items-center gap-2"><Download className="h-6 w-6 text-primary"/><h2 id="receipts-title" className="text-xl font-semibold">My e-receipts</h2></div>
+      {receipts.length===0?<EmptyState title="No e-receipts yet" description="Receipts linked with your buyer code will appear here."/>:<>
+        <div className="relative">
+          {receiptsLoading ? <div className="absolute inset-0 z-10 grid place-items-center rounded-xl bg-white/75"><Loader2 className="h-6 w-6 animate-spin text-primary" aria-label="Loading receipts"/></div> : null}
+          <ul className="max-h-[32rem] divide-y divide-border overflow-y-auto pr-1">{receipts.map(receipt=><li key={receipt.id} className="flex flex-col justify-between gap-3 py-4 sm:flex-row sm:items-center"><div><p className="font-semibold text-foreground-heading">{receipt.storeName}</p><p className="text-sm text-foreground-muted">{receipt.receiptNo} · {new Date(receipt.purchasedAt).toLocaleString("en-IN")}</p><p className="mt-1 text-sm font-medium">{formatPaise(receipt.totalMinor)} · {receipt.coinsEarned} coin{receipt.coinsEarned===1?"":"s"}</p></div><Link href={`/buyer/receipts/${receipt.id}`} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-border px-4 font-semibold text-primary"><Eye className="h-4 w-4"/>View & download</Link></li>)}</ul>
+        </div>
+        <nav className="mt-4 flex items-center justify-between gap-3 border-t border-border pt-4" aria-label="Receipt pages">
+          <button type="button" onClick={() => void loadReceiptPage(receiptPage - 1)} disabled={receiptsLoading || receiptPage <= 1} className="inline-flex min-h-11 items-center gap-1 rounded-lg border border-border px-3 font-semibold disabled:opacity-40"><ChevronLeft className="h-4 w-4"/>Previous</button>
+          <span className="text-sm text-foreground-muted">Page {receiptPage} of {receiptPages}</span>
+          <button type="button" onClick={() => void loadReceiptPage(receiptPage + 1)} disabled={receiptsLoading || receiptPage >= receiptPages} className="inline-flex min-h-11 items-center gap-1 rounded-lg border border-border px-3 font-semibold disabled:opacity-40">Next<ChevronRight className="h-4 w-4"/></button>
+        </nav>
+      </>}
+    </section>
   </main>;
 }

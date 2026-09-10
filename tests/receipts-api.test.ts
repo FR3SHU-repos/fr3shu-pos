@@ -12,10 +12,10 @@ describe("buyer receipt API routes", () => {
     });
     vi.stubGlobal("fetch", fetchMock);
 
-    await receiptsApi.list(10);
+    await receiptsApi.list(10, 2);
     await receiptsApi.get("sale-id");
 
-    expect(fetchMock.mock.calls[0]?.[0]).toBe("/api/v1/buyer/receipts?limit=10");
+    expect(fetchMock.mock.calls[0]?.[0]).toBe("/api/v1/buyer/receipts?page=2&limit=10");
     expect(fetchMock.mock.calls[1]?.[0]).toBe("/api/v1/buyer/receipts/sale-id");
   });
 });

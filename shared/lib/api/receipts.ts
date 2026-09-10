@@ -30,8 +30,15 @@ export interface BuyerReceiptDetail extends BuyerReceiptSummary {
   payments: Array<{ method: string; amountMinor: number; reference?: string }>;
 }
 
-export const list = (limit = 25): Promise<ApiResult<{ items: BuyerReceiptSummary[] }>> =>
-  request("buyer/receipts", { query: { limit } });
+export interface ReceiptPageMeta {
+  page: number;
+  limit: number;
+  total: number;
+  totalPages: number;
+}
+
+export const list = (limit = 25, page = 1): Promise<ApiResult<{ items: BuyerReceiptSummary[]; meta: ReceiptPageMeta }>> =>
+  request("buyer/receipts", { query: { page, limit } });
 
 export const get = (id: string): Promise<ApiResult<BuyerReceiptDetail>> =>
   request(`buyer/receipts/${encodeURIComponent(id)}`);
