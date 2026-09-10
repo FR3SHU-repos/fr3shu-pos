@@ -58,7 +58,7 @@ export default function BuyerSetupPage() {
           <span className="flex items-center rounded-l-xl border border-r-0 border-border bg-surface-card px-4 text-sm font-semibold" aria-hidden="true">+91</span>
           <input id="buyer-phone" className={`${inputCls} mt-0 rounded-l-none`} type="tel" inputMode="numeric" autoComplete="tel-national" placeholder="98765 43210" maxLength={10} pattern="[6-9][0-9]{9}" value={phone} onChange={(event) => setPhone(event.target.value.replace(/\D/g, "").slice(0, 10))} required />
         </div>
-        <p className="mt-1.5 text-xs text-foreground-muted">Enter 10 digits. India&apos;s +91 code is added automatically.</p>
+        <p className="mt-1.5 text-xs text-foreground-muted">Enter 10 digits. India&apos;s +91 code is added automatically. For now the number is verified immediately; OTP verification will be added later.</p>
       </div>
       {error && <p role="alert" className="rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}</p>}
       <button className={`${primaryBtnCls} min-h-12 w-full`} disabled={busy}>{busy ? "Saving…" : "Save and continue"}</button>
