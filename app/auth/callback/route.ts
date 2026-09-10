@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseServerClient } from "@/shared/lib/supabase/server";
 import { ADMIN_HOME, isPlatformAdmin } from "@/shared/lib/auth/routing";
 import { serverGoApiBase } from "@/shared/lib/api/server-base";
+import { authIntent, destinationForCapabilities } from "@/shared/lib/auth/intent";
 
 export async function GET(request: NextRequest) {
   const url = new URL(request.url);
@@ -13,6 +14,7 @@ export async function GET(request: NextRequest) {
       ? rawNext
       : "/dashboard";
   const origin = url.origin;
+  const intent = authIntent(url.searchParams.get("as") ?? (next.startsWith("/buyer") ? "buyer" : "seller"));
 
   if (errorParam || !code) {
     return NextResponse.redirect(`${origin}/login?error=oauth_denied`);
@@ -41,7 +43,15 @@ export async function GET(request: NextRequest) {
       cache: "no-store",
     });
     if (!reconciled.ok) return NextResponse.redirect(`${origin}/login?error=reconcile_failed`);
-    if (next.startsWith("/buyer")) {
+    const capabilitiesResponse = await fetch(`${apiBase}/api/v1/me/capabilities`, { headers, cache: "no-store" });
+    if (!capabilitiesResponse.ok) return NextResponse.redirect(`${origin}/login?error=reconcile_failed`);
+    const capabilitiesBody = await capabilitiesResponse.json();
+    const capabilities = capabilitiesBody?.data ?? { buyer: false, seller: false };
+
+    // A registered category takes priority over the category selected during
+    // login. Only identities with no category enter an onboarding flow.
+    destination = destinationForCapabilities(intent, capabilities);
+    if (destination === "/buyer/setup") {
       const phone = typeof session?.user.user_metadata?.buyer_phone_e164 === "string" ? session.user.user_metadata.buyer_phone_e164 : "";
       const displayName = typeof session?.user.user_metadata?.display_name === "string" ? session.user.user_metadata.display_name : "Buyer";
       if (phone) {
@@ -55,12 +65,14 @@ export async function GET(request: NextRequest) {
       }
       return NextResponse.redirect(`${origin}/buyer/setup`);
     }
+    if (destination === "/buyer") return NextResponse.redirect(`${origin}/buyer`);
+
     const me = await fetch(`${apiBase}/api/v1/pos/auth/me`, { headers, cache: "no-store" });
     if (!me.ok) return NextResponse.redirect(`${origin}/login?error=reconcile_failed`);
     const profile = await me.json();
     if (isPlatformAdmin(profile?.data)) {
       destination = ADMIN_HOME;
-    } else {
+    } else if (destination === "/dashboard") {
       const status = await fetch(`${apiBase}/api/v1/seller-organizations/me`, { headers, cache: "no-store" });
       if (status.status === 404) destination = "/seller/onboarding";
       else if (status.ok) {

@@ -8,8 +8,11 @@ export function destinationForCapabilities(
   intent: AuthIntent,
   capabilities: { buyer: boolean; seller: boolean },
 ): string {
-  if (intent === "buyer") return capabilities.buyer ? "/buyer" : "/buyer/setup";
-  return capabilities.seller ? "/dashboard" : "/seller/onboarding";
+  // Existing account category always wins over the choice made on the login
+  // screen. The choice is used only to onboard a brand-new identity.
+  if (capabilities.seller) return "/dashboard";
+  if (capabilities.buyer) return "/buyer";
+  return intent === "buyer" ? "/buyer/setup" : "/seller/onboarding";
 }
 
 export function isBuyerExperiencePath(pathname: string): boolean {

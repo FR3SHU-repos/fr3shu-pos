@@ -56,7 +56,6 @@ export async function updateSession(request: NextRequest): Promise<NextResponse>
   // Buyer reward pages require the exclusive buyer capability. Seller
   // membership takes precedence and routes the identity to its POS dashboard.
   if (isBuyerExperiencePath(pathname)) {
-    if (pathname === "/buyer/setup") return response;
     const { data: { session } } = await supabase.auth.getSession();
     const base = serverGoApiBase();
     if (base && session?.access_token) {
@@ -67,7 +66,7 @@ export async function updateSession(request: NextRequest): Promise<NextResponse>
         });
         if (capabilities.ok) {
           const body = await capabilities.json();
-          if (!body?.data?.buyer) {
+          if (body?.data?.seller || (pathname !== "/buyer/setup" && !body?.data?.buyer)) {
             const url = request.nextUrl.clone();
             url.pathname = body?.data?.seller ? "/dashboard" : "/buyer/setup";
             url.search = "";

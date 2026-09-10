@@ -91,8 +91,13 @@ function LoginForm() {
       router.replace(ADMIN_HOME);
       return;
     }
-    if (intent === "buyer") {
-      const target = await destination(accessToken);
+    const target = await destination(accessToken);
+    if (target === "/buyer" || target === "/buyer/setup") {
+      setBusy(false);
+      router.replace(target);
+      return;
+    }
+    if (target === "/seller/onboarding") {
       setBusy(false);
       router.replace(target);
       return;
@@ -117,7 +122,11 @@ function LoginForm() {
   }
   async function onWhatsAppVerified() {
     await reconcileIdentity();
-    if (intent === "buyer") { router.replace(await destination()); return; }
+    const target = await destination();
+    if (target === "/buyer" || target === "/buyer/setup" || target === "/seller/onboarding") {
+      router.replace(target);
+      return;
+    }
     const org = await getMyOrganization();
     router.replace(org.status === 404 ? "/seller/onboarding" : sellerDestination(org.data?.approvalStatus) || next);
   }
@@ -135,13 +144,17 @@ function LoginForm() {
           <p className="text-sm text-foreground-muted">One account for buying and selling</p>
         </div>
 
-        <div className="mb-5 grid grid-cols-2 rounded-xl bg-surface p-1" role="tablist" aria-label="Choose experience">
+        <fieldset className="mb-5">
+          <legend className="mb-2 text-sm font-semibold text-foreground-heading">Account type</legend>
+          <div className="grid grid-cols-2 rounded-xl bg-surface p-1" role="radiogroup" aria-label="Account type">
           {(["buyer", "seller"] as const).map((value) => (
-            <button key={value} type="button" role="tab" aria-selected={intent === value} onClick={() => setIntent(value)} className={`min-h-12 rounded-lg px-4 font-semibold capitalize ${intent === value ? "bg-primary text-primary-foreground" : "text-foreground-body"}`}>
+            <button key={value} type="button" role="radio" aria-checked={intent === value} onClick={() => setIntent(value)} className={`min-h-12 rounded-lg px-4 font-semibold capitalize ${intent === value ? "bg-primary text-primary-foreground" : "text-foreground-body"}`}>
               {value}
             </button>
           ))}
-        </div>
+          </div>
+          <p className="mt-2 text-xs text-foreground-muted">Existing accounts will open their registered dashboard automatically.</p>
+        </fieldset>
 
         {params.get("error") === "oauth_denied" && (
           <p className="mb-3 rounded-lg bg-red-50 px-3 py-2 text-xs text-red-700">

@@ -20,7 +20,7 @@ export default function RegisterPage() {
   async function google() {
     if (googleBusy) return;
     setGoogleBusy(true); setError("");
-    const redirectTo = `${window.location.origin}/auth/callback?next=${encodeURIComponent(intent === "buyer" ? "/buyer/setup" : "/seller/onboarding")}`;
+    const redirectTo = `${window.location.origin}/auth/callback?next=${encodeURIComponent(intent === "buyer" ? "/buyer/setup" : "/seller/onboarding")}&as=${intent}`;
     const { error } = await createAuthBrowserClient().auth.signInWithOAuth({ provider: "google", options: { redirectTo } });
     if (error) { setGoogleBusy(false); setError("Google registration is temporarily unavailable."); }
   }
