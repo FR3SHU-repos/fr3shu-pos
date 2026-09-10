@@ -37,7 +37,7 @@ export function SiteHeader() {
         </Link>
 
         <nav aria-label="Primary navigation" className="flex items-center gap-1 sm:gap-2">
-          {capabilities?.buyer ? (
+          {capabilities?.buyer && !capabilities.seller ? (
             <Link href="/buyer" className={navLinkClass}>
               Rewards
             </Link>
