@@ -7,7 +7,7 @@ import { usePosUser } from "@/shared/context/PosUserContext";
 import { ADMIN_HOME, isPlatformAdmin } from "@/shared/lib/auth/routing";
 
 export function SiteHeader() {
-  const { user, loading, logout } = usePosUser();
+  const { user, capabilities, loading, logout } = usePosUser();
   const router = useRouter();
   const accountHref = isPlatformAdmin(user)
     ? ADMIN_HOME
@@ -37,12 +37,16 @@ export function SiteHeader() {
         </Link>
 
         <nav aria-label="Primary navigation" className="flex items-center gap-1 sm:gap-2">
-          <Link href="/buyer" className={navLinkClass}>
-            Rewards
-          </Link>
-          <Link href="/dashboard" className={navLinkClass}>
-            Seller POS
-          </Link>
+          {capabilities?.buyer ? (
+            <Link href="/buyer" className={navLinkClass}>
+              Rewards
+            </Link>
+          ) : null}
+          {capabilities?.seller || isPlatformAdmin(user) ? (
+            <Link href="/dashboard" className={navLinkClass}>
+              Seller POS
+            </Link>
+          ) : null}
           {loading ? (
             <span
               className="h-10 w-16 animate-pulse rounded-lg bg-border sm:w-24"

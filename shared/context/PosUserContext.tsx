@@ -1,12 +1,14 @@
 "use client";
 
 import React, { createContext, useCallback, useContext, useEffect, useState } from "react";
-import { authApi } from "@/shared/lib/api";
+import { authApi, identityApi } from "@/shared/lib/api";
 import type { SessionUser } from "@/shared/lib/api/auth";
+import type { Capabilities } from "@/shared/lib/api/identity";
 import { createAuthBrowserClient } from "@/shared/lib/supabase/auth-client";
 
 interface PosUserContextValue {
   user: SessionUser | null;
+  capabilities: Capabilities | null;
   loading: boolean;
   setUser: (u: SessionUser | null) => void;
   refresh: () => Promise<void>;
@@ -15,6 +17,7 @@ interface PosUserContextValue {
 
 const PosUserContext = createContext<PosUserContextValue>({
   user: null,
+  capabilities: null,
   loading: true,
   setUser: () => {},
   refresh: async () => {},
@@ -23,17 +26,20 @@ const PosUserContext = createContext<PosUserContextValue>({
 
 export function PosUserProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<SessionUser | null>(null);
+  const [capabilities, setCapabilities] = useState<Capabilities | null>(null);
   const [loading, setLoading] = useState(true);
 
   const refresh = useCallback(async () => {
-    const res = await authApi.me();
-    setUser(res.success ? res.data : null);
+    const [session, access] = await Promise.all([authApi.me(), identityApi.capabilities()]);
+    setUser(session.success ? session.data : null);
+    setCapabilities(access.success ? access.data : null);
     setLoading(false);
   }, []);
 
   const logout = useCallback(async () => {
     await authApi.logout();
     setUser(null);
+    setCapabilities(null);
   }, []);
 
   useEffect(() => {
@@ -45,6 +51,7 @@ export function PosUserProvider({ children }: { children: React.ReactNode }) {
     } = supabase.auth.onAuthStateChange((event) => {
       if (event === "SIGNED_OUT") {
         setUser(null);
+        setCapabilities(null);
         setLoading(false);
         return;
       }
@@ -57,7 +64,7 @@ export function PosUserProvider({ children }: { children: React.ReactNode }) {
   }, [refresh]);
 
   return (
-    <PosUserContext.Provider value={{ user, loading, setUser, refresh, logout }}>
+    <PosUserContext.Provider value={{ user, capabilities, loading, setUser, refresh, logout }}>
       {children}
     </PosUserContext.Provider>
   );
