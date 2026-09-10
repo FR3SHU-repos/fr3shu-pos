@@ -37,6 +37,8 @@ export const unitBase = (unit: string): BaseUnit => UNIT_BASE[unit?.toLowerCase(
 export interface GoProduct {
   skuId: string;
   productId: string;
+  slug: string;
+  locationId: string;
   variantId: string;
   skuCode: string;
   barcode: string;
@@ -90,6 +92,9 @@ export type ProductStatus = "active" | "inactive" | "archived";
 export interface ProductDTO {
   _id: string;
   id: string;
+  productId: string;
+  slug: string;
+  locationId: string;
   name: string;
   sku: string;
   barcode?: string;
@@ -112,6 +117,9 @@ export function mapProduct(p: GoProduct): ProductDTO {
   return {
     _id: p.skuId,
     id: p.skuId,
+    productId: p.productId,
+    slug: p.slug,
+    locationId: p.locationId,
     name: p.name || p.skuCode,
     sku: p.skuCode,
     barcode: p.barcode || undefined,
