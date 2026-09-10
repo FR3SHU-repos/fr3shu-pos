@@ -7,9 +7,11 @@ import type { DiscoveryCode, PersonProfile } from "@/shared/lib/api/identity";
 import type { RewardLedgerEntry, RewardSummary } from "@/shared/lib/api/rewards";
 import { cardCls, EmptyState, Skeleton } from "@/shared/components/ui";
 import { formatPaise } from "@/shared/lib/money";
-import { Coins, Copy, Download, Eye, ReceiptText, Share2 } from "lucide-react";
+import { Check, Coins, Copy, Download, Eye, ReceiptText, Share2 } from "lucide-react";
 import Link from "next/link";
+import toast from "react-hot-toast";
 import { BuyerCodeQr } from "@/shared/components/buyer/BuyerCodeQr";
+import { copyText } from "@/shared/lib/clipboard";
 
 export default function BuyerDashboardPage() {
   const [profile, setProfile] = useState<PersonProfile | null>(null);
@@ -19,6 +21,7 @@ export default function BuyerDashboardPage() {
   const [receipts, setReceipts] = useState<BuyerReceiptSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     void Promise.all([identityApi.profile(), identityApi.discoveryCode(), rewardsApi.summary(), rewardsApi.ledger(undefined, 8), receiptsApi.list(10)]).then(([person, discovery, rewards, history, purchases]) => {
@@ -34,7 +37,19 @@ export default function BuyerDashboardPage() {
   async function shareCode() {
     if (!code) return;
     if (navigator.share) await navigator.share({ title: "My KOMOLA buyer code", text: `Use my buyer code ${code.code}`, url: code.url });
-    else await navigator.clipboard.writeText(code.url);
+    else if (await copyText(code.url)) toast.success("Buyer-code link copied");
+    else toast.error("Could not copy the buyer-code link");
+  }
+
+  async function copyCode() {
+    if (!code) return;
+    if (!(await copyText(code.code))) {
+      toast.error("Could not copy the buyer code");
+      return;
+    }
+    setCopied(true);
+    toast.success("Buyer code copied");
+    window.setTimeout(() => setCopied(false), 2000);
   }
 
   if (loading) return <main className="mx-auto min-h-screen max-w-4xl space-y-4 bg-surface p-4 sm:p-8"><Skeleton className="h-12 w-72"/><Skeleton className="h-40 w-full"/><Skeleton className="h-72 w-full"/></main>;
@@ -51,7 +66,7 @@ export default function BuyerDashboardPage() {
       {!buyerPhone ? <p className="mx-auto mt-3 max-w-lg rounded-lg bg-amber-50 p-3 text-sm text-amber-800">Add your mobile number so sellers can fetch it with this code and send purchase messages. <Link href="/buyer/setup" className="font-semibold underline">Add mobile number</Link></p> : null}
       <p className="my-5 break-all font-mono text-3xl font-bold tracking-widest">{code?.code ?? "Unavailable"}</p>
       <div className="grid gap-3 sm:grid-cols-3">
-        <button type="button" disabled={!code} onClick={()=>code&&navigator.clipboard.writeText(code.code)} className="flex min-h-12 items-center justify-center gap-2 rounded-xl border font-semibold disabled:opacity-50"><Copy className="h-5 w-5"/>Copy code</button>
+        <button type="button" disabled={!code} onClick={copyCode} className="flex min-h-12 items-center justify-center gap-2 rounded-xl border font-semibold disabled:opacity-50">{copied ? <Check className="h-5 w-5"/> : <Copy className="h-5 w-5"/>}{copied ? "Copied" : "Copy code"}</button>
         {code ? <BuyerCodeQr code={code.code} /> : <button type="button" disabled className="min-h-12 rounded-xl border font-semibold opacity-50">Show QR</button>}
         <button type="button" disabled={!code} onClick={shareCode} className="flex min-h-12 items-center justify-center gap-2 rounded-xl bg-primary font-semibold text-primary-foreground disabled:opacity-50"><Share2 className="h-5 w-5"/>Share</button>
       </div>
