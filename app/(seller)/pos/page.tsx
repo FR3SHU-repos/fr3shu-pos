@@ -32,7 +32,8 @@ import {
 } from "@/shared/components/ui";
 import { cx } from "@/shared/lib/utils";
 import { computeLineTotals, formatPaise, sumCartTotals } from "@/shared/lib/money";
-import { SALE_UNIT_BASE, toBaseQuantity, type SaleUnit } from "@/shared/lib/units";
+import { formatBaseQuantity, SALE_UNIT_BASE, toBaseQuantity, type SaleUnit } from "@/shared/lib/units";
+import { clampQuantityToStock, remainingStockBase } from "@/shared/lib/pos-stock";
 import { translator, LOCALES, type Locale } from "@/shared/lib/i18n";
 import { ReceiptView, type ReceiptPaymentLine } from "@/shared/components/pos/ReceiptView";
 import { HELD_CARTS_KEY, type CartLine, type HeldCart } from "@/shared/components/pos/types";
@@ -144,15 +145,25 @@ export default function PosPage() {
       const idx = prev.findIndex((l) => l.product._id === p._id);
       if (idx >= 0) {
         const copy = [...prev];
-        copy[idx] = { ...copy[idx], qty: Number((copy[idx].qty + 1).toFixed(3)) };
+        const next = clampQuantityToStock(copy[idx].qty + 1, copy[idx].saleUnit, p.availableBase);
+        if (next === copy[idx].qty) {
+          toast.error("No more stock is available for this product");
+          return prev;
+        }
+        copy[idx] = { ...copy[idx], qty: next };
         return copy;
       }
+      if (p.availableBase <= 0) {
+        toast.error("This product is out of stock");
+        return prev;
+      }
+      const initialQty = clampQuantityToStock(1, p.saleUnit, p.availableBase);
       return [
         ...prev,
         {
           key: crypto.randomUUID(),
           product: p,
-          qty: 1,
+          qty: initialQty,
           saleUnit: p.saleUnit,
           discountPaise: 0,
         },
@@ -174,11 +185,11 @@ export default function PosPage() {
 
   function setQty(key: string, qty: number) {
     setLines((prev) =>
-      prev.map((l) => (l.key === key ? { ...l, qty: Math.max(0, Number(qty.toFixed(3))) } : l)),
+      prev.map((l) => (l.key === key ? { ...l, qty: clampQuantityToStock(qty, l.saleUnit, l.product.availableBase) } : l)),
     );
   }
   function setUnit(key: string, unit: SaleUnit) {
-    setLines((prev) => prev.map((l) => (l.key === key ? { ...l, saleUnit: unit } : l)));
+    setLines((prev) => prev.map((l) => (l.key === key ? { ...l, saleUnit: unit, qty: clampQuantityToStock(l.qty, unit, l.product.availableBase) } : l)));
   }
   function removeLine(key: string) {
     setLines((prev) => prev.filter((l) => l.key !== key));
@@ -445,7 +456,8 @@ export default function PosPage() {
               key={p._id}
               type="button"
               onClick={() => addProduct(p)}
-              className="flex min-h-16 flex-col items-start rounded-xl border border-border bg-surface-card p-3 text-left transition hover:border-border-focus"
+              disabled={p.availableBase <= 0}
+              className="flex min-h-16 flex-col items-start rounded-xl border border-border bg-surface-card p-3 text-left transition hover:border-border-focus disabled:cursor-not-allowed disabled:opacity-50"
             >
               <span className="line-clamp-2 text-sm font-medium text-foreground-heading">
                 {p.name}
@@ -453,6 +465,9 @@ export default function PosPage() {
               <span className="mt-1 text-xs text-foreground-muted">
                 {typeof p.basePricePaise === "number" ? formatPaise(p.basePricePaise) : "—"} /{" "}
                 {p.saleUnit}
+              </span>
+              <span className="mt-1 text-xs font-semibold text-foreground-body">
+                Stock: {formatBaseQuantity(remainingStockBase(p.availableBase, lines.find((line) => line.product._id === p._id)?.qty ?? 0, lines.find((line) => line.product._id === p._id)?.saleUnit ?? p.saleUnit), p.saleUnit)}
               </span>
             </button>
           ))}
@@ -546,6 +561,7 @@ export default function PosPage() {
                         className="grid h-9 w-9 place-items-center text-foreground-body"
                         onClick={() => setQty(l.key, l.qty + 1)}
                         aria-label="increase"
+                        disabled={remainingStockBase(l.product.availableBase, l.qty, l.saleUnit) === 0}
                       >
                         <Plus className="h-4 w-4" />
                       </button>
@@ -565,6 +581,7 @@ export default function PosPage() {
                       {formatPaise(lineTotals[i]?.netPaise ?? 0)}
                     </span>
                   </div>
+                  <p className="mt-1 text-xs text-foreground-muted">Remaining stock: {formatBaseQuantity(remainingStockBase(l.product.availableBase, l.qty, l.saleUnit), l.saleUnit)}</p>
                 </li>
               );
             })}

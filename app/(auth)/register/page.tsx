@@ -6,7 +6,6 @@ import { createAuthBrowserClient } from "@/shared/lib/supabase/auth-client";
 import { cardCls, inputCls, primaryBtnCls } from "@/shared/components/ui";
 import type { SellerOrgType } from "@/shared/lib/api/sellerOrgs";
 import { Divider, GoogleButton, WhatsAppButton } from "@/shared/components/auth/parts";
-import { identityApi } from "@/shared/lib/api";
 import { authIntent, type AuthIntent } from "@/shared/lib/auth/intent";
 import { reconcileIdentity } from "@/shared/lib/auth/gin";
 
@@ -33,8 +32,7 @@ export default function RegisterPage() {
     setBusy(false);
     if (error) return setError("Registration could not be completed. Please try again.");
     if (intent === "seller") sessionStorage.setItem("komola:seller-draft", JSON.stringify({ fullName: form.fullName.trim(), sellerType: form.sellerType }));
-    if (data.session && intent === "buyer") await identityApi.updateProfile(form.fullName.trim(), true);
-    router.replace(data.session ? (intent === "buyer" ? "/buyer" : "/seller/onboarding") : "/auth/check-email");
+    router.replace(data.session ? (intent === "buyer" ? "/buyer/setup" : "/seller/onboarding") : "/auth/check-email");
   }
   return <main className="flex min-h-screen items-center justify-center bg-surface p-4"><form onSubmit={submit} className={`${cardCls} w-full max-w-md space-y-3`}>
     <h1 className="text-xl font-semibold">Create your KOMOLA account</h1>

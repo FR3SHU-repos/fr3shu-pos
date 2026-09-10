@@ -39,12 +39,16 @@ export default function BuyerDashboardPage() {
 
   if (loading) return <main className="mx-auto min-h-screen max-w-4xl space-y-4 bg-surface p-4 sm:p-8"><Skeleton className="h-12 w-72"/><Skeleton className="h-40 w-full"/><Skeleton className="h-72 w-full"/></main>;
 
+  const buyerPhone = profile?.contacts.find((contact) => contact.type === "phone" && contact.primary)
+    ?? profile?.contacts.find((contact) => contact.type === "phone");
+
   return <main className="mx-auto min-h-screen max-w-4xl bg-surface p-4 sm:p-8">
     <header className="mb-6"><p className="font-semibold text-primary">KOMOLA Buyer</p><h1 className="text-3xl font-bold">{profile?.displayName ? `Hello, ${profile.displayName}` : "Your rewards"}</h1><p className="mt-1 text-foreground-muted">Rewards and status from purchases completed by KOMOLA sellers.</p></header>
     {error && <p role="alert" className="mb-4 rounded-lg bg-red-50 p-4 text-red-700">{error}</p>}
     <section className={`${cardCls} mb-4 text-center`} aria-labelledby="buyer-code-title">
       <h2 id="buyer-code-title" className="text-xl font-semibold">My buyer code</h2>
       <p className="mt-1 text-foreground-muted">Show this code or QR to a KOMOLA seller so your purchase and rewards reach your account.</p>
+      {!buyerPhone ? <p className="mx-auto mt-3 max-w-lg rounded-lg bg-amber-50 p-3 text-sm text-amber-800">Add your mobile number so sellers can fetch it with this code and send purchase messages. <Link href="/buyer/setup" className="font-semibold underline">Add mobile number</Link></p> : null}
       <p className="my-5 break-all font-mono text-3xl font-bold tracking-widest">{code?.code ?? "Unavailable"}</p>
       <div className="grid gap-3 sm:grid-cols-3">
         <button type="button" disabled={!code} onClick={()=>code&&navigator.clipboard.writeText(code.code)} className="flex min-h-12 items-center justify-center gap-2 rounded-xl border font-semibold disabled:opacity-50"><Copy className="h-5 w-5"/>Copy code</button>

@@ -31,7 +31,7 @@ export const capabilities = (accessToken?: string): Promise<ApiResult<Capabiliti
   request("me/capabilities", {
     headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : undefined,
   });
-export const updateProfile = (displayName: string, buyer: boolean): Promise<ApiResult<PersonProfile>> =>
-  request("me/profile", { method: "PUT", body: { displayName, buyer } });
+export const updateProfile = (displayName: string, buyer: boolean, phoneE164?: string): Promise<ApiResult<PersonProfile>> =>
+  request("me/profile", { method: "PUT", body: { displayName, buyer, phoneE164 } });
 export const discoveryCode = (): Promise<ApiResult<DiscoveryCode>> => request("me/discovery-code");
 export const rotateDiscoveryCode = (): Promise<ApiResult<DiscoveryCode>> => request("me/discovery-code/rotate", { method: "POST" });
