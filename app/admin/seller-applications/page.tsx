@@ -1,8 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
-import { createAuthBrowserClient } from "@/shared/lib/supabase/auth-client";
+import { authApi } from "@/shared/lib/api";
 import {
   listSellerApplications,
   type SellerOrganization,
@@ -10,7 +9,6 @@ import {
 import { cardCls, SkeletonRows, StatusBadge } from "@/shared/components/ui";
 
 export default function SellerApplicationsPage() {
-  const router = useRouter();
   const [items, setItems] = useState<SellerOrganization[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -24,8 +22,8 @@ export default function SellerApplicationsPage() {
   }, []);
 
   async function signOut() {
-    await createAuthBrowserClient().auth.signOut();
-    router.replace("/login");
+    await authApi.logout();
+    window.location.replace("/login");
   }
 
   return (

@@ -1,14 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { LogOut } from "lucide-react";
 import { usePosUser } from "@/shared/context/PosUserContext";
 import { ADMIN_HOME, isPlatformAdmin } from "@/shared/lib/auth/routing";
 
 export function SiteHeader() {
   const { user, capabilities, loading, logout } = usePosUser();
-  const router = useRouter();
   const accountHref = isPlatformAdmin(user)
     ? ADMIN_HOME
     : user?.orgId
@@ -17,8 +15,7 @@ export function SiteHeader() {
 
   async function handleLogout() {
     await logout();
-    router.replace("/login");
-    router.refresh();
+    window.location.replace("/login");
   }
 
   return (

@@ -113,7 +113,7 @@ export default function SellerShell({ children }: { children: React.ReactNode })
 
   async function handleLogout() {
     await logout();
-    router.replace("/login");
+    window.location.replace("/login");
   }
 }
 
