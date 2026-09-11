@@ -3,6 +3,7 @@ import { createServerClient } from "@supabase/ssr";
 import { ADMIN_HOME, isPlatformAdmin } from "@/shared/lib/auth/routing";
 import { isBuyerExperiencePath } from "@/shared/lib/auth/intent";
 import { serverGoApiBase } from "@/shared/lib/api/server-base";
+import { requestOrigin } from "@/shared/lib/http/request-origin";
 
 const URL = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
 const KEY =
@@ -14,6 +15,10 @@ const PUBLIC_PREFIXES = ["/login", "/register", "/auth/"];
 
 function safe(path: string): boolean {
   return path.startsWith("/") && !path.startsWith("//") && !path.includes("://");
+}
+
+function redirectTo(request: NextRequest, pathname: string): URL {
+  return new globalThis.URL(pathname, requestOrigin(request));
 }
 
 /** Refresh the Supabase session; gate everything except the public auth pages. */
@@ -46,9 +51,7 @@ export async function updateSession(request: NextRequest): Promise<NextResponse>
   if (pathname.startsWith("/api/")) return response; // proxy relays its own auth
 
   if (!user) {
-    const url = request.nextUrl.clone();
-    url.pathname = "/login";
-    url.search = "";
+    const url = redirectTo(request, "/login");
     if (safe(pathname)) url.searchParams.set("next", pathname);
     return NextResponse.redirect(url);
   }
@@ -67,9 +70,7 @@ export async function updateSession(request: NextRequest): Promise<NextResponse>
         if (capabilities.ok) {
           const body = await capabilities.json();
           if (body?.data?.seller || (pathname !== "/buyer/setup" && !body?.data?.buyer)) {
-            const url = request.nextUrl.clone();
-            url.pathname = body?.data?.seller ? "/dashboard" : "/buyer/setup";
-            url.search = "";
+            const url = redirectTo(request, body?.data?.seller ? "/dashboard" : "/buyer/setup");
             return NextResponse.redirect(url);
           }
         }
@@ -89,15 +90,15 @@ export async function updateSession(request: NextRequest): Promise<NextResponse>
         if (!me.ok) return response;
         const profile = await me.json();
         if (isPlatformAdmin(profile?.data)) {
-          if (!pathname.startsWith("/admin/")) { const url=request.nextUrl.clone(); url.pathname=ADMIN_HOME; url.search=""; return NextResponse.redirect(url); }
+          if (!pathname.startsWith("/admin/")) { return NextResponse.redirect(redirectTo(request, ADMIN_HOME)); }
           return response;
         }
-        if (pathname.startsWith("/admin/")) { const url=request.nextUrl.clone(); url.pathname="/dashboard"; url.search=""; return NextResponse.redirect(url); }
+        if (pathname.startsWith("/admin/")) { return NextResponse.redirect(redirectTo(request, "/dashboard")); }
         const status = await fetch(`${base}/api/v1/seller-organizations/me`, { headers, cache: "no-store" });
         const body = status.ok ? await status.json() : null;
         const approval = body?.data?.approvalStatus;
         const target = status.status === 404 ? "/seller/onboarding" : approval === "Pending" ? "/seller/pending" : approval === "Rejected" ? "/seller/rejected" : approval === "Suspended" ? "/seller/suspended" : null;
-        if (target) { const url=request.nextUrl.clone(); url.pathname=target; url.search=""; return NextResponse.redirect(url); }
+        if (target) { return NextResponse.redirect(redirectTo(request, target)); }
       } catch { /* backend failures are handled by the page/API client */ }
     }
   }

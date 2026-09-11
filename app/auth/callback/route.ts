@@ -3,6 +3,7 @@ import { createSupabaseServerClient } from "@/shared/lib/supabase/server";
 import { ADMIN_HOME, isPlatformAdmin } from "@/shared/lib/auth/routing";
 import { serverGoApiBase } from "@/shared/lib/api/server-base";
 import { authIntent, destinationForCapabilities } from "@/shared/lib/auth/intent";
+import { requestOrigin } from "@/shared/lib/http/request-origin";
 
 export async function GET(request: NextRequest) {
   const url = new URL(request.url);
@@ -13,7 +14,7 @@ export async function GET(request: NextRequest) {
     rawNext.startsWith("/") && !rawNext.startsWith("//") && !rawNext.includes("://")
       ? rawNext
       : "/dashboard";
-  const origin = url.origin;
+  const origin = requestOrigin(request);
   const requestedIntent = url.searchParams.get("as") ?? request.cookies.get("komola_auth_intent")?.value;
 
   if (errorParam || !code) {
