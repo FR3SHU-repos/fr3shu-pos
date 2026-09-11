@@ -10,8 +10,7 @@ type Audience = "seller" | "buyer";
 
 /**
  * Public landing page shown at `/`. Minimal by intent: what KOMOLA is, then a
- * clear way in. Sellers sign in / register here; the buyer path (receipt and
- * reward lookup) is not built yet and is shown as coming soon.
+ * clear way into the dedicated seller and buyer portals.
  */
 export function Landing({ signedIn }: { signedIn: boolean }) {
   const [audience, setAudience] = useState<Audience>("seller");
@@ -67,10 +66,10 @@ export function Landing({ signedIn }: { signedIn: boolean }) {
                   </Link>
                 ) : (
                   <>
-                    <Link href="/login" className={primaryBtnCls}>
+                    <Link href="/login/seller" className={primaryBtnCls}>
                       Sign in
                     </Link>
-                    <Link href="/register" className={ghostBtnCls}>
+                    <Link href="/register/seller" className={ghostBtnCls}>
                       Create seller account
                     </Link>
                   </>
@@ -84,8 +83,8 @@ export function Landing({ signedIn }: { signedIn: boolean }) {
                 check your reward points.
               </p>
               <div className="mt-4 flex flex-wrap justify-center gap-3">
-                <ComingSoon>Find a receipt</ComingSoon>
-                <ComingSoon>Check reward points</ComingSoon>
+                <Link href={signedIn ? "/buyer" : "/login/buyer"} className={primaryBtnCls}>Buyer dashboard<ArrowRight className="h-4 w-4" /></Link>
+                {!signedIn ? <Link href="/register/buyer" className={ghostBtnCls}>Create buyer account</Link> : null}
               </div>
             </>
           )}
@@ -140,21 +139,6 @@ function TabButton({
     >
       {children}
     </button>
-  );
-}
-
-function ComingSoon({ children }: { children: React.ReactNode }) {
-  return (
-    <span
-      aria-disabled="true"
-      title="Coming soon"
-      className={cx(ghostBtnCls, "cursor-not-allowed opacity-70")}
-    >
-      {children}
-      <span className="rounded-full bg-border px-2 py-0.5 text-xs text-foreground-muted">
-        Coming soon
-      </span>
-    </span>
   );
 }
 
