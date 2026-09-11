@@ -24,7 +24,13 @@ export async function GET(request: NextRequest) {
   const supabase = await createSupabaseServerClient();
   const { error } = await supabase.auth.exchangeCodeForSession(code);
   if (error) {
-    return NextResponse.redirect(`${origin}/login?error=oauth_denied`);
+    // The browser client can finish a recovered PKCE exchange before this
+    // server callback receives the redirected code. In that case the code is
+    // single-use and exchangeCodeForSession fails, while the session itself is
+    // already valid. Only reject the login when neither exchange nor session
+    // authentication succeeded.
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return NextResponse.redirect(`${origin}/login?error=oauth_denied`);
   }
 
   let destination = next;
