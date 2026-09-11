@@ -21,10 +21,27 @@ function redirectTo(request: NextRequest, pathname: string): URL {
   return new globalThis.URL(pathname, requestOrigin(request));
 }
 
+function isAuthLandingPath(pathname: string): boolean {
+  return pathname === "/buyer/setup" || pathname === "/seller/onboarding" || pathname === "/dashboard";
+}
+
 /** Refresh the Supabase session; gate everything except the public auth pages. */
 export async function updateSession(request: NextRequest): Promise<NextResponse> {
   let response = NextResponse.next({ request });
   if (!URL || !KEY) return response;
+
+  // Some Supabase confirmation/OAuth links can fall back to their requested
+  // destination while still carrying the PKCE code. Always exchange that code
+  // in the callback before a protected page or API attempts to use the session.
+  const { pathname, searchParams } = request.nextUrl;
+  const authCode = searchParams.get("code");
+  if (isAuthLandingPath(pathname) && authCode && /^[0-9a-f-]{36}$/i.test(authCode)) {
+    const callback = redirectTo(request, "/auth/callback");
+    callback.searchParams.set("code", authCode);
+    callback.searchParams.set("next", safe(pathname) ? pathname : "/dashboard");
+    if (isBuyerExperiencePath(pathname)) callback.searchParams.set("as", "buyer");
+    return NextResponse.redirect(callback);
+  }
 
   const supabase = createServerClient(URL, KEY, {
     cookies: {
@@ -45,7 +62,6 @@ export async function updateSession(request: NextRequest): Promise<NextResponse>
     data: { user },
   } = await supabase.auth.getUser();
 
-  const { pathname } = request.nextUrl;
   if (pathname === "/") return response; // public landing page
   if (PUBLIC_PREFIXES.some((p) => pathname.startsWith(p))) return response;
   if (pathname.startsWith("/api/")) return response; // proxy relays its own auth
