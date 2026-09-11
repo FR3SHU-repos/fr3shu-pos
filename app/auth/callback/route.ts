@@ -14,7 +14,7 @@ export async function GET(request: NextRequest) {
       ? rawNext
       : "/dashboard";
   const origin = url.origin;
-  const intent = authIntent(url.searchParams.get("as") ?? (next.startsWith("/buyer") ? "buyer" : "seller"));
+  const requestedIntent = url.searchParams.get("as") ?? request.cookies.get("komola_auth_intent")?.value;
 
   if (errorParam || !code) {
     return NextResponse.redirect(`${origin}/login?error=oauth_denied`);
@@ -31,6 +31,10 @@ export async function GET(request: NextRequest) {
     const {
       data: { session },
     } = await supabase.auth.getSession();
+    const metadataIntent = typeof session?.user.user_metadata?.account_type === "string"
+      ? session.user.user_metadata.account_type
+      : undefined;
+    const intent = authIntent(requestedIntent ?? metadataIntent ?? (next.startsWith("/buyer") ? "buyer" : "seller"));
     const headers = {
       "Content-Type": "application/json",
       ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),

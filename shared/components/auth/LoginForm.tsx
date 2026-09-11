@@ -20,6 +20,7 @@ import {
   PasswordField,
   WhatsAppButton,
 } from "@/shared/components/auth/parts";
+import { authCallbackRedirect, rememberAuthIntent } from "@/shared/lib/auth/providers";
 
 function safeNext(n: string | null): string {
   return n && n.startsWith("/") && !n.startsWith("//") && !n.includes("://")
@@ -108,8 +109,8 @@ export function LoginForm({ intent }: { intent: AuthIntent }) {
 
   async function onGoogle() {
     setGoogleBusy(true);
-    const target = intent === "buyer" ? "/buyer" : next;
-    const redirectTo = `${window.location.origin}/auth/callback?next=${encodeURIComponent(target)}&as=${intent}`;
+    rememberAuthIntent(intent);
+    const redirectTo = authCallbackRedirect(window.location.origin);
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
       options: { redirectTo },

@@ -10,6 +10,7 @@ import type { AuthIntent } from "@/shared/lib/auth/intent";
 import { reconcileIdentity } from "@/shared/lib/auth/gin";
 import { normalizeIndianWhatsApp } from "@/shared/lib/auth/whatsapp";
 import { identityApi } from "@/shared/lib/api";
+import { authCallbackRedirect, rememberAuthIntent } from "@/shared/lib/auth/providers";
 
 export function RegisterForm({ intent }: { intent: AuthIntent }) {
   const router = useRouter();
@@ -19,7 +20,8 @@ export function RegisterForm({ intent }: { intent: AuthIntent }) {
   async function google() {
     if (googleBusy) return;
     setGoogleBusy(true); setError("");
-    const redirectTo = `${window.location.origin}/auth/callback?next=${encodeURIComponent(intent === "buyer" ? "/buyer/setup" : "/seller/onboarding")}&as=${intent}`;
+    rememberAuthIntent(intent);
+    const redirectTo = authCallbackRedirect(window.location.origin);
     const { error } = await createAuthBrowserClient().auth.signInWithOAuth({ provider: "google", options: { redirectTo } });
     if (error) { setGoogleBusy(false); setError("Google registration is temporarily unavailable."); }
   }
@@ -31,7 +33,8 @@ export function RegisterForm({ intent }: { intent: AuthIntent }) {
     if (form.password.length < 8) return setError("Password must be at least 8 characters.");
     if (form.password !== form.confirm) return setError("Passwords do not match.");
     setBusy(true);
-    const { data, error } = await createAuthBrowserClient().auth.signUp({ email: form.email.trim().toLowerCase(), password: form.password, options: { emailRedirectTo: `${window.location.origin}/auth/callback?next=${intent === "buyer" ? "/buyer/setup" : "/seller/onboarding"}`, data: { display_name: form.fullName.trim(), ...(buyerPhone ? { buyer_phone_e164: buyerPhone } : {}) } } });
+    rememberAuthIntent(intent);
+    const { data, error } = await createAuthBrowserClient().auth.signUp({ email: form.email.trim().toLowerCase(), password: form.password, options: { emailRedirectTo: authCallbackRedirect(window.location.origin), data: { display_name: form.fullName.trim(), account_type: intent, ...(buyerPhone ? { buyer_phone_e164: buyerPhone } : {}) } } });
     if (error) { setBusy(false); return setError("Registration could not be completed. Please try again."); }
     if (intent === "seller") sessionStorage.setItem("komola:seller-draft", JSON.stringify({ fullName: form.fullName.trim(), sellerType: form.sellerType }));
     if (data.session && intent === "buyer" && buyerPhone) {
