@@ -43,6 +43,13 @@ export async function updateSession(request: NextRequest): Promise<NextResponse>
     return NextResponse.redirect(callback);
   }
 
+  // These routes do not use the middleware's verified user. API requests
+  // carry their bearer token to Go, and auth routes manage their own session.
+  // Avoid an extra Supabase network round trip before each request.
+  if (pathname === "/" || PUBLIC_PREFIXES.some((p) => pathname.startsWith(p)) || pathname.startsWith("/api/")) {
+    return response;
+  }
+
   const supabase = createServerClient(URL, KEY, {
     cookies: {
       getAll() {
@@ -61,10 +68,6 @@ export async function updateSession(request: NextRequest): Promise<NextResponse>
   const {
     data: { user },
   } = await supabase.auth.getUser();
-
-  if (pathname === "/") return response; // public landing page
-  if (PUBLIC_PREFIXES.some((p) => pathname.startsWith(p))) return response;
-  if (pathname.startsWith("/api/")) return response; // proxy relays its own auth
 
   if (!user) {
     const url = redirectTo(request, "/login");

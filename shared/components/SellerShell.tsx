@@ -19,6 +19,8 @@ import { cx } from "@/shared/lib/utils";
 import { usePosUser } from "@/shared/context/PosUserContext";
 import { Skeleton } from "@/shared/components/ui";
 
+import { OfflineCatalogue } from "@/shared/components/products/OfflineCatalogue";
+
 const NAV = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/pos", label: "Point of Sale", icon: ScanBarcode },
@@ -106,7 +108,7 @@ export default function SellerShell({ children }: { children: React.ReactNode })
           </div>
         ) : null}
 
-        <main className="min-w-0 flex-1 p-4 sm:p-6">{children}</main>
+        <main className="min-w-0 flex-1 p-4 sm:p-6"><OfflineCatalogue key={`${user.id}:${user.orgId}:${user.locationId}`} />{children}</main>
       </div>
     </div>
   );

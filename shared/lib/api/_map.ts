@@ -332,7 +332,7 @@ export interface SaleDTO {
   sessionId: string;
   locationId: string;
   soldAt: string;
-  syncState: "synced";
+  syncState: "synced" | "pending" | "conflict";
   idempotencyKey: string;
   paymentState: string;
   reward?: SaleRewardResult;

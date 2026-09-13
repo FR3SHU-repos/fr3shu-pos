@@ -38,6 +38,15 @@ import { translator, LOCALES, type Locale } from "@/shared/lib/i18n";
 import { ReceiptView, type ReceiptPaymentLine } from "@/shared/components/pos/ReceiptView";
 import { HELD_CARTS_KEY, type CartLine, type HeldCart } from "@/shared/components/pos/types";
 import { BuyerQrScanner } from "@/shared/components/pos/BuyerQrScanner";
+import {
+  commitOfflineCashSale,
+  listPendingOfflineSales,
+  offlineSaleToDTO,
+  parseRupeesToPaise,
+  readOfflineSessionContext,
+  saveOfflineSessionContext,
+  type OfflineScope,
+} from "@/shared/lib/offline/sales";
 
 type PayMethod = "cash" | "upi" | "split";
 
@@ -68,25 +77,55 @@ export default function PosPage() {
 
   const [submitting, setSubmitting] = useState(false);
   const [completed, setCompleted] = useState<SaleDTO | null>(null);
+  const [completedOffline, setCompletedOffline] = useState(false);
   const [completedPayment, setCompletedPayment] = useState<{
     lines: ReceiptPaymentLine[];
     changePaise: number;
   } | null>(null);
   const [store, setStore] = useState<{ name?: string; location?: string }>({});
+  const [offlineSessionSavedAt, setOfflineSessionSavedAt] = useState<number | null>(null);
+  const [pendingOfflineCount, setPendingOfflineCount] = useState(0);
 
   const searchRef = useRef<HTMLInputElement>(null);
   // One idempotency key per cart attempt. Regenerated after a completed sale.
   const idemRef = useRef<string>(crypto.randomUUID());
+
+  const offlineScope = useMemo<OfflineScope | null>(() => {
+    if (!user) return null;
+    return { userId: user.id, orgId: user.orgId, locationId: user.locationId };
+  }, [user]);
+
+  const refreshPendingOfflineCount = useCallback(async () => {
+    if (!offlineScope) {
+      setPendingOfflineCount(0);
+      return;
+    }
+    const pending = await listPendingOfflineSales(offlineScope);
+    setPendingOfflineCount(pending.length);
+  }, [offlineScope]);
 
   const load = useCallback(async () => {
     const [ov, pl] = await Promise.all([
       registersApi.overview(),
       productsApi.list({ limit: 12, status: "active" }),
     ]);
-    if (ov.success && ov.data) setSession(ov.data.currentSession);
+    if (ov.success && ov.data) {
+      setSession(ov.data.currentSession);
+      if (offlineScope && ov.data.currentSession) {
+        const saved = await saveOfflineSessionContext(offlineScope, ov.data.currentSession);
+        if (saved) setOfflineSessionSavedAt(Date.now());
+      }
+    } else if (offlineScope) {
+      const saved = await readOfflineSessionContext(offlineScope);
+      if (saved) {
+        setSession(saved.session);
+        setOfflineSessionSavedAt(saved.savedAt);
+      }
+    }
     if (pl.success && pl.data) setCatalog(pl.data.items);
+    await refreshPendingOfflineCount();
     setLoading(false);
-  }, []);
+  }, [offlineScope, refreshPendingOfflineCount]);
 
   useEffect(() => {
     void load();
@@ -209,6 +248,7 @@ export default function PosPage() {
     setResolvedBuyer(null);
     setMarketingConsent(false);
     setCompletedPayment(null);
+    setCompletedOffline(false);
     idemRef.current = crypto.randomUUID();
   }
 
@@ -259,6 +299,12 @@ export default function PosPage() {
       return;
     }
 
+    const cashReceivedPaise = payMethod === "cash" ? parseRupeesToPaise(tendered) : null;
+    if (payMethod === "cash" && cashReceivedPaise == null) {
+      toast.error("Enter a valid cash amount.");
+      return;
+    }
+
     const payments: { method: "cash" | "upi"; amountPaise: number; upiRef?: string }[] = [];
     if (payMethod === "cash") {
       payments.push({ method: "cash", amountPaise: cart.netPaise });
@@ -273,6 +319,45 @@ export default function PosPage() {
       }
       if (cash > 0) payments.push({ method: "cash", amountPaise: cash });
       if (upi > 0) payments.push({ method: "upi", amountPaise: upi, upiRef: upiRef.trim() || undefined });
+    }
+
+    if (typeof navigator !== "undefined" && !navigator.onLine) {
+      if (payMethod !== "cash") {
+        toast.error("Offline checkout is available for cash sales only.");
+        return;
+      }
+      if (!offlineScope || !session || cashReceivedPaise == null) {
+        toast.error("This register is not ready for offline checkout.");
+        return;
+      }
+      setSubmitting(true);
+      try {
+        const sale = await commitOfflineCashSale({
+          scope: offlineScope,
+          session,
+          cashierId: user?.id ?? "",
+          lines,
+          cashReceivedPaise,
+          customerName: customerName.trim(),
+          customerPhone: customerPhone.trim(),
+          buyerCode: resolvedBuyer?.code,
+          marketingConsent: marketingConsent || undefined,
+          operationId: idemRef.current,
+        });
+        setCompletedPayment({
+          lines: [{ method: "Cash", amountPaise: sale.payment.receivedPaise }],
+          changePaise: sale.payment.changePaise,
+        });
+        setCompleted(offlineSaleToDTO(sale));
+        setCompletedOffline(true);
+        await refreshPendingOfflineCount();
+        toast.success("Sale saved on this device. It will sync when internet returns.");
+      } catch (error) {
+        toast.error(error instanceof Error ? error.message : "Offline sale failed");
+      } finally {
+        setSubmitting(false);
+      }
+      return;
     }
 
     setSubmitting(true);
@@ -309,6 +394,7 @@ export default function PosPage() {
           : 0,
     });
     setCompleted(res.data.sale);
+    setCompletedOffline(false);
     void load();
   }
 
@@ -361,6 +447,11 @@ export default function PosPage() {
           <p className="text-sm text-foreground-muted">
             {completed.receiptNo} · {formatPaise(completed.totalPaise)} · sync {completed.syncState}
           </p>
+          {completedOffline ? (
+            <p className="mt-2 rounded-lg bg-amber-50 px-3 py-2 text-sm font-medium text-amber-800">
+              Saved on this device. Keep this browser data until the sale syncs.
+            </p>
+          ) : null}
         </div>
         {completed.reward?.linked ? (
           <section className={`${cardCls} text-left`} aria-label="Authoritative purchase rewards">
@@ -610,6 +701,16 @@ export default function PosPage() {
           </button>
         ) : (
           <div className="mt-3 space-y-3 border-t border-border pt-3">
+            {pendingOfflineCount > 0 ? (
+              <p className="rounded-lg bg-amber-50 px-3 py-2 text-xs font-medium text-amber-800">
+                {pendingOfflineCount} offline sale{pendingOfflineCount === 1 ? "" : "s"} waiting to sync.
+              </p>
+            ) : null}
+            {offlineSessionSavedAt ? (
+              <p className="text-xs text-foreground-muted">
+                Offline register prepared {new Date(offlineSessionSavedAt).toLocaleString()}.
+              </p>
+            ) : null}
             <div className="grid grid-cols-3 gap-2">
               {(["cash", "upi", "split"] as PayMethod[]).map((m) => (
                 <button

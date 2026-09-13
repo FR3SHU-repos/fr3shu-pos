@@ -20,6 +20,7 @@ export default function ProductsPage() {
   const [q, setQ] = useState("");
   const [page, setPage] = useState(1);
   const [pages, setPages] = useState(0);
+  const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -27,6 +28,8 @@ export default function ProductsPage() {
     const timer = setTimeout(async () => {
       setLoading(true);
       const res = await productsApi.list({ q: q || undefined, page, limit: 50, status: "all", signal: ctrl.signal });
+      if (ctrl.signal.aborted) return;
+      setMessage(!res.success || res.code === "offline_cache" ? res.message : "");
       if (res.success && res.data) { setItems(res.data.items); setPages(res.data.meta.totalPages); }
       setLoading(false);
     }, 250);
@@ -56,6 +59,7 @@ export default function ProductsPage() {
         />
       </div>
 
+      {message && <p role="status" className="text-sm text-foreground-muted">{message}</p>}
       {loading ? (
         <SkeletonRows rows={6} />
       ) : items.length === 0 ? (

@@ -6,6 +6,8 @@ import type { SessionUser } from "@/shared/lib/api/auth";
 import type { Capabilities } from "@/shared/lib/api/identity";
 import { createAuthBrowserClient } from "@/shared/lib/supabase/auth-client";
 
+import { setProductScope } from "@/shared/lib/offline/products";
+
 interface PosUserContextValue {
   user: SessionUser | null;
   capabilities: Capabilities | null;
@@ -31,12 +33,19 @@ export function PosUserProvider({ children }: { children: React.ReactNode }) {
 
   const refresh = useCallback(async () => {
     const [session, access] = await Promise.all([authApi.me(), identityApi.capabilities()]);
+    // A connection loss must not evict an already open seller workspace.
+    if (session.status === 0 || session.status >= 500) {
+      setLoading(false);
+      return;
+    }
+    setProductScope(session.success ? session.data : null);
     setUser(session.success ? session.data : null);
     setCapabilities(access.success ? access.data : null);
     setLoading(false);
   }, []);
 
   const logout = useCallback(async () => {
+    setProductScope(null);
     await authApi.logout();
     setUser(null);
     setCapabilities(null);
@@ -50,6 +59,7 @@ export function PosUserProvider({ children }: { children: React.ReactNode }) {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((event) => {
       if (event === "SIGNED_OUT") {
+        setProductScope(null);
         setUser(null);
         setCapabilities(null);
         setLoading(false);
