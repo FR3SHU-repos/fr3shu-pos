@@ -20,6 +20,7 @@ import { usePosUser } from "@/shared/context/PosUserContext";
 import { Skeleton } from "@/shared/components/ui";
 
 import { OfflineCatalogue } from "@/shared/components/products/OfflineCatalogue";
+import { OfflineSalesPanel } from "@/shared/components/pos/OfflineSalesPanel";
 
 const NAV = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
@@ -108,7 +109,11 @@ export default function SellerShell({ children }: { children: React.ReactNode })
           </div>
         ) : null}
 
-        <main className="min-w-0 flex-1 p-4 sm:p-6"><OfflineCatalogue key={`${user.id}:${user.orgId}:${user.locationId}`} />{children}</main>
+        <main className="min-w-0 flex-1 p-4 sm:p-6">
+          <OfflineCatalogue key={`catalogue:${user.id}:${user.orgId}:${user.locationId}`} />
+          <OfflineSalesPanel key={`sales:${user.id}:${user.orgId}:${user.locationId}`} />
+          {children}
+        </main>
       </div>
     </div>
   );

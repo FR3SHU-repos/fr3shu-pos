@@ -104,6 +104,15 @@ export default function PosPage() {
     setPendingOfflineCount(pending.length);
   }, [offlineScope]);
 
+  const syncPendingOfflineSales = useCallback(async () => {
+    if (!offlineScope || (typeof navigator !== "undefined" && !navigator.onLine)) return;
+    const result = await salesApi.syncPendingOfflineSales(offlineScope);
+    if (result.synced > 0) toast.success(`${result.synced} offline sale${result.synced === 1 ? "" : "s"} synced`);
+    if (result.review > 0) toast.error(`${result.review} offline sale${result.review === 1 ? "" : "s"} need review`);
+    if (result.authRequired) toast.error("Sign in again to sync offline sales");
+    await refreshPendingOfflineCount();
+  }, [offlineScope, refreshPendingOfflineCount]);
+
   const load = useCallback(async () => {
     const [ov, pl] = await Promise.all([
       registersApi.overview(),
@@ -124,12 +133,19 @@ export default function PosPage() {
     }
     if (pl.success && pl.data) setCatalog(pl.data.items);
     await refreshPendingOfflineCount();
+    await syncPendingOfflineSales();
     setLoading(false);
-  }, [offlineScope, refreshPendingOfflineCount]);
+  }, [offlineScope, refreshPendingOfflineCount, syncPendingOfflineSales]);
 
   useEffect(() => {
     void load();
   }, [load]);
+
+  useEffect(() => {
+    const sync = () => void syncPendingOfflineSales();
+    window.addEventListener("online", sync);
+    return () => window.removeEventListener("online", sync);
+  }, [syncPendingOfflineSales]);
 
   useEffect(() => {
     sellerOrgsApi.getMyOrganization().then((res) => {
@@ -307,7 +323,11 @@ export default function PosPage() {
 
     const payments: { method: "cash" | "upi"; amountPaise: number; upiRef?: string }[] = [];
     if (payMethod === "cash") {
-      payments.push({ method: "cash", amountPaise: cart.netPaise });
+      if (cashReceivedPaise == null || cashReceivedPaise < cart.netPaise) {
+        toast.error("Cash received is less than the sale total.");
+        return;
+      }
+      payments.push({ method: "cash", amountPaise: cashReceivedPaise });
     } else if (payMethod === "upi") {
       payments.push({ method: "upi", amountPaise: cart.netPaise, upiRef: upiRef.trim() || undefined });
     } else {
@@ -351,6 +371,7 @@ export default function PosPage() {
         setCompleted(offlineSaleToDTO(sale));
         setCompletedOffline(true);
         await refreshPendingOfflineCount();
+        void syncPendingOfflineSales();
         toast.success("Sale saved on this device. It will sync when internet returns.");
       } catch (error) {
         toast.error(error instanceof Error ? error.message : "Offline sale failed");
@@ -390,7 +411,7 @@ export default function PosPage() {
       })),
       changePaise:
         payMethod === "cash"
-          ? Math.max(0, Math.round(Number(tendered || 0) * 100) - cart.netPaise)
+          ? Math.max(0, (cashReceivedPaise ?? cart.netPaise) - cart.netPaise)
           : 0,
     });
     setCompleted(res.data.sale);

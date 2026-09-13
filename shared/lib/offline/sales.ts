@@ -3,7 +3,7 @@ import type { SaleDTO } from "@/shared/lib/api/sales";
 import type { SessionDTO } from "@/shared/lib/api/registers";
 import type { CartLine } from "@/shared/components/pos/types";
 import { computeLineTotals, sumCartTotals } from "@/shared/lib/money";
-import { toBaseQuantity } from "@/shared/lib/units";
+import { fromBaseQuantity, toBaseQuantity } from "@/shared/lib/units";
 
 export type OfflineSaleSyncState = "pending" | "uploading" | "retry_wait" | "synced" | "needs_review" | "auth_required";
 
@@ -78,6 +78,36 @@ export interface OfflineOutboxEntry {
   updatedAt: string;
 }
 
+export interface OfflineSaleSyncOperation {
+  operationId: string;
+  registerId: string;
+  sessionId: string;
+  deviceReceiptNo: string;
+  occurredAt: string;
+  customerName: string;
+  customerPhone?: string;
+  buyerCode?: string;
+  marketingConsent: boolean;
+  lines: Array<{
+    skuId: string;
+    qty: string;
+    unit: string;
+    unitPriceMinor: number;
+    grossMinor: number;
+    discountMinor: number;
+    taxRateBps: number;
+    taxMinor: number;
+    netMinor: number;
+  }>;
+  cashReceivedMinor: number;
+  cashAppliedMinor: number;
+  changeMinor: number;
+  totalMinor: number;
+  subtotalMinor: number;
+  discountMinor: number;
+  taxMinor: number;
+}
+
 export interface OfflineSaleInput {
   scope: OfflineScope;
   session: SessionDTO;
@@ -97,6 +127,10 @@ const SALE_STORE = "sales";
 const OUTBOX_STORE = "outbox";
 const CONTEXT_STORE = "contexts";
 const META_STORE = "meta";
+
+function notifyOfflineSalesChanged() {
+  if (typeof window !== "undefined") window.dispatchEvent(new Event("komola:offline-sales-changed"));
+}
 
 export function offlineScopeKey(scope: OfflineScope): string {
   return JSON.stringify([scope.userId, scope.orgId, scope.locationId]);
@@ -284,6 +318,7 @@ export async function commitOfflineCashSale(input: OfflineSaleInput): Promise<Of
     tx.objectStore(OUTBOX_STORE).add(outbox);
     metaStore.put(next, `${key}:receipt-sequence`);
     await txDone(tx);
+    notifyOfflineSalesChanged();
     return sale;
   } finally {
     db.close();
@@ -305,6 +340,117 @@ export async function listPendingOfflineSales(scope: OfflineScope): Promise<Offl
   } catch {
     return [];
   }
+}
+
+export async function listOfflineSales(scope: OfflineScope): Promise<OfflineSaleRecord[]> {
+  if (typeof indexedDB === "undefined") return [];
+  try {
+    const db = await database();
+    const tx = db.transaction(SALE_STORE, "readonly");
+    const all = await requestResult<OfflineSaleRecord[]>(tx.objectStore(SALE_STORE).getAll());
+    await txDone(tx);
+    db.close();
+    const key = offlineScopeKey(scope);
+    return all
+      .filter((sale) => offlineScopeKey(sale.scope) === key)
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  } catch {
+    return [];
+  }
+}
+
+export async function markOfflineSaleSyncState(
+  scope: OfflineScope,
+  operationId: string,
+  syncState: OfflineSaleSyncState,
+): Promise<boolean> {
+  if (typeof indexedDB === "undefined") return false;
+  try {
+    const db = await database();
+    const tx = db.transaction([SALE_STORE, OUTBOX_STORE], "readwrite");
+    const saleStore = tx.objectStore(SALE_STORE);
+    const outboxStore = tx.objectStore(OUTBOX_STORE);
+    const sale = await requestResult<OfflineSaleRecord | undefined>(saleStore.get(operationId));
+    if (!sale || offlineScopeKey(sale.scope) !== offlineScopeKey(scope)) {
+      tx.abort();
+      db.close();
+      return false;
+    }
+    sale.syncState = syncState;
+    saleStore.put(sale);
+    if (syncState === "synced") {
+      outboxStore.delete(operationId);
+    } else {
+      const outbox = await requestResult<OfflineOutboxEntry | undefined>(outboxStore.get(operationId));
+      if (outbox) {
+        outbox.status = syncState === "auth_required" ? "auth_required" : syncState === "needs_review" ? "needs_review" : "retry_wait";
+        outbox.attempts += 1;
+        outbox.updatedAt = new Date().toISOString();
+        outbox.nextAttemptAt = new Date(Date.now() + 60_000).toISOString();
+        outboxStore.put(outbox);
+      }
+    }
+    await txDone(tx);
+    db.close();
+    notifyOfflineSalesChanged();
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export async function incrementOfflineSaleAttempt(scope: OfflineScope, operationId: string, retryInMs: number): Promise<void> {
+  if (typeof indexedDB === "undefined") return;
+  try {
+    const db = await database();
+    const tx = db.transaction(OUTBOX_STORE, "readwrite");
+    const store = tx.objectStore(OUTBOX_STORE);
+    const outbox = await requestResult<OfflineOutboxEntry | undefined>(store.get(operationId));
+    if (outbox && offlineScopeKey(outbox.scope) === offlineScopeKey(scope)) {
+      outbox.status = "retry_wait";
+      outbox.attempts += 1;
+      outbox.updatedAt = new Date().toISOString();
+      outbox.nextAttemptAt = new Date(Date.now() + retryInMs).toISOString();
+      store.put(outbox);
+    }
+    await txDone(tx);
+    db.close();
+    notifyOfflineSalesChanged();
+  } catch {
+    /* best effort bookkeeping */
+  }
+}
+
+export function offlineSaleToSyncOperation(sale: OfflineSaleRecord): OfflineSaleSyncOperation {
+  return {
+    operationId: sale.operationId,
+    registerId: sale.registerId,
+    sessionId: sale.sessionId,
+    deviceReceiptNo: sale.receiptNo,
+    occurredAt: sale.soldAt,
+    customerName: sale.customerName,
+    customerPhone: sale.customerPhone,
+    buyerCode: sale.buyerCode,
+    marketingConsent: sale.marketingConsent,
+    lines: sale.lines.map((line) => ({
+      skuId: line.productId,
+      qty: String(fromBaseQuantity(line.qtyBase, line.saleUnit as Parameters<typeof fromBaseQuantity>[1])),
+      unit: line.saleUnit,
+      unitPriceMinor: line.unitPricePaise,
+      grossMinor: line.grossPaise,
+      discountMinor: line.discountPaise,
+      taxRateBps: line.taxRateBps,
+      taxMinor: line.taxPaise,
+      netMinor: line.netPaise,
+    })),
+    cashReceivedMinor: sale.payment.receivedPaise,
+    cashAppliedMinor: sale.payment.amountPaise,
+    changeMinor: sale.payment.changePaise,
+    totalMinor: sale.totalPaise,
+    subtotalMinor: sale.grossPaise,
+    discountMinor: sale.discountPaise,
+    taxMinor: sale.taxPaise,
+  };
 }
 
 export function offlineSaleToDTO(sale: OfflineSaleRecord): SaleDTO {

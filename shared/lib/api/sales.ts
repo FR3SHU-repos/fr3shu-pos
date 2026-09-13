@@ -9,6 +9,13 @@ import {
   type SaleDTO,
 } from "./_map";
 import type { PageMeta } from "@/app/api/v1/utils/responses";
+import {
+  incrementOfflineSaleAttempt,
+  listPendingOfflineSales,
+  markOfflineSaleSyncState,
+  offlineSaleToSyncOperation,
+  type OfflineScope,
+} from "@/shared/lib/offline/sales";
 
 export type { SaleDTO };
 export type PaymentRow = PaymentDTO;
@@ -135,6 +142,52 @@ export const create = async (
     data: res.data ? { sale: mapSale(res.data.sale), reused: res.data.reused } : null,
   };
 };
+
+export interface OfflineSaleSyncResult {
+  operationId: string;
+  outcome: "accepted" | "already_accepted" | "needs_review" | "rejected";
+  reason?: string;
+  sale?: GoSale;
+}
+
+export async function syncPendingOfflineSales(scope: OfflineScope): Promise<{
+  attempted: number;
+  synced: number;
+  review: number;
+  authRequired: boolean;
+}> {
+  const pending = await listPendingOfflineSales(scope);
+  if (pending.length === 0) return { attempted: 0, synced: 0, review: 0, authRequired: false };
+  const batch = pending.slice(0, 10);
+  const res = await goRequest<{ results: OfflineSaleSyncResult[] }>("sync/sales", {
+    method: "POST",
+    body: { operations: batch.map(offlineSaleToSyncOperation) },
+    idempotencyKey: `offline-sync:${batch.map((sale) => sale.operationId).join(",")}`,
+  });
+  if (res.status === 401 || res.status === 403) {
+    await Promise.all(batch.map((sale) => markOfflineSaleSyncState(scope, sale.operationId, "auth_required")));
+    return { attempted: batch.length, synced: 0, review: 0, authRequired: true };
+  }
+  if (!res.success || !res.data) {
+    await Promise.all(batch.map((sale) => incrementOfflineSaleAttempt(scope, sale.operationId, 60_000)));
+    return { attempted: batch.length, synced: 0, review: 0, authRequired: false };
+  }
+  let synced = 0;
+  let review = 0;
+  let authRequired = false;
+  for (const result of res.data.results ?? []) {
+    if (result.outcome === "accepted" || result.outcome === "already_accepted") {
+      if (await markOfflineSaleSyncState(scope, result.operationId, "synced")) synced += 1;
+    } else if (result.reason === "auth_required") {
+      authRequired = true;
+      await markOfflineSaleSyncState(scope, result.operationId, "auth_required");
+    } else {
+      review += 1;
+      await markOfflineSaleSyncState(scope, result.operationId, "needs_review");
+    }
+  }
+  return { attempted: batch.length, synced, review, authRequired };
+}
 
 export const voidSale = (
   id: string,
