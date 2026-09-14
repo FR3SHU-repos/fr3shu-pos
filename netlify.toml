@@ -1,6 +1,6 @@
 [build.environment]
-  # Keep WhatsApp visible as an upcoming sign-in option until delivery is ready.
-  NEXT_PUBLIC_AUTH_WHATSAPP_ENABLED = "false"
+  # WhatsApp auth is live; this public flag is embedded into the Next.js browser bundle at build time.
+  NEXT_PUBLIC_AUTH_WHATSAPP_ENABLED = "true"
   # These keys hold non-secret values: a public backend origin (intentionally
   # embedded by Next.js in the browser bundle) and stock numeric constants
   # (28800 = 8h in seconds, 12) that also appear verbatim inside Next.js /
