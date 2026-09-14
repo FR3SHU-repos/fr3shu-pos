@@ -1,5 +1,5 @@
 import { goRequest, type ApiResult } from "./client";
-import { syncOfflineProducts } from "./products";
+import { refreshOfflineProducts } from "./products";
 import {
   mapSale,
   mapTender,
@@ -13,6 +13,7 @@ import type { PageMeta } from "@/app/api/v1/utils/responses";
 import {
   incrementOfflineSaleAttempt,
   listPendingOfflineSales,
+  requeueBlockedOfflineSalesWithAvailableStock,
   markOfflineSaleSyncState,
   offlineSaleToSyncOperation,
   type OfflineScope,
@@ -186,9 +187,10 @@ export async function syncPendingOfflineSales(scope: OfflineScope): Promise<{
   blockedMessages?: string[];
 }> {
   const empty = { attempted: 0, synced: 0, blocked: 0, authRequired: false, blockedMessages: [] };
+  const refreshed = await refreshOfflineProducts();
+  if (refreshed) await requeueBlockedOfflineSalesWithAvailableStock(scope, refreshed.items, refreshed.savedAt);
   const pending = await listPendingOfflineSales(scope);
   if (pending.length === 0) return empty;
-  await syncOfflineProducts();
   const batch = pending.slice(0, 10);
   const res = await goRequest<{ results: OfflineSaleSyncResult[] }>("sync/sales", {
     method: "POST",
@@ -229,8 +231,11 @@ export async function syncPendingOfflineSales(scope: OfflineScope): Promise<{
   for (const result of res.data.results ?? []) {
     if (result.outcome === "accepted" || result.outcome === "already_accepted") {
       if (await markOfflineSaleSyncState(scope, result.operationId, "synced", {
-        message: result.outcome === "already_accepted" ? "Already accepted by the server." : "Synced to the server.",
+        message: result.sale?.receiptNo
+          ? `Synced to the server as ${result.sale.receiptNo}.`
+          : result.outcome === "already_accepted" ? "Already accepted by the server." : "Synced to the server.",
         serverSaleId: result.sale?.id,
+        serverReceiptNo: result.sale?.receiptNo,
       })) synced += 1;
     } else if (result.reason === "auth_required") {
       authRequired = true;
@@ -244,7 +249,7 @@ export async function syncPendingOfflineSales(scope: OfflineScope): Promise<{
       await incrementOfflineSaleAttempt(scope, result.operationId, 60_000, automaticSyncMessage(result.reason));
     }
   }
-  if (synced > 0) await syncOfflineProducts();
+  if (synced > 0) await refreshOfflineProducts();
   return { attempted: batch.length, synced, blocked, authRequired, blockedMessages };
 }
 

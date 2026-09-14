@@ -123,19 +123,25 @@ async function applyOfflineStockOverlay(items: ProductDTO[], snapshotSavedAt: nu
 }
 
 /** Replace the device snapshot only after every page downloads successfully. */
-export async function syncOfflineProducts(signal?: AbortSignal): Promise<boolean> {
+export async function refreshOfflineProducts(signal?: AbortSignal): Promise<{ items: ProductDTO[]; savedAt: number } | null> {
   const key = productScope();
-  if (!key || isOffline()) return false;
+  if (!key || isOffline()) return null;
   const items: ProductDTO[] = [];
   for (let page = 1; ; page++) {
-    if (signal?.aborted || key !== productScope()) return false;
+    if (signal?.aborted || key !== productScope()) return null;
     const res = await goRequest<{ items: GoProduct[]; meta: PageMeta }>("catalogue/products", {
       query: { page, limit: 100, status: "all" }, signal,
     });
-    if (!res.success || !res.data || signal?.aborted || key !== productScope()) return false;
+    if (!res.success || !res.data || signal?.aborted || key !== productScope()) return null;
     items.push(...res.data.items.map(mapProduct));
     if (page >= res.data.meta.totalPages) break;
-    if (res.data.items.length === 0 || page >= 10000) return false;
+    if (res.data.items.length === 0 || page >= 10000) return null;
   }
-  return writeProducts(Array.from(new Map(items.map(p => [p._id, p])).values()), key);
+  const uniqueItems = Array.from(new Map(items.map(p => [p._id, p])).values());
+  const saved = await writeProducts(uniqueItems, key);
+  return saved ? { items: uniqueItems, savedAt: Date.now() } : null;
+}
+
+export async function syncOfflineProducts(signal?: AbortSignal): Promise<boolean> {
+  return (await refreshOfflineProducts(signal)) !== null;
 }

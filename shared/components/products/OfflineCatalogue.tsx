@@ -74,7 +74,7 @@ export function OfflineCatalogue() {
       </div>
     </div>
     {error && <p role="status" className="mt-2">{error}</p>}
-    {(offline || open) && <p className="mt-2 text-foreground-muted">Saved prices and stock may have changed. Browse and search here without changing pages. Product edits still need internet. Eligible cash sales can be saved offline and synced later.</p>}
+    {(offline || open) && <p className="mt-2 text-foreground-muted">Saved prices and stock may have changed. Offline stock is tracked on this device only; the server makes the final stock check when sales sync. Product edits still need internet. Eligible cash sales can be saved offline and synced later.</p>}
     {open && <div className="mt-3 space-y-3">
       <input aria-label="Search saved products" className={inputCls} placeholder="Search saved products by name, barcode or SKU" value={query} onChange={e => setQuery(e.target.value)} />
       {!snapshot ? <p>Connect to the internet to save your catalogue on this device.</p> : results.length === 0 ? <p>No saved products match your search.</p> : <>

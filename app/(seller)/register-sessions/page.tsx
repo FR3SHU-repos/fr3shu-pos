@@ -1,17 +1,22 @@
 "use client";
 
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import toast from "react-hot-toast";
 import { Loader2 } from "lucide-react";
 import { registersApi } from "@/shared/lib/api";
+import { usePosUser } from "@/shared/context/PosUserContext";
 import type { RegisterDTO, SessionDTO } from "@/shared/lib/api/registers";
 import { cardCls, ghostBtnCls, inputCls, primaryBtnCls, SkeletonRows, StatusBadge } from "@/shared/components/ui";
 import { formatPaise, rupeesToPaise } from "@/shared/lib/money";
+import { listOfflineSales, type OfflineSaleRecord, type OfflineScope } from "@/shared/lib/offline/sales";
+import { expectedCashWithOffline, pendingOfflineCashTotal } from "@/shared/lib/offline/session-summary";
 
 export default function RegisterSessionsPage() {
+  const { user } = usePosUser();
   const [registers, setRegisters] = useState<RegisterDTO[]>([]);
   const [current, setCurrent] = useState<SessionDTO | null>(null);
   const [recent, setRecent] = useState<SessionDTO[]>([]);
+  const [offlineSales, setOfflineSales] = useState<OfflineSaleRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
 
@@ -21,18 +26,26 @@ export default function RegisterSessionsPage() {
   const [note, setNote] = useState("");
 
   const load = useCallback(async () => {
-    const res = await registersApi.overview();
+    const scope: OfflineScope | null = user ? { userId: user.id, orgId: user.orgId, locationId: user.locationId } : null;
+    const [res, local] = await Promise.all([
+      registersApi.overview(),
+      scope ? listOfflineSales(scope) : Promise.resolve([]),
+    ]);
     if (res.success && res.data) {
       setRegisters(res.data.registers);
       setCurrent(res.data.currentSession);
       setRecent(res.data.recentSessions);
       if (!registerId && res.data.registers[0]) setRegisterId(res.data.registers[0]._id);
     }
+    setOfflineSales(local);
     setLoading(false);
-  }, [registerId]);
+  }, [registerId, user]);
 
   useEffect(() => {
     void load();
+    const onOfflineSalesChanged = () => void load();
+    window.addEventListener("komola:offline-sales-changed", onOfflineSalesChanged);
+    return () => window.removeEventListener("komola:offline-sales-changed", onOfflineSalesChanged);
   }, [load]);
 
   async function openRegister(e: React.FormEvent) {
@@ -66,9 +79,20 @@ export default function RegisterSessionsPage() {
     void load();
   }
 
-  if (loading) return <SkeletonRows rows={4} />;
-
   const t = current?.totals;
+  const { amountPaise: pendingOfflineCashPaise, count: pendingOfflineCount } = useMemo(() => pendingOfflineCashTotal(offlineSales), [offlineSales]);
+  const { serverExpectedPaise: serverExpectedCashPaise, combinedExpectedPaise: combinedExpectedCashPaise } = current
+    ? expectedCashWithOffline({
+        openingCashPaise: current.openingCashPaise,
+        serverCashSalesPaise: t?.cashSalesPaise ?? 0,
+        refundsPaise: t?.refundsPaise ?? 0,
+        pendingOfflineCashPaise,
+      })
+    : { serverExpectedPaise: 0, combinedExpectedPaise: 0 };
+  const countedCashPaise = rupeesToPaise(Number(countedCash || 0));
+  const combinedVariancePaise = countedCash ? countedCashPaise - combinedExpectedCashPaise : null;
+
+  if (loading) return <SkeletonRows rows={4} />;
 
   return (
     <div className="mx-auto max-w-3xl space-y-6">
@@ -82,16 +106,20 @@ export default function RegisterSessionsPage() {
           </div>
           <dl className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-3">
             <Field label="Opening cash" value={formatPaise(current.openingCashPaise)} />
-            <Field label="Cash sales" value={formatPaise(t?.cashSalesPaise ?? 0)} />
+            <Field label="Server cash sales" value={formatPaise(t?.cashSalesPaise ?? 0)} />
+            <Field label="Pending offline cash" value={`${formatPaise(pendingOfflineCashPaise)} · ${pendingOfflineCount} sale${pendingOfflineCount === 1 ? "" : "s"}`} />
             <Field label="UPI sales" value={formatPaise(t?.upiSalesPaise ?? 0)} />
-            <Field label="Sales count" value={String(t?.saleCount ?? 0)} />
-            <Field
-              label="Expected cash"
-              value={formatPaise(
-                current.openingCashPaise + (t?.cashSalesPaise ?? 0) - (t?.refundsPaise ?? 0),
-              )}
-            />
+            <Field label="Server sale count" value={String(t?.saleCount ?? 0)} />
+            <Field label="Server expected cash" value={formatPaise(serverExpectedCashPaise)} />
+            <Field label="Expected cash with offline" value={formatPaise(combinedExpectedCashPaise)} />
           </dl>
+
+          {pendingOfflineCount > 0 ? (
+            <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+              <p className="font-semibold">{pendingOfflineCount} offline cash sale{pendingOfflineCount === 1 ? "" : "s"} still pending sync.</p>
+              <p className="mt-1">Physical drawer should include {formatPaise(pendingOfflineCashPaise)} extra cash. The backend close calculation will only know this amount after sync.</p>
+            </div>
+          ) : null}
 
           <form onSubmit={closeRegister} className="mt-4 space-y-3 border-t border-border pt-4">
             <div>
@@ -107,6 +135,11 @@ export default function RegisterSessionsPage() {
                 onChange={(e) => setCountedCash(e.target.value)}
                 className={inputCls}
               />
+              {combinedVariancePaise !== null ? (
+                <p className="mt-1 text-xs text-foreground-muted">
+                  Variance using expected cash with offline: {formatPaise(combinedVariancePaise)}
+                </p>
+              ) : null}
             </div>
             <div>
               <label className="mb-1 block text-xs font-medium text-foreground-body">

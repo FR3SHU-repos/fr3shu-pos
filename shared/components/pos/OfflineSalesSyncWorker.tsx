@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef } from "react";
 import toast from "react-hot-toast";
 import { usePosUser } from "@/shared/context/PosUserContext";
 import { salesApi } from "@/shared/lib/api";
-import type { OfflineScope } from "@/shared/lib/offline/sales";
+import { cleanupOfflineSales, type OfflineScope } from "@/shared/lib/offline/sales";
 
 const SYNC_INTERVAL_MS = 30_000;
 const LAST_SYNC_KEY_PREFIX = "komola:offline-sales:last-sync:";
@@ -45,6 +45,7 @@ export function OfflineSalesSyncWorker() {
     syncingRef.current = true;
     try {
       const result = await salesApi.syncPendingOfflineSales(scope);
+      if (result.synced > 0) await cleanupOfflineSales(scope, 0);
       const detail: OfflineSalesSyncDetail = { ...result, at: new Date().toISOString(), automatic };
       if (typeof window !== "undefined") {
         if (result.synced > 0 || result.attempted > 0) {
@@ -53,7 +54,7 @@ export function OfflineSalesSyncWorker() {
         window.dispatchEvent(new CustomEvent<OfflineSalesSyncDetail>(OFFLINE_SALES_SYNC_EVENT, { detail }));
       }
       if (!automatic) return;
-      if (result.synced > 0) toast.success(`${result.synced} offline sale${result.synced === 1 ? "" : "s"} synced`);
+      if (result.synced > 0) toast.success(`${result.synced} offline sale${result.synced === 1 ? "" : "s"} completed`);
     } finally {
       syncingRef.current = false;
     }

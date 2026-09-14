@@ -51,6 +51,7 @@ export interface OfflineSaleRecord {
   syncState: OfflineSaleSyncState;
   syncMessage?: string;
   serverSaleId?: string;
+  serverReceiptNo?: string;
   lastSyncAttemptAt?: string;
   lines: OfflineSaleLine[];
   grossPaise: number;
@@ -218,6 +219,34 @@ export function applyLocalStockDeductions<T extends ProductDTO>(
   }));
 }
 
+function saleCanUseProducts(
+  sale: OfflineSaleRecord,
+  products: ProductDTO[],
+  otherDeductions: LocalStockDeductions,
+): { ok: true } | { ok: false; reason: string } {
+  const byId = new Map(products.map((product) => [product._id, product]));
+  for (const line of sale.lines) {
+    const product = byId.get(line.productId);
+    if (!product) return { ok: false, reason: `${line.name} is not in the refreshed product catalogue.` };
+    if (product.status !== "active") return { ok: false, reason: `${line.name} is not active on the server.` };
+    if (typeof product.basePricePaise !== "number") return { ok: false, reason: `${line.name} has no server price.` };
+    const availableBase = Math.max(0, product.availableBase - (otherDeductions[line.productId] ?? 0));
+    if (line.qtyBase > availableBase) {
+      const requested = fromBaseQuantity(line.qtyBase, line.saleUnit as Parameters<typeof fromBaseQuantity>[1]);
+      const available = fromBaseQuantity(availableBase, line.saleUnit as Parameters<typeof fromBaseQuantity>[1]);
+      return { ok: false, reason: `${line.name} needs ${requested} ${line.saleUnit}, but only ${available} ${line.saleUnit} is available in the refreshed catalogue.` };
+    }
+  }
+  return { ok: true };
+}
+
+function stockRecheckCandidate(sale: OfflineSaleRecord): boolean {
+  if (sale.syncState !== "blocked" && sale.syncState !== "needs_review") return false;
+  const message = sale.syncMessage?.toLowerCase() ?? "";
+  if (!message) return true;
+  return ["stock", "inventory", "available", "catalogue", "product", "server"].some((word) => message.includes(word));
+}
+
 function buildOfflineLines(lines: CartLine[]): OfflineSaleLine[] {
   return lines.map((line) => {
     const qtyBase = toBaseQuantity(line.qty, line.saleUnit);
@@ -247,6 +276,58 @@ function buildOfflineLines(lines: CartLine[]): OfflineSaleLine[] {
       netPaise: totals.netPaise,
     };
   });
+}
+
+function recalculateOfflineLine(line: OfflineSaleLine, qty: number): OfflineSaleLine {
+  const qtyBase = toBaseQuantity(qty, line.saleUnit as Parameters<typeof toBaseQuantity>[1]);
+  const totals = computeLineTotals({
+    qtyBase,
+    unitPricePaise: line.unitPricePaise,
+    basePerSaleUnit: line.basePerSaleUnit,
+    taxRateBps: line.taxRateBps,
+    discountPaise: Math.min(line.discountPaise, Math.max(0, Math.round((line.discountPaise * qtyBase) / Math.max(1, line.qtyBase)))),
+  });
+  return {
+    ...line,
+    qty,
+    qtyBase,
+    grossPaise: totals.grossPaise,
+    discountPaise: totals.discountPaise,
+    taxablePaise: totals.taxablePaise,
+    taxPaise: totals.taxPaise,
+    netPaise: totals.netPaise,
+  };
+}
+
+export function applyOfflineSaleLineRepair(
+  sale: OfflineSaleRecord,
+  changes: Array<{ productId: string; qty?: number; remove?: boolean }>,
+): OfflineSaleRecord {
+  const byProduct = new Map(changes.map((change) => [change.productId, change]));
+  const lines: OfflineSaleLine[] = [];
+  for (const line of sale.lines) {
+    const change = byProduct.get(line.productId);
+    if (change?.remove) continue;
+    if (typeof change?.qty === "number") {
+      if (!Number.isFinite(change.qty) || change.qty <= 0) throw new Error("Enter a quantity greater than zero.");
+      if (toBaseQuantity(change.qty, line.saleUnit as Parameters<typeof toBaseQuantity>[1]) > line.qtyBase) throw new Error("Quantity can only be reduced while repairing an offline sale.");
+      lines.push(recalculateOfflineLine(line, change.qty));
+    } else {
+      lines.push(line);
+    }
+  }
+  if (lines.length === 0) throw new Error("At least one product must remain. Cancel the local sale instead.");
+  const totals = sumCartTotals(lines);
+  const payment = validateCashPayment(totals.netPaise, sale.payment.receivedPaise);
+  return {
+    ...sale,
+    lines,
+    grossPaise: totals.grossPaise,
+    discountPaise: totals.discountPaise,
+    taxPaise: totals.taxPaise,
+    totalPaise: totals.netPaise,
+    payment,
+  };
 }
 
 export function buildOfflineSaleRecord(
@@ -413,11 +494,26 @@ export async function listOfflineSales(scope: OfflineScope): Promise<OfflineSale
   }
 }
 
+
+export interface OfflineSalesExport {
+  exportedAt: string;
+  scope: OfflineScope;
+  sales: OfflineSaleRecord[];
+}
+
+export async function exportOfflineSales(scope: OfflineScope): Promise<OfflineSalesExport> {
+  return {
+    exportedAt: new Date().toISOString(),
+    scope,
+    sales: await listOfflineSales(scope),
+  };
+}
+
 export async function markOfflineSaleSyncState(
   scope: OfflineScope,
   operationId: string,
   syncState: OfflineSaleSyncState,
-  detail?: { message?: string; serverSaleId?: string },
+  detail?: { message?: string; serverSaleId?: string; serverReceiptNo?: string },
 ): Promise<boolean> {
   if (typeof indexedDB === "undefined") return false;
   try {
@@ -434,6 +530,7 @@ export async function markOfflineSaleSyncState(
     sale.syncState = syncState;
     sale.syncMessage = detail?.message;
     sale.serverSaleId = detail?.serverSaleId ?? sale.serverSaleId;
+    sale.serverReceiptNo = detail?.serverReceiptNo ?? sale.serverReceiptNo;
     sale.lastSyncAttemptAt = new Date().toISOString();
     saleStore.put(sale);
     if (syncState === "synced") {
@@ -470,6 +567,54 @@ function normalizeOfflinePhone(value?: string): string | undefined {
   if (!national) return undefined;
   if (!/^[6-9][0-9]{9}$/.test(national)) throw new Error("Enter a valid Indian mobile number.");
   return national;
+}
+
+export async function repairOfflineSaleLines(
+  scope: OfflineScope,
+  operationId: string,
+  changes: Array<{ productId: string; qty?: number; remove?: boolean }>,
+): Promise<OfflineSaleRecord> {
+  if (typeof indexedDB === "undefined") throw new Error("Offline sale storage is not available.");
+  if (changes.length === 0) throw new Error("Choose at least one line to repair.");
+  const db = await database();
+  try {
+    const tx = db.transaction([SALE_STORE, OUTBOX_STORE], "readwrite");
+    const saleStore = tx.objectStore(SALE_STORE);
+    const outboxStore = tx.objectStore(OUTBOX_STORE);
+    const sale = await requestResult<OfflineSaleRecord | undefined>(saleStore.get(operationId));
+    if (!sale || offlineScopeKey(sale.scope) !== offlineScopeKey(scope)) {
+      tx.abort();
+      throw new Error("Offline sale was not found on this device.");
+    }
+    if (sale.syncState === "synced") {
+      tx.abort();
+      throw new Error("This sale is already synced.");
+    }
+    const repaired = applyOfflineSaleLineRepair(sale, changes);
+    const now = new Date().toISOString();
+    repaired.syncState = "pending";
+    repaired.syncMessage = "Sale items updated. Queued for another automatic sync check.";
+    repaired.lastSyncAttemptAt = now;
+    saleStore.put(repaired);
+    const existing = await requestResult<OfflineOutboxEntry | undefined>(outboxStore.get(operationId));
+    outboxStore.put({
+      id: operationId,
+      saleId: repaired.id,
+      operationId,
+      scope: repaired.scope,
+      kind: "sale.cash.v1",
+      status: "pending",
+      attempts: existing?.attempts ?? 0,
+      nextAttemptAt: now,
+      createdAt: existing?.createdAt ?? repaired.createdAt,
+      updatedAt: now,
+    });
+    await txDone(tx);
+    notifyOfflineSalesChanged();
+    return repaired;
+  } finally {
+    db.close();
+  }
 }
 
 export async function updateOfflineSaleCustomer(
@@ -578,6 +723,60 @@ export async function cleanupOfflineSales(scope: OfflineScope, olderThanMs = 7 *
     db.close();
     if (removed > 0) notifyOfflineSalesChanged();
     return removed;
+  } catch {
+    return 0;
+  }
+}
+
+export async function requeueBlockedOfflineSalesWithAvailableStock(
+  scope: OfflineScope,
+  products: ProductDTO[],
+  snapshotSavedAt: number,
+): Promise<number> {
+  if (typeof indexedDB === "undefined" || products.length === 0) return 0;
+  try {
+    const db = await database();
+    const tx = db.transaction([SALE_STORE, OUTBOX_STORE], "readwrite");
+    const saleStore = tx.objectStore(SALE_STORE);
+    const outboxStore = tx.objectStore(OUTBOX_STORE);
+    const all = await requestResult<OfflineSaleRecord[]>(saleStore.getAll());
+    const key = offlineScopeKey(scope);
+    const scopedSales = all.filter((sale) => offlineScopeKey(sale.scope) === key);
+    const now = new Date().toISOString();
+    let queued = 0;
+    for (const sale of scopedSales) {
+      if (!stockRecheckCandidate(sale)) continue;
+      const otherDeductions = localStockDeductions(scopedSales.filter((other) => other.operationId !== sale.operationId), snapshotSavedAt);
+      const check = saleCanUseProducts(sale, products, otherDeductions);
+      if (!check.ok) {
+        sale.syncMessage = check.reason;
+        sale.lastSyncAttemptAt = now;
+        saleStore.put(sale);
+        continue;
+      }
+      sale.syncState = "pending";
+      sale.syncMessage = "Refreshed stock is available. Queued for another automatic sync check.";
+      sale.lastSyncAttemptAt = now;
+      saleStore.put(sale);
+      const existing = await requestResult<OfflineOutboxEntry | undefined>(outboxStore.get(sale.operationId));
+      outboxStore.put({
+        id: sale.operationId,
+        saleId: sale.id,
+        operationId: sale.operationId,
+        scope: sale.scope,
+        kind: "sale.cash.v1",
+        status: "pending",
+        attempts: existing?.attempts ?? 0,
+        nextAttemptAt: now,
+        createdAt: existing?.createdAt ?? sale.createdAt,
+        updatedAt: now,
+      });
+      queued += 1;
+    }
+    await txDone(tx);
+    db.close();
+    if (queued > 0) notifyOfflineSalesChanged();
+    return queued;
   } catch {
     return 0;
   }

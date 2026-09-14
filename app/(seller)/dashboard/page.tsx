@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { ScanBarcode, ReceiptText, TrendingUp, Wallet } from "lucide-react";
 import { registersApi, salesApi } from "@/shared/lib/api";
@@ -9,32 +9,47 @@ import type { SaleDTO } from "@/shared/lib/api/sales";
 import { usePosUser } from "@/shared/context/PosUserContext";
 import { cardCls, primaryBtnCls, SkeletonRows, StatusBadge } from "@/shared/components/ui";
 import { formatPaise } from "@/shared/lib/money";
+import { listOfflineSales, type OfflineSaleRecord, type OfflineScope } from "@/shared/lib/offline/sales";
+import { mergeSalesWithOffline, pendingOfflineCashTotal } from "@/shared/lib/offline/session-summary";
 
 export default function DashboardPage() {
   const { user } = usePosUser();
   const [session, setSession] = useState<SessionDTO | null>(null);
   const [sales, setSales] = useState<SaleDTO[]>([]);
+  const [offlineSales, setOfflineSales] = useState<OfflineSaleRecord[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     let alive = true;
-    (async () => {
-      const [ov, sl] = await Promise.all([
+    const load = async () => {
+      const scope: OfflineScope | null = user ? { userId: user.id, orgId: user.orgId, locationId: user.locationId } : null;
+      const [ov, sl, local] = await Promise.all([
         registersApi.overview(),
         salesApi.list({ limit: 5 }),
+        scope ? listOfflineSales(scope) : Promise.resolve([]),
       ]);
       if (!alive) return;
       if (ov.success && ov.data) setSession(ov.data.currentSession);
       if (sl.success && sl.data) setSales(sl.data.items);
+      setOfflineSales(local);
       setLoading(false);
-    })();
+    };
+    void load();
+    const onOfflineSalesChanged = () => void load();
+    window.addEventListener("komola:offline-sales-changed", onOfflineSalesChanged);
     return () => {
       alive = false;
+      window.removeEventListener("komola:offline-sales-changed", onOfflineSalesChanged);
     };
-  }, []);
+  }, [user]);
+
+  const today = new Date().toISOString().slice(0, 10);
+  const recentSales = useMemo(() => mergeSalesWithOffline(sales, offlineSales, today, 5), [offlineSales, sales, today]);
+  const { amountPaise: offlineCashPaise, count: offlineSaleCount } = useMemo(() => pendingOfflineCashTotal(offlineSales), [offlineSales]);
 
   const t = session?.totals;
-  const salesToday = t ? t.cashSalesPaise + t.upiSalesPaise + t.cardSalesPaise : 0;
+  const serverSalesToday = t ? t.cashSalesPaise + t.upiSalesPaise + t.cardSalesPaise : 0;
+  const salesToday = serverSalesToday + offlineCashPaise;
 
   return (
     <div className="mx-auto max-w-5xl space-y-6">
@@ -66,7 +81,7 @@ export default function DashboardPage() {
             <StatCard
               icon={<ReceiptText className="h-5 w-5" />}
               label="Sale count"
-              value={String(t?.saleCount ?? 0)}
+              value={String((t?.saleCount ?? 0) + offlineSaleCount)}
             />
             <StatCard
               icon={<Wallet className="h-5 w-5" />}
@@ -75,7 +90,8 @@ export default function DashboardPage() {
                 session
                   ? formatPaise(
                       session.openingCashPaise +
-                        (t?.cashSalesPaise ?? 0) -
+                        (t?.cashSalesPaise ?? 0) +
+                        offlineCashPaise -
                         (t?.refundsPaise ?? 0),
                     )
                   : "—"
@@ -90,19 +106,26 @@ export default function DashboardPage() {
                 View all
               </Link>
             </div>
-            {sales.length === 0 ? (
+            {recentSales.length === 0 ? (
               <p className="py-6 text-center text-sm text-foreground-muted">No sales yet.</p>
             ) : (
               <ul className="divide-y divide-border">
-                {sales.map((s) => (
-                  <li key={s._id} className="flex items-center justify-between py-2.5 text-sm">
-                    <Link href={`/pos/history/${s._id}`} className="font-medium text-brand">
-                      {s.receiptNo}
-                    </Link>
+                {recentSales.map(({ sale: s, local, state, serverSaleId }) => (
+                  <li key={`${local ? "local" : "server"}:${s._id}`} className="flex items-center justify-between gap-2 py-2.5 text-sm">
+                    <div className="min-w-0">
+                      {local && !serverSaleId ? (
+                        <span className="font-medium text-foreground-heading">{s.receiptNo}</span>
+                      ) : (
+                        <Link href={`/pos/history/${serverSaleId ?? s._id}`} className="font-medium text-brand">
+                          {s.receiptNo}
+                        </Link>
+                      )}
+                      {local ? <p className="text-xs text-foreground-muted">local offline sale</p> : null}
+                    </div>
                     <span className="text-foreground-muted">
                       {new Date(s.soldAt).toLocaleTimeString("en-IN")}
                     </span>
-                    <StatusBadge status={s.status} />
+                    <StatusBadge status={local ? state : s.status} />
                     <span className="font-semibold text-foreground-heading">
                       {formatPaise(s.totalPaise)}
                     </span>

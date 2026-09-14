@@ -2,6 +2,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
   request: vi.fn(),
+  refreshProducts: vi.fn(),
+  requeueBlockedWithStock: vi.fn(),
   listPending: vi.fn(),
   mark: vi.fn(),
   increment: vi.fn(),
@@ -9,8 +11,10 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock("@/shared/lib/api/client", () => ({ goRequest: mocks.request }));
+vi.mock("@/shared/lib/api/products", () => ({ refreshOfflineProducts: mocks.refreshProducts }));
 vi.mock("@/shared/lib/offline/sales", () => ({
   listPendingOfflineSales: mocks.listPending,
+  requeueBlockedOfflineSalesWithAvailableStock: mocks.requeueBlockedWithStock,
   markOfflineSaleSyncState: mocks.mark,
   incrementOfflineSaleAttempt: mocks.increment,
   offlineSaleToSyncOperation: mocks.toOperation,
@@ -23,6 +27,10 @@ const scope = { userId: "user-1", orgId: "org-1", locationId: "loc-1" };
 describe("offline sale sync API", () => {
   beforeEach(() => {
     mocks.request.mockReset();
+    mocks.refreshProducts.mockReset();
+    mocks.refreshProducts.mockResolvedValue(null);
+    mocks.requeueBlockedWithStock.mockReset();
+    mocks.requeueBlockedWithStock.mockResolvedValue(0);
     mocks.listPending.mockReset();
     mocks.mark.mockReset();
     mocks.increment.mockReset();
@@ -34,7 +42,7 @@ describe("offline sale sync API", () => {
     mocks.request.mockResolvedValue({
       success: true,
       status: 200,
-      data: { results: [{ operationId: "op-1", outcome: "accepted" }] },
+      data: { results: [{ operationId: "op-1", outcome: "accepted", sale: { id: "sale-1", receiptNo: "POS-2026-000009" } }] },
     });
     mocks.mark.mockResolvedValue(true);
 
@@ -44,7 +52,12 @@ describe("offline sale sync API", () => {
       method: "POST",
       body: { operations: [{ operationId: "op-1" }] },
     }));
-    expect(mocks.mark).toHaveBeenCalledWith(scope, "op-1", "synced", expect.objectContaining({ message: "Synced to the server." }));
+    expect(mocks.refreshProducts).toHaveBeenCalledTimes(2);
+    expect(mocks.mark).toHaveBeenCalledWith(scope, "op-1", "synced", expect.objectContaining({
+      message: "Synced to the server as POS-2026-000009.",
+      serverSaleId: "sale-1",
+      serverReceiptNo: "POS-2026-000009",
+    }));
     expect(result).toEqual({ attempted: 1, synced: 1, blocked: 0, authRequired: false, blockedMessages: [] });
   });
 
@@ -107,6 +120,24 @@ describe("offline sale sync API", () => {
 
     expect(mocks.increment).toHaveBeenCalledWith(scope, "op-1", 60_000, expect.stringContaining("retry automatically"));
     expect(result).toEqual({ attempted: 1, synced: 0, blocked: 0, authRequired: false, blockedMessages: [] });
+  });
+
+  it("refreshes products and requeues blocked stock sales before reading pending sales", async () => {
+    const refreshed = { items: [{ _id: "sku-1", availableBase: 5000 }], savedAt: 1234 };
+    mocks.refreshProducts.mockResolvedValueOnce(refreshed).mockResolvedValueOnce(null);
+    mocks.requeueBlockedWithStock.mockResolvedValue(1);
+    mocks.listPending.mockResolvedValue([{ operationId: "op-1" }]);
+    mocks.request.mockResolvedValue({
+      success: true,
+      status: 200,
+      data: { results: [{ operationId: "op-1", outcome: "accepted" }] },
+    });
+    mocks.mark.mockResolvedValue(true);
+
+    await syncPendingOfflineSales(scope);
+
+    expect(mocks.requeueBlockedWithStock).toHaveBeenCalledWith(scope, refreshed.items, refreshed.savedAt);
+    expect(mocks.requeueBlockedWithStock.mock.invocationCallOrder[0]).toBeLessThan(mocks.listPending.mock.invocationCallOrder[0]);
   });
 
 });

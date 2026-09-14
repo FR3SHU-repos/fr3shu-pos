@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   buildOfflineSaleRecord,
   applyLocalStockDeductions,
+  applyOfflineSaleLineRepair,
   localStockDeductions,
   offlineSaleToDTO,
   parseRupeesToPaise,
@@ -209,4 +210,44 @@ describe("offline cash sales", () => {
       ),
     ).toThrow("Tomato does not have enough offline stock.");
   });
+  it("repairs a blocked sale by reducing quantity and recalculating cash totals", () => {
+    const sale = buildOfflineSaleRecord(
+      {
+        scope,
+        session,
+        cashierId: "cashier-1",
+        lines: [line({ qty: 2 })],
+        cashReceivedPaise: 12000,
+        customerName: "Asha",
+        operationId: "op-repair",
+      },
+      4,
+      new Date("2026-09-13T07:30:00.000Z"),
+    );
+
+    const repaired = applyOfflineSaleLineRepair(sale, [{ productId: "sku-1", qty: 1 }]);
+
+    expect(repaired.lines[0]).toMatchObject({ qty: 1, qtyBase: 1000, netPaise: 6000 });
+    expect(repaired.totalPaise).toBe(6000);
+    expect(repaired.payment).toMatchObject({ receivedPaise: 12000, amountPaise: 6000, changePaise: 6000 });
+  });
+
+  it("blocks removing every line during repair", () => {
+    const sale = buildOfflineSaleRecord(
+      {
+        scope,
+        session,
+        cashierId: "cashier-1",
+        lines: [line()],
+        cashReceivedPaise: 10000,
+        customerName: "Asha",
+        operationId: "op-remove-all",
+      },
+      5,
+      new Date("2026-09-13T08:00:00.000Z"),
+    );
+
+    expect(() => applyOfflineSaleLineRepair(sale, [{ productId: "sku-1", remove: true }])).toThrow("At least one product must remain");
+  });
+
 });

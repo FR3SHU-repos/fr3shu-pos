@@ -17,29 +17,37 @@ This tracker records the offline-first POS work so implementation can continue w
 - Offline cash sales can be created from eligible saved products.
 - Offline sales preserve browser transaction time, customer details, cash received, change, local receipt number, and idempotency key.
 - Local stock is reduced immediately for pending offline sales on the same device.
-- Offline sales are queued with statuses including pending, retry, blocked, synced, cancelled, and auth-required.
+- Offline sales are queued with internal statuses including pending, retry, blocked, synced, cancelled, and auth-required; sellers mainly see waiting, issue, or completed behavior.
 - Automatic sync runs when the seller workspace is opened, when the browser comes online, and after offline sale changes.
-- Synced offline sales leave the active queue; blocked/cancelled/synced states are retained long enough for recovery and cleanup.
+- Synced offline sales are treated as completed, removed from the active offline panel automatically, and then shown through normal server sales history.
 - Blocked sale rows show automatic check reasons and support customer correction, retry, and local cancellation.
 - Backend `POST /api/v1/pos/sync/sales` accepts offline sale operations, preserves actual offline sale time, uses idempotency, supports walk-in cash customers, and returns per-operation outcomes.
 - Server-side stock conflicts now return product-level detail, such as required quantity versus available server quantity.
 - Offline sale sync refreshes the saved product catalogue before syncing and again after successful sync, keeping cached stock closer to the server.
+- Blocked stock-related offline sales are rechecked against the refreshed catalogue and automatically queued again when local stock validation passes.
+- Offline sales can be opened as local receipts from the offline panel while they are pending or blocked, with print/save-PDF support.
+- During sync, offline records temporarily keep both references: the local receipt number and the server receipt/sale ID returned by the database, then successful records are cleaned locally.
+- Dashboard and sales history merge active locally saved offline sales with server sales; once sync completes, the server receipt is the completed sale record.
+- Register session reconciliation shows server cash, pending offline cash, combined expected cash, and variance against the combined drawer total.
+- Blocked offline sale conflicts can be repaired by reducing quantities or removing product lines, with totals/cash/change recalculated before requeueing sync.
+- Offline sales can be exported as a JSON backup for recovery; successful synced records are cleaned automatically, and manual cleanup removes old terminal records.
+- Multi-device offline limits are documented: each device has local stock knowledge only, and the server remains final authority at sync.
+- Broader offline summary tests cover dashboard cash totals, active sale-list merging, synced-local hiding, and export/cleanup no-IndexedDB safety.
+
+
+### Multi-device offline limits
+
+Offline stock is reliable only on the device/browser that saved the product catalogue and created the offline sale. If two sellers use different devices while offline, each device only knows about its own local sales. The server remains the final authority when devices reconnect. During sync, a sale may be accepted, retried, or blocked if another device has already used the same stock. Blocked stock conflicts should show the product and available quantity so the seller can repair the local sale by reducing quantity, removing the line, or cancelling the local sale.
+
+Operational rule for sellers: sync products before going offline when possible, then let offline sales auto-sync as soon as internet returns. Export backup is a recovery/support tool, not a normal sync step.
 
 ### Remaining work
 
-1. Recheck blocked/pending offline sales against refreshed stock before syncing, keeping only true conflicts blocked.
-2. Add local sale detail/receipt view so a seller can open, verify, and print/show a pending offline receipt.
-3. Update offline receipt after sync with the server sale number while preserving the local receipt reference.
-4. Merge offline pending/synced sales into dashboard and recent-sales views so session totals feel consistent during weak internet.
-5. Improve cash drawer/session reconciliation to clearly include pending offline cash and synced server cash.
-6. Add conflict repair for unavailable products: edit quantity, remove a line, or cancel the local sale.
-7. Add safer cleanup policy for old synced/cancelled records and a recovery/export path before deletion.
-8. Document multi-device limits: offline stock is reliable per device only; the server remains final authority when devices reconnect.
-9. Add broader tests for blocked-sale recheck, repair, receipts, dashboard totals, and cleanup.
+The first offline POS implementation pass is complete. Future hardening can add browser-level e2e tests for a full offline sale, reconnect, sync, receipt, and register-close flow.
 
 ### Current next task
 
-Recheck blocked and pending offline sales after product refresh: if refreshed server stock means a sale can now sync, retry it automatically; if it still cannot sync, keep the exact reason visible and prepare repair actions such as quantity edit or line removal.
+Run a real browser QA pass: create an offline sale, refresh while offline, reconnect, confirm it auto-syncs and disappears from the offline panel, then verify it appears as a completed server sale in dashboard/history/register totals.
 
 
 > **⚠️ Partly superseded (2026-09).** Sections 2 (architecture), 3 (roles /
