@@ -5,7 +5,7 @@ import type { CartLine } from "@/shared/components/pos/types";
 import { computeLineTotals, sumCartTotals } from "@/shared/lib/money";
 import { fromBaseQuantity, toBaseQuantity } from "@/shared/lib/units";
 
-export type OfflineSaleSyncState = "pending" | "uploading" | "retry_wait" | "synced" | "needs_review" | "auth_required";
+export type OfflineSaleSyncState = "pending" | "uploading" | "retry_wait" | "synced" | "blocked" | "needs_review" | "auth_required";
 
 export interface OfflineScope {
   userId: string;
@@ -49,6 +49,9 @@ export interface OfflineSaleRecord {
   receiptSequence: number;
   status: "completed";
   syncState: OfflineSaleSyncState;
+  syncMessage?: string;
+  serverSaleId?: string;
+  lastSyncAttemptAt?: string;
   lines: OfflineSaleLine[];
   grossPaise: number;
   discountPaise: number;
@@ -121,6 +124,8 @@ export interface OfflineSaleInput {
   operationId?: string;
 }
 
+export type LocalStockDeductions = Record<string, number>;
+
 const DB_NAME = "komola-offline-pos-v1";
 const DB_VERSION = 1;
 const SALE_STORE = "sales";
@@ -187,6 +192,31 @@ export function validateCashPayment(totalPaise: number, receivedPaise: number): 
   };
 }
 
+export function localStockDeductions(
+  sales: OfflineSaleRecord[],
+  snapshotSavedAt?: number,
+): LocalStockDeductions {
+  const snapshotTime = snapshotSavedAt ?? Number.POSITIVE_INFINITY;
+  const out: LocalStockDeductions = {};
+  for (const sale of sales) {
+    if (sale.syncState === "synced" && new Date(sale.createdAt).getTime() <= snapshotTime) continue;
+    for (const line of sale.lines) {
+      out[line.productId] = (out[line.productId] ?? 0) + line.qtyBase;
+    }
+  }
+  return out;
+}
+
+export function applyLocalStockDeductions<T extends ProductDTO>(
+  items: T[],
+  deductions: LocalStockDeductions,
+): T[] {
+  return items.map((item) => ({
+    ...item,
+    availableBase: Math.max(0, item.availableBase - (deductions[item._id] ?? 0)),
+  }));
+}
+
 function buildOfflineLines(lines: CartLine[]): OfflineSaleLine[] {
   return lines.map((line) => {
     const qtyBase = toBaseQuantity(line.qty, line.saleUnit);
@@ -222,11 +252,15 @@ export function buildOfflineSaleRecord(
   input: OfflineSaleInput,
   receiptSequence: number,
   now = new Date(),
+  existingDeductions: LocalStockDeductions = {},
 ): OfflineSaleRecord {
   if (input.lines.length === 0) throw new Error("Add at least one product before checkout.");
   for (const line of input.lines) {
     if ((line.product as ProductDTO).status !== "active") throw new Error(`${line.product.name} is not active.`);
     if (typeof line.product.basePricePaise !== "number") throw new Error(`${line.product.name} has no saved price.`);
+    const qtyBase = toBaseQuantity(line.qty, line.saleUnit);
+    const availableBase = Math.max(0, line.product.availableBase - (existingDeductions[line.product._id] ?? 0));
+    if (qtyBase > availableBase) throw new Error(`${line.product.name} does not have enough offline stock.`);
   }
   const saleLines = buildOfflineLines(input.lines);
   const cart = sumCartTotals(saleLines);
@@ -298,9 +332,13 @@ export async function commitOfflineCashSale(input: OfflineSaleInput): Promise<Of
     const key = offlineScopeKey(input.scope);
     const tx = db.transaction([SALE_STORE, OUTBOX_STORE, META_STORE], "readwrite");
     const metaStore = tx.objectStore(META_STORE);
+    const existingSales = await requestResult<OfflineSaleRecord[]>(tx.objectStore(SALE_STORE).getAll());
+    const deductions = localStockDeductions(
+      existingSales.filter((sale) => offlineScopeKey(sale.scope) === key),
+    );
     const current = (await requestResult<number | undefined>(metaStore.get(`${key}:receipt-sequence`))) ?? 0;
     const next = current + 1;
-    const sale = buildOfflineSaleRecord(input, next);
+    const sale = buildOfflineSaleRecord(input, next, new Date(), deductions);
     const now = sale.createdAt;
     const outbox: OfflineOutboxEntry = {
       id: sale.operationId,
@@ -329,13 +367,28 @@ export async function listPendingOfflineSales(scope: OfflineScope): Promise<Offl
   if (typeof indexedDB === "undefined") return [];
   try {
     const db = await database();
-    const tx = db.transaction(SALE_STORE, "readonly");
-    const all = await requestResult<OfflineSaleRecord[]>(tx.objectStore(SALE_STORE).getAll());
+    const tx = db.transaction([SALE_STORE, OUTBOX_STORE], "readonly");
+    const saleStore = tx.objectStore(SALE_STORE);
+    const outboxStore = tx.objectStore(OUTBOX_STORE);
+    const [allSales, allOutbox] = await Promise.all([
+      requestResult<OfflineSaleRecord[]>(saleStore.getAll()),
+      requestResult<OfflineOutboxEntry[]>(outboxStore.getAll()),
+    ]);
     await txDone(tx);
     db.close();
     const key = offlineScopeKey(scope);
-    return all
-      .filter((sale) => offlineScopeKey(sale.scope) === key && sale.syncState !== "synced")
+    const now = Date.now();
+    const syncableOperationIds = new Set(
+      allOutbox
+        .filter((entry) => offlineScopeKey(entry.scope) === key)
+        .filter((entry) => entry.status !== "blocked" && entry.status !== "needs_review")
+        .filter((entry) => new Date(entry.nextAttemptAt).getTime() <= now)
+        .map((entry) => entry.operationId),
+    );
+    return allSales
+      .filter((sale) => offlineScopeKey(sale.scope) === key)
+      .filter((sale) => sale.syncState !== "synced" && sale.syncState !== "blocked" && sale.syncState !== "needs_review")
+      .filter((sale) => syncableOperationIds.has(sale.operationId))
       .sort((a, b) => a.createdAt.localeCompare(b.createdAt));
   } catch {
     return [];
@@ -363,6 +416,7 @@ export async function markOfflineSaleSyncState(
   scope: OfflineScope,
   operationId: string,
   syncState: OfflineSaleSyncState,
+  detail?: { message?: string; serverSaleId?: string },
 ): Promise<boolean> {
   if (typeof indexedDB === "undefined") return false;
   try {
@@ -377,13 +431,16 @@ export async function markOfflineSaleSyncState(
       return false;
     }
     sale.syncState = syncState;
+    sale.syncMessage = detail?.message;
+    sale.serverSaleId = detail?.serverSaleId ?? sale.serverSaleId;
+    sale.lastSyncAttemptAt = new Date().toISOString();
     saleStore.put(sale);
     if (syncState === "synced") {
       outboxStore.delete(operationId);
     } else {
       const outbox = await requestResult<OfflineOutboxEntry | undefined>(outboxStore.get(operationId));
       if (outbox) {
-        outbox.status = syncState === "auth_required" ? "auth_required" : syncState === "needs_review" ? "needs_review" : "retry_wait";
+        outbox.status = syncState === "auth_required" ? "auth_required" : syncState === "blocked" || syncState === "needs_review" ? syncState : "retry_wait";
         outbox.attempts += 1;
         outbox.updatedAt = new Date().toISOString();
         outbox.nextAttemptAt = new Date(Date.now() + 60_000).toISOString();
@@ -399,12 +456,130 @@ export async function markOfflineSaleSyncState(
   }
 }
 
-export async function incrementOfflineSaleAttempt(scope: OfflineScope, operationId: string, retryInMs: number): Promise<void> {
+export interface OfflineSaleCustomerPatch {
+  customerName: string;
+  customerPhone?: string;
+  buyerCode?: string;
+  marketingConsent?: boolean;
+}
+
+function normalizeOfflinePhone(value?: string): string | undefined {
+  const digits = (value ?? "").replace(/\D/g, "");
+  const national = digits.length === 12 && digits.startsWith("91") ? digits.slice(2) : digits;
+  if (!national) return undefined;
+  if (!/^[6-9][0-9]{9}$/.test(national)) throw new Error("Enter a valid Indian mobile number.");
+  return national;
+}
+
+export async function updateOfflineSaleCustomer(
+  scope: OfflineScope,
+  operationId: string,
+  patch: OfflineSaleCustomerPatch,
+): Promise<OfflineSaleRecord> {
+  if (typeof indexedDB === "undefined") throw new Error("Offline sale storage is not available.");
+  const customerName = patch.customerName.trim();
+  if (!customerName) throw new Error("Customer name is required.");
+  const customerPhone = normalizeOfflinePhone(patch.customerPhone);
+  const buyerCode = patch.buyerCode?.trim().toUpperCase();
+  if (buyerCode && !/^BYR-[A-F0-9]{10}$/.test(buyerCode)) throw new Error("Enter a valid buyer code.");
+  const db = await database();
+  try {
+    const tx = db.transaction([SALE_STORE, OUTBOX_STORE], "readwrite");
+    const saleStore = tx.objectStore(SALE_STORE);
+    const outboxStore = tx.objectStore(OUTBOX_STORE);
+    const sale = await requestResult<OfflineSaleRecord | undefined>(saleStore.get(operationId));
+    if (!sale || offlineScopeKey(sale.scope) !== offlineScopeKey(scope)) {
+      tx.abort();
+      throw new Error("Offline sale was not found on this device.");
+    }
+    if (sale.syncState === "synced") {
+      tx.abort();
+      throw new Error("This sale is already synced.");
+    }
+    const now = new Date().toISOString();
+    sale.customerName = customerName;
+    sale.customerPhone = customerPhone;
+    sale.buyerCode = buyerCode || undefined;
+    sale.marketingConsent = patch.marketingConsent ?? sale.marketingConsent;
+    sale.syncState = "pending";
+    sale.syncMessage = "Customer details updated. Queued for another automatic sync check.";
+    sale.lastSyncAttemptAt = now;
+    saleStore.put(sale);
+    const existing = await requestResult<OfflineOutboxEntry | undefined>(outboxStore.get(operationId));
+    outboxStore.put({
+      id: operationId,
+      saleId: sale.id,
+      operationId,
+      scope: sale.scope,
+      kind: "sale.cash.v1",
+      status: "pending",
+      attempts: existing?.attempts ?? 0,
+      nextAttemptAt: now,
+      createdAt: existing?.createdAt ?? sale.createdAt,
+      updatedAt: now,
+    });
+    await txDone(tx);
+    notifyOfflineSalesChanged();
+    return sale;
+  } finally {
+    db.close();
+  }
+}
+
+export async function requeueOfflineSale(scope: OfflineScope, operationId: string): Promise<boolean> {
+  if (typeof indexedDB === "undefined") return false;
+  try {
+    const db = await database();
+    const tx = db.transaction([SALE_STORE, OUTBOX_STORE], "readwrite");
+    const saleStore = tx.objectStore(SALE_STORE);
+    const outboxStore = tx.objectStore(OUTBOX_STORE);
+    const sale = await requestResult<OfflineSaleRecord | undefined>(saleStore.get(operationId));
+    if (!sale || offlineScopeKey(sale.scope) !== offlineScopeKey(scope) || sale.syncState === "synced") {
+      tx.abort();
+      db.close();
+      return false;
+    }
+    const now = new Date().toISOString();
+    sale.syncState = "pending";
+    sale.syncMessage = "Queued for another automatic sync check.";
+    sale.lastSyncAttemptAt = now;
+    saleStore.put(sale);
+    const existing = await requestResult<OfflineOutboxEntry | undefined>(outboxStore.get(operationId));
+    outboxStore.put({
+      id: operationId,
+      saleId: sale.id,
+      operationId,
+      scope: sale.scope,
+      kind: "sale.cash.v1",
+      status: "pending",
+      attempts: existing?.attempts ?? 0,
+      nextAttemptAt: now,
+      createdAt: existing?.createdAt ?? sale.createdAt,
+      updatedAt: now,
+    });
+    await txDone(tx);
+    db.close();
+    notifyOfflineSalesChanged();
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export async function incrementOfflineSaleAttempt(scope: OfflineScope, operationId: string, retryInMs: number, message?: string): Promise<void> {
   if (typeof indexedDB === "undefined") return;
   try {
     const db = await database();
-    const tx = db.transaction(OUTBOX_STORE, "readwrite");
+    const tx = db.transaction([SALE_STORE, OUTBOX_STORE], "readwrite");
+    const saleStore = tx.objectStore(SALE_STORE);
     const store = tx.objectStore(OUTBOX_STORE);
+    const sale = await requestResult<OfflineSaleRecord | undefined>(saleStore.get(operationId));
+    if (sale && offlineScopeKey(sale.scope) === offlineScopeKey(scope)) {
+      sale.syncState = "retry_wait";
+      sale.syncMessage = message ?? sale.syncMessage;
+      sale.lastSyncAttemptAt = new Date().toISOString();
+      saleStore.put(sale);
+    }
     const outbox = await requestResult<OfflineOutboxEntry | undefined>(store.get(operationId));
     if (outbox && offlineScopeKey(outbox.scope) === offlineScopeKey(scope)) {
       outbox.status = "retry_wait";

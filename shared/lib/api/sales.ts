@@ -145,19 +145,48 @@ export const create = async (
 
 export interface OfflineSaleSyncResult {
   operationId: string;
-  outcome: "accepted" | "already_accepted" | "needs_review" | "rejected";
+  outcome: "accepted" | "already_accepted" | "retry" | "rejected";
   reason?: string;
   sale?: GoSale;
+}
+
+function automaticSyncMessage(reason?: string): string {
+  switch (reason) {
+    case "auth_required":
+      return "Sign in again before syncing this sale.";
+    case "invalid_operation":
+      return "Automatic check failed: sale data is incomplete.";
+    case "invalid_cash":
+      return "Automatic check failed: cash paid, total, or change does not match.";
+    case "invalid_line":
+      return "Automatic check failed: one product line is incomplete.";
+    case "invalid_totals":
+      return "Automatic check failed: item totals do not match the sale total.";
+    case "invalid_occurred_at":
+      return "Automatic check failed: sale time is invalid.";
+    case "validation":
+      return "Automatic check failed on the server. Check customer, stock, product, and cash details.";
+    case "conflict":
+      return "Automatic check failed: server stock or register state conflicts with this sale.";
+    case "server_error":
+      return "Server could not complete sync. The sale will retry automatically.";
+    default:
+      return reason ? `Automatic check failed: ${reason}.` : "Automatic check failed. This sale was not synced.";
+  }
 }
 
 export async function syncPendingOfflineSales(scope: OfflineScope): Promise<{
   attempted: number;
   synced: number;
-  review: number;
+  blocked: number;
   authRequired: boolean;
+  unavailable?: boolean;
+  message?: string;
+  blockedMessages?: string[];
 }> {
+  const empty = { attempted: 0, synced: 0, blocked: 0, authRequired: false, blockedMessages: [] };
   const pending = await listPendingOfflineSales(scope);
-  if (pending.length === 0) return { attempted: 0, synced: 0, review: 0, authRequired: false };
+  if (pending.length === 0) return empty;
   const batch = pending.slice(0, 10);
   const res = await goRequest<{ results: OfflineSaleSyncResult[] }>("sync/sales", {
     method: "POST",
@@ -165,28 +194,55 @@ export async function syncPendingOfflineSales(scope: OfflineScope): Promise<{
     idempotencyKey: `offline-sync:${batch.map((sale) => sale.operationId).join(",")}`,
   });
   if (res.status === 401 || res.status === 403) {
-    await Promise.all(batch.map((sale) => markOfflineSaleSyncState(scope, sale.operationId, "auth_required")));
-    return { attempted: batch.length, synced: 0, review: 0, authRequired: true };
+    await Promise.all(batch.map((sale) => markOfflineSaleSyncState(scope, sale.operationId, "auth_required", { message: "Sign in again before syncing this sale." })));
+    return { attempted: batch.length, synced: 0, blocked: 0, authRequired: true };
+  }
+  if (res.status === 404) {
+    await Promise.all(batch.map((sale) => incrementOfflineSaleAttempt(scope, sale.operationId, 60_000)));
+    return {
+      attempted: batch.length,
+      synced: 0,
+      blocked: 0,
+      authRequired: false,
+      unavailable: true,
+      message: "The backend sync endpoint is not available. Restart or update the Go API, then try Sync again.",
+      blockedMessages: [],
+    };
   }
   if (!res.success || !res.data) {
     await Promise.all(batch.map((sale) => incrementOfflineSaleAttempt(scope, sale.operationId, 60_000)));
-    return { attempted: batch.length, synced: 0, review: 0, authRequired: false };
+    return {
+      attempted: batch.length,
+      synced: 0,
+      blocked: 0,
+      authRequired: false,
+      message: res.message || "Offline sale sync did not complete.",
+      blockedMessages: [],
+    };
   }
   let synced = 0;
-  let review = 0;
+  let blocked = 0;
   let authRequired = false;
+  const blockedMessages: string[] = [];
   for (const result of res.data.results ?? []) {
     if (result.outcome === "accepted" || result.outcome === "already_accepted") {
-      if (await markOfflineSaleSyncState(scope, result.operationId, "synced")) synced += 1;
+      if (await markOfflineSaleSyncState(scope, result.operationId, "synced", {
+        message: result.outcome === "already_accepted" ? "Already accepted by the server." : "Synced to the server.",
+        serverSaleId: result.sale?.id,
+      })) synced += 1;
     } else if (result.reason === "auth_required") {
       authRequired = true;
-      await markOfflineSaleSyncState(scope, result.operationId, "auth_required");
+      await markOfflineSaleSyncState(scope, result.operationId, "auth_required", { message: "Sign in again before syncing this sale." });
+    } else if (result.outcome === "rejected") {
+      blocked += 1;
+      const message = automaticSyncMessage(result.reason);
+      blockedMessages.push(message);
+      await markOfflineSaleSyncState(scope, result.operationId, "blocked", { message });
     } else {
-      review += 1;
-      await markOfflineSaleSyncState(scope, result.operationId, "needs_review");
+      await incrementOfflineSaleAttempt(scope, result.operationId, 60_000, automaticSyncMessage(result.reason));
     }
   }
-  return { attempted: batch.length, synced, review, authRequired };
+  return { attempted: batch.length, synced, blocked, authRequired, blockedMessages };
 }
 
 export const voidSale = (

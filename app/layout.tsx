@@ -3,6 +3,7 @@ import "./globals.css";
 import { PosUserProvider } from "@/shared/context/PosUserContext";
 import { SiteFooter, SiteHeader } from "@/shared/components/SiteChrome";
 import { Toaster } from "react-hot-toast";
+import { ServiceWorkerRegistration } from "@/shared/components/ServiceWorkerRegistration";
 
 export const metadata: Metadata = {
   title: process.env.NEXT_PUBLIC_APP_NAME ?? "KOMOLA Organic POS",
@@ -29,6 +30,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en">
       <body className="antialiased">
         <PosUserProvider>
+          <ServiceWorkerRegistration />
           <div className="flex min-h-screen flex-col">
             <SiteHeader />
             <div className="min-h-0 flex-1">{children}</div>

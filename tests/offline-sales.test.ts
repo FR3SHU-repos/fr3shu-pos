@@ -1,9 +1,12 @@
 import { describe, expect, it } from "vitest";
 import {
   buildOfflineSaleRecord,
+  applyLocalStockDeductions,
+  localStockDeductions,
   offlineSaleToDTO,
   parseRupeesToPaise,
   validateCashPayment,
+  type OfflineSaleRecord,
   type OfflineScope,
 } from "@/shared/lib/offline/sales";
 import type { ProductDTO } from "@/shared/lib/api/products";
@@ -139,5 +142,50 @@ describe("offline cash sales", () => {
         1,
       ),
     ).toThrow("Tomato has no saved price.");
+  });
+
+  it("subtracts local offline sales from cached stock", () => {
+    const pending = buildOfflineSaleRecord(
+      {
+        scope,
+        session,
+        cashierId: "cashier-1",
+        lines: [line()],
+        cashReceivedPaise: 10000,
+        customerName: "Asha",
+        operationId: "op-1",
+      },
+      1,
+      new Date("2026-09-13T06:00:00.000Z"),
+    );
+    const syncedBeforeSnapshot: OfflineSaleRecord = {
+      ...pending,
+      id: "op-2",
+      operationId: "op-2",
+      syncState: "synced",
+      createdAt: "2026-09-13T05:00:00.000Z",
+    };
+    const deductions = localStockDeductions([pending, syncedBeforeSnapshot], Date.parse("2026-09-13T05:30:00.000Z"));
+
+    expect(deductions["sku-1"]).toBe(1500);
+    expect(applyLocalStockDeductions([product()], deductions)[0].availableBase).toBe(3500);
+  });
+
+  it("rejects overselling after prior local offline sales", () => {
+    expect(() =>
+      buildOfflineSaleRecord(
+        {
+          scope,
+          session,
+          cashierId: "cashier-1",
+          lines: [line({ qty: 4 })],
+          cashReceivedPaise: 24000,
+          customerName: "Asha",
+        },
+        2,
+        new Date("2026-09-13T06:30:00.000Z"),
+        { "sku-1": 1500 },
+      ),
+    ).toThrow("Tomato does not have enough offline stock.");
   });
 });

@@ -9,6 +9,12 @@ import {
   type SupplierDTO,
 } from "./_map";
 import type { PageMeta } from "@/app/api/v1/utils/responses";
+import {
+  applyLocalStockDeductions,
+  listOfflineSales,
+  localStockDeductions,
+  type OfflineScope,
+} from "@/shared/lib/offline/sales";
 
 export type { ProductDTO, Producer, ProducerKind, SupplierDTO };
 
@@ -38,7 +44,7 @@ export const list = async (params?: {
 }): Promise<ApiResult<ProductListResult>> => {
   if (isOffline()) {
     const snapshot = await readProducts();
-    return snapshot ? cached(searchProducts(snapshot.items, params)) : unavailable();
+    return snapshot ? cached(searchProducts(await applyOfflineStockOverlay(snapshot.items, snapshot.savedAt), params)) : unavailable();
   }
   const res = await goRequest<{ items: GoProduct[]; meta: PageMeta }>("catalogue/products", {
     query: { q: params?.q, page: params?.page, limit: params?.limit, status: params?.status },
@@ -46,7 +52,7 @@ export const list = async (params?: {
   });
   if ((res.status === 0 || res.status >= 500) && !params?.signal?.aborted) {
     const snapshot = await readProducts();
-    if (snapshot) return cached(searchProducts(snapshot.items, params));
+    if (snapshot) return cached(searchProducts(await applyOfflineStockOverlay(snapshot.items, snapshot.savedAt), params));
   }
   return {
     ...res,
@@ -92,8 +98,28 @@ function unavailable<T>(message = "No saved product data. Connect and sync the c
 }
 async function offlineProduct(matches: (p: ProductDTO) => boolean): Promise<ApiResult<ProductDTO>> {
   const snapshot = await readProducts();
-  const product = snapshot?.items.find(matches);
+  const items = snapshot ? await applyOfflineStockOverlay(snapshot.items, snapshot.savedAt) : [];
+  const product = items.find(matches);
   return product ? cached(product) : unavailable("Product unavailable in the saved catalogue. Connect and sync to refresh it.");
+}
+
+function currentOfflineScope(): OfflineScope | null {
+  const key = productScope();
+  if (!key) return null;
+  try {
+    const [userId, orgId, locationId] = JSON.parse(key) as string[];
+    if (!userId || !orgId || !locationId) return null;
+    return { userId, orgId, locationId };
+  } catch {
+    return null;
+  }
+}
+
+async function applyOfflineStockOverlay(items: ProductDTO[], snapshotSavedAt: number): Promise<ProductDTO[]> {
+  const scope = currentOfflineScope();
+  if (!scope) return items;
+  const sales = await listOfflineSales(scope);
+  return applyLocalStockDeductions(items, localStockDeductions(sales, snapshotSavedAt));
 }
 
 /** Replace the device snapshot only after every page downloads successfully. */

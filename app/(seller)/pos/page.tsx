@@ -38,6 +38,7 @@ import { translator, LOCALES, type Locale } from "@/shared/lib/i18n";
 import { ReceiptView, type ReceiptPaymentLine } from "@/shared/components/pos/ReceiptView";
 import { HELD_CARTS_KEY, type CartLine, type HeldCart } from "@/shared/components/pos/types";
 import { BuyerQrScanner } from "@/shared/components/pos/BuyerQrScanner";
+import { OFFLINE_SALES_SYNC_EVENT } from "@/shared/components/pos/OfflineSalesSyncWorker";
 import {
   commitOfflineCashSale,
   listPendingOfflineSales,
@@ -104,15 +105,6 @@ export default function PosPage() {
     setPendingOfflineCount(pending.length);
   }, [offlineScope]);
 
-  const syncPendingOfflineSales = useCallback(async () => {
-    if (!offlineScope || (typeof navigator !== "undefined" && !navigator.onLine)) return;
-    const result = await salesApi.syncPendingOfflineSales(offlineScope);
-    if (result.synced > 0) toast.success(`${result.synced} offline sale${result.synced === 1 ? "" : "s"} synced`);
-    if (result.review > 0) toast.error(`${result.review} offline sale${result.review === 1 ? "" : "s"} need review`);
-    if (result.authRequired) toast.error("Sign in again to sync offline sales");
-    await refreshPendingOfflineCount();
-  }, [offlineScope, refreshPendingOfflineCount]);
-
   const load = useCallback(async () => {
     const [ov, pl] = await Promise.all([
       registersApi.overview(),
@@ -133,19 +125,22 @@ export default function PosPage() {
     }
     if (pl.success && pl.data) setCatalog(pl.data.items);
     await refreshPendingOfflineCount();
-    await syncPendingOfflineSales();
     setLoading(false);
-  }, [offlineScope, refreshPendingOfflineCount, syncPendingOfflineSales]);
+  }, [offlineScope, refreshPendingOfflineCount]);
 
   useEffect(() => {
     void load();
   }, [load]);
 
   useEffect(() => {
-    const sync = () => void syncPendingOfflineSales();
-    window.addEventListener("online", sync);
-    return () => window.removeEventListener("online", sync);
-  }, [syncPendingOfflineSales]);
+    const refresh = () => void refreshPendingOfflineCount();
+    window.addEventListener(OFFLINE_SALES_SYNC_EVENT, refresh);
+    window.addEventListener("komola:offline-sales-changed", refresh);
+    return () => {
+      window.removeEventListener(OFFLINE_SALES_SYNC_EVENT, refresh);
+      window.removeEventListener("komola:offline-sales-changed", refresh);
+    };
+  }, [refreshPendingOfflineCount]);
 
   useEffect(() => {
     sellerOrgsApi.getMyOrganization().then((res) => {
@@ -364,6 +359,14 @@ export default function PosPage() {
           marketingConsent: marketingConsent || undefined,
           operationId: idemRef.current,
         });
+        setCatalog((prev) =>
+          prev.map((product) => {
+            const soldBase = sale.lines
+              .filter((line) => line.productId === product._id)
+              .reduce((sum, line) => sum + line.qtyBase, 0);
+            return soldBase > 0 ? { ...product, availableBase: Math.max(0, product.availableBase - soldBase) } : product;
+          }),
+        );
         setCompletedPayment({
           lines: [{ method: "Cash", amountPaise: sale.payment.receivedPaise }],
           changePaise: sale.payment.changePaise,
@@ -371,7 +374,7 @@ export default function PosPage() {
         setCompleted(offlineSaleToDTO(sale));
         setCompletedOffline(true);
         await refreshPendingOfflineCount();
-        void syncPendingOfflineSales();
+        void refreshPendingOfflineCount();
         toast.success("Sale saved on this device. It will sync when internet returns.");
       } catch (error) {
         toast.error(error instanceof Error ? error.message : "Offline sale failed");

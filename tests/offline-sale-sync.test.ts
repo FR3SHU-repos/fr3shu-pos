@@ -44,8 +44,8 @@ describe("offline sale sync API", () => {
       method: "POST",
       body: { operations: [{ operationId: "op-1" }] },
     }));
-    expect(mocks.mark).toHaveBeenCalledWith(scope, "op-1", "synced");
-    expect(result).toEqual({ attempted: 1, synced: 1, review: 0, authRequired: false });
+    expect(mocks.mark).toHaveBeenCalledWith(scope, "op-1", "synced", expect.objectContaining({ message: "Synced to the server." }));
+    expect(result).toEqual({ attempted: 1, synced: 1, blocked: 0, authRequired: false, blockedMessages: [] });
   });
 
   it("pauses local outbox entries when authentication fails", async () => {
@@ -55,8 +55,8 @@ describe("offline sale sync API", () => {
 
     const result = await syncPendingOfflineSales(scope);
 
-    expect(mocks.mark).toHaveBeenCalledWith(scope, "op-1", "auth_required");
-    expect(mocks.mark).toHaveBeenCalledWith(scope, "op-2", "auth_required");
+    expect(mocks.mark).toHaveBeenCalledWith(scope, "op-1", "auth_required", expect.objectContaining({ message: "Sign in again before syncing this sale." }));
+    expect(mocks.mark).toHaveBeenCalledWith(scope, "op-2", "auth_required", expect.objectContaining({ message: "Sign in again before syncing this sale." }));
     expect(result.authRequired).toBe(true);
   });
 
@@ -67,6 +67,46 @@ describe("offline sale sync API", () => {
     const result = await syncPendingOfflineSales(scope);
 
     expect(mocks.increment).toHaveBeenCalledWith(scope, "op-1", 60_000);
-    expect(result).toEqual({ attempted: 1, synced: 0, review: 0, authRequired: false });
+    expect(result).toEqual({ attempted: 1, synced: 0, blocked: 0, authRequired: false, message: "Offline sale sync did not complete.", blockedMessages: [] });
   });
+
+  it("reports clearly when the backend route is not loaded", async () => {
+    mocks.listPending.mockResolvedValue([{ operationId: "op-1" }]);
+    mocks.request.mockResolvedValue({ success: false, status: 404, data: null });
+
+    const result = await syncPendingOfflineSales(scope);
+
+    expect(mocks.increment).toHaveBeenCalledWith(scope, "op-1", 60_000);
+    expect(result.unavailable).toBe(true);
+    expect(result.message).toContain("backend sync endpoint");
+  });
+
+  it("blocks rejected sales with an automatic check reason", async () => {
+    mocks.listPending.mockResolvedValue([{ operationId: "op-1" }]);
+    mocks.request.mockResolvedValue({
+      success: true,
+      status: 200,
+      data: { results: [{ operationId: "op-1", outcome: "rejected", reason: "invalid_cash" }] },
+    });
+
+    const result = await syncPendingOfflineSales(scope);
+
+    expect(mocks.mark).toHaveBeenCalledWith(scope, "op-1", "blocked", expect.objectContaining({ message: expect.stringContaining("cash") }));
+    expect(result).toEqual({ attempted: 1, synced: 0, blocked: 1, authRequired: false, blockedMessages: [expect.stringContaining("cash")] });
+  });
+
+  it("keeps retrying server-side sync failures automatically", async () => {
+    mocks.listPending.mockResolvedValue([{ operationId: "op-1" }]);
+    mocks.request.mockResolvedValue({
+      success: true,
+      status: 200,
+      data: { results: [{ operationId: "op-1", outcome: "retry", reason: "server_error" }] },
+    });
+
+    const result = await syncPendingOfflineSales(scope);
+
+    expect(mocks.increment).toHaveBeenCalledWith(scope, "op-1", 60_000, expect.stringContaining("retry automatically"));
+    expect(result).toEqual({ attempted: 1, synced: 0, blocked: 0, authRequired: false, blockedMessages: [] });
+  });
+
 });
