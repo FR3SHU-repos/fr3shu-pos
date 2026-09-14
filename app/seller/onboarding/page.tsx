@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { registerSeller, type SellerOrgType } from "@/shared/lib/api/sellerOrgs";
 import { normalizeIndianWhatsApp } from "@/shared/lib/auth/whatsapp";
 import { cardCls, inputCls, primaryBtnCls } from "@/shared/components/ui";
+import { createAuthBrowserClient } from "@/shared/lib/supabase/auth-client";
 
 type SellerForm = {
   displayName: string;
@@ -55,6 +56,15 @@ export default function SellerOnboarding() {
     }
 
     setBusy(true);
+    const {
+      data: { session },
+    } = await createAuthBrowserClient().auth.getSession();
+    const accessToken = session?.access_token;
+    if (!accessToken) {
+      setBusy(false);
+      setError("Your login session is not ready. Please sign in again and retry.");
+      return;
+    }
     const address = {
       line1: form.line1.trim(),
       line2: form.line2.trim(),
@@ -74,7 +84,7 @@ export default function SellerOnboarding() {
         billingAddress: address,
       },
       location: { code: "MAIN", name: displayName, phoneE164, address },
-    }, crypto.randomUUID());
+    }, crypto.randomUUID(), accessToken);
     setBusy(false);
     if (!result.success) {
       setError(result.message);

@@ -1,5 +1,6 @@
 "use client";
 
+import { request } from "@/shared/lib/api/client";
 import { createAuthBrowserClient } from "@/shared/lib/supabase/auth-client";
 
 /** Call the Gin API directly with the Supabase access token as a Bearer. */
@@ -29,15 +30,16 @@ export async function ginFetch(
   });
 }
 
-export async function reconcileIdentity(accessToken?: string): Promise<{ onboardingComplete: boolean } | null> {
-  try {
-    const res = await ginFetch("/auth/reconcile", { method: "POST", body: "{}" }, accessToken);
-    if (!res.ok) return null;
-    const json = await res.json();
-    return { onboardingComplete: Boolean(json?.data?.onboardingComplete) };
-  } catch {
-    return null;
+export async function reconcileIdentity(accessToken?: string): Promise<{ onboardingComplete: boolean; error?: string; status?: number } | null> {
+  const res = await request<{ onboardingComplete: boolean }>("auth/reconcile", {
+    method: "POST",
+    body: {},
+    headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : undefined,
+  });
+  if (!res.success) {
+    return { onboardingComplete: false, error: res.message, status: res.status };
   }
+  return { onboardingComplete: Boolean(res.data?.onboardingComplete) };
 }
 
 export function safeNext(next: string | null, fallback = "/dashboard"): string {

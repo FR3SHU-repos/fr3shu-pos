@@ -130,11 +130,13 @@ export function sellerDestination(status?: SellerOrgStatus): string {
 export function registerSeller(
   body: RegisterSellerBody,
   idempotencyKey?: string,
+  accessToken?: string,
 ): Promise<ApiResult<OnboardingResult>> {
   return request<OnboardingResult>("seller-organizations", {
     method: "POST",
     body,
     idempotencyKey,
+    headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : undefined,
   });
 }
 

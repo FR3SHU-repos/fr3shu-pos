@@ -120,14 +120,19 @@ export function LoginForm({ intent }: { intent: AuthIntent }) {
       toast.error("Google sign-in is unavailable right now.");
     }
   }
-  async function onWhatsAppVerified() {
-    await reconcileIdentity();
-    const target = await destination();
+  async function onWhatsAppVerified(accessToken?: string) {
+    const reconciled = await reconcileIdentity(accessToken);
+    if (!reconciled || reconciled.error) {
+      const detail = reconciled?.status ? `${reconciled.error ?? "Unable to verify your account with the POS service."} (${reconciled.status})` : (reconciled?.error ?? "Unable to verify your account with the POS service.");
+      toast.error(detail);
+      return;
+    }
+    const target = await destination(accessToken);
     if (target === "/buyer" || target === "/buyer/setup" || target === "/seller/onboarding") {
       router.replace(target);
       return;
     }
-    const org = await getMyOrganization();
+    const org = await getMyOrganization(accessToken);
     router.replace(org.status === 404 ? "/seller/onboarding" : sellerDestination(org.data?.approvalStatus) || next);
   }
 

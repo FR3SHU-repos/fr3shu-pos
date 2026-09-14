@@ -119,12 +119,12 @@ async function requestAt<T>(base: string, path: string, opts: RequestOptions = {
 
 /** Call an arbitrary `/api/v1/<path>` operation on the Go backend. */
 export async function request<T>(path: string, opts: RequestOptions = {}): Promise<ApiResult<T>> {
-  return requestAt<T>("", path, opts);
+  return requestAt<T>(GO_BASE, path, opts);
 }
 
 /** Call a POS operation through the database-free same-origin Go proxy. */
 export async function goRequest<T>(path: string, opts: RequestOptions = {}): Promise<ApiResult<T>> {
-  return requestAt<T>("", `pos/${path.replace(/^\/+/, "")}`, opts);
+  return requestAt<T>(GO_BASE, `pos/${path.replace(/^\/+/, "")}`, opts);
 }
 
 /** Historical alias; catalogue reads share the same backend now. */
