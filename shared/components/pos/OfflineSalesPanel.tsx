@@ -7,6 +7,8 @@ import { usePosUser } from "@/shared/context/PosUserContext";
 import { salesApi } from "@/shared/lib/api";
 import { formatPaise } from "@/shared/lib/money";
 import {
+  cancelOfflineSale,
+  cleanupOfflineSales,
   listOfflineSales,
   requeueOfflineSale,
   updateOfflineSaleCustomer,
@@ -23,12 +25,13 @@ const STATUS_LABEL: Record<OfflineSaleSyncState, string> = {
   retry_wait: "retry",
   synced: "synced",
   blocked: "blocked",
+  cancelled: "cancelled",
   needs_review: "blocked",
   auth_required: "sign in",
 };
 
 function statusIcon(status: OfflineSaleSyncState) {
-  if (status === "blocked" || status === "needs_review" || status === "auth_required") return <AlertCircle className="h-4 w-4 text-status-danger" />;
+  if (status === "blocked" || status === "cancelled" || status === "needs_review" || status === "auth_required") return <AlertCircle className="h-4 w-4 text-status-danger" />;
   return <Clock3 className="h-4 w-4 text-status-warning" />;
 }
 
@@ -157,6 +160,26 @@ export function OfflineSalesPanel() {
     }
   }, [editForm, refresh, scope, syncNow, syncing]);
 
+  const cancelLocalSale = useCallback(async (operationId: string) => {
+    if (!scope || syncing) return;
+    const cancelled = await cancelOfflineSale(scope, operationId);
+    await refresh();
+    if (!cancelled) {
+      setMessage("This offline sale could not be cancelled.");
+      toast.error("Offline sale could not be cancelled");
+      return;
+    }
+    setMessage("Offline sale cancelled locally. It will not sync to the database.");
+    toast.success("Offline sale cancelled locally");
+  }, [refresh, scope, syncing]);
+
+  const clearOldSynced = useCallback(async () => {
+    if (!scope || syncing) return;
+    const removed = await cleanupOfflineSales(scope, 0);
+    await refresh();
+    setMessage(removed > 0 ? `${removed} synced or cancelled offline sale${removed === 1 ? "" : "s"} cleared from this device.` : "No synced or cancelled offline sales to clear.");
+  }, [refresh, scope, syncing]);
+
   useEffect(() => {
     void Promise.resolve().then(refresh);
     const onChange = () => void refresh();
@@ -173,10 +196,29 @@ export function OfflineSalesPanel() {
     };
   }, [refresh]);
 
-  const visible = sales.filter((sale) => sale.syncState !== "synced");
-  const blockedCount = visible.filter((sale) => sale.syncState === "blocked" || sale.syncState === "needs_review").length;
-  const syncableCount = visible.length - blockedCount;
-  if (visible.length === 0) return null;
+  const today = new Date().toISOString().slice(0, 10);
+  const active = sales.filter((sale) => sale.syncState !== "synced" && sale.syncState !== "cancelled");
+  const waitingCount = active.filter((sale) => sale.syncState === "pending" || sale.syncState === "uploading").length;
+  const retryCount = active.filter((sale) => sale.syncState === "retry_wait").length;
+  const blockedCount = active.filter((sale) => sale.syncState === "blocked" || sale.syncState === "needs_review").length;
+  const authCount = active.filter((sale) => sale.syncState === "auth_required").length;
+  const syncedTodayCount = sales.filter((sale) => sale.syncState === "synced" && sale.lastSyncAttemptAt?.slice(0, 10) === today).length;
+  if (active.length === 0 && syncedTodayCount === 0) return null;
+  if (active.length === 0) {
+    return (
+      <section className="mb-4 rounded-xl border border-border bg-surface-card p-3 text-sm">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="flex items-center gap-2 font-semibold text-foreground-heading">
+            <Clock3 className="h-4 w-4 text-status-success" />
+            Offline sales
+            <span className="text-foreground-muted">{syncedTodayCount} synced today</span>
+          </div>
+          <button type="button" className="font-semibold text-primary" onClick={() => void clearOldSynced()}>Clear synced</button>
+        </div>
+        {lastSyncAt ? <p className="mt-1 text-xs text-foreground-muted">Last sync check: {new Date(lastSyncAt).toLocaleString()}</p> : null}
+      </section>
+    );
+  }
 
   return (
     <section className="mb-4 rounded-xl border border-border bg-surface-card p-3 text-sm">
@@ -187,13 +229,14 @@ export function OfflineSalesPanel() {
           onClick={() => setOpen((value) => !value)}
           aria-expanded={open}
         >
-          {statusIcon(visible[0].syncState)}
+          {statusIcon(active[0].syncState)}
           Offline sales
           <span className="text-foreground-muted">
-            {syncableCount > 0 ? `${syncableCount} waiting` : `${blockedCount} issue${blockedCount === 1 ? "" : "s"}`}
+            {waitingCount} waiting · {retryCount} retry · {blockedCount + authCount} issue{blockedCount + authCount === 1 ? "" : "s"}
           </span>
         </button>
         <div className="flex items-center gap-3">
+          {syncedTodayCount > 0 ? <span className="text-xs text-foreground-muted">{syncedTodayCount} synced today</span> : null}
           <button type="button" className="font-semibold text-primary" onClick={() => setOpen((value) => !value)}>
             {open ? "Hide" : "View"}
           </button>
@@ -212,7 +255,7 @@ export function OfflineSalesPanel() {
       {lastSyncAt ? <p className="mt-1 text-xs text-foreground-muted">Last sync check: {new Date(lastSyncAt).toLocaleString()}</p> : null}
       {open ? (
         <div className="mt-3 max-h-80 overflow-auto divide-y divide-border">
-          {visible.slice(0, 25).map((sale) => (
+          {active.slice(0, 25).map((sale) => (
             <details key={sale.id} className="py-3">
               <summary className="flex cursor-pointer list-none items-start justify-between gap-3">
                 <div className="min-w-0">
@@ -253,6 +296,18 @@ export function OfflineSalesPanel() {
                       >
                         Try again
                       </button>
+                      <button
+                        type="button"
+                        className="rounded-lg border border-border bg-surface-card px-2 py-1 text-xs font-semibold text-status-danger hover:bg-surface"
+                        disabled={syncing}
+                        onClick={(event) => {
+                          event.preventDefault();
+                          event.stopPropagation();
+                          void cancelLocalSale(sale.operationId);
+                        }}
+                      >
+                        Cancel local
+                      </button>
                     </div>
                   ) : null}
                 </div>
@@ -269,15 +324,15 @@ export function OfflineSalesPanel() {
                   {sale.syncMessage ? <Detail label="Sync detail" value={sale.syncMessage} /> : null}
                 </dl>
                 {sale.syncState === "blocked" || sale.syncState === "needs_review" ? (
-                  <button
-                    type="button"
-                    className={ghostBtnCls}
-                    disabled={syncing}
-                    onClick={() => void trySaleAgain(sale.operationId)}
-                  >
-                    <RefreshCw className="h-4 w-4" />
-                    Try again
-                  </button>
+                  <div className="flex flex-wrap gap-2">
+                    <button type="button" className={ghostBtnCls} disabled={syncing} onClick={() => void trySaleAgain(sale.operationId)}>
+                      <RefreshCw className="h-4 w-4" />
+                      Try again
+                    </button>
+                    <button type="button" className="rounded-lg border border-border bg-surface-card px-3 py-2 text-xs font-semibold text-status-danger hover:bg-surface" disabled={syncing} onClick={() => void cancelLocalSale(sale.operationId)}>
+                      Cancel local sale
+                    </button>
+                  </div>
                 ) : null}
                 {editingId === sale.operationId ? (
                   <div className="rounded-lg border border-border bg-surface-card p-3">

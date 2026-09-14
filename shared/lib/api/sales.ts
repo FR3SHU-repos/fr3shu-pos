@@ -1,4 +1,5 @@
 import { goRequest, type ApiResult } from "./client";
+import { syncOfflineProducts } from "./products";
 import {
   mapSale,
   mapTender,
@@ -187,6 +188,7 @@ export async function syncPendingOfflineSales(scope: OfflineScope): Promise<{
   const empty = { attempted: 0, synced: 0, blocked: 0, authRequired: false, blockedMessages: [] };
   const pending = await listPendingOfflineSales(scope);
   if (pending.length === 0) return empty;
+  await syncOfflineProducts();
   const batch = pending.slice(0, 10);
   const res = await goRequest<{ results: OfflineSaleSyncResult[] }>("sync/sales", {
     method: "POST",
@@ -242,6 +244,7 @@ export async function syncPendingOfflineSales(scope: OfflineScope): Promise<{
       await incrementOfflineSaleAttempt(scope, result.operationId, 60_000, automaticSyncMessage(result.reason));
     }
   }
+  if (synced > 0) await syncOfflineProducts();
   return { attempted: batch.length, synced, blocked, authRequired, blockedMessages };
 }
 

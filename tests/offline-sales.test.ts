@@ -171,6 +171,27 @@ describe("offline cash sales", () => {
     expect(applyLocalStockDeductions([product()], deductions)[0].availableBase).toBe(3500);
   });
 
+  it("does not subtract locally cancelled sales from cached stock", () => {
+    const sale: OfflineSaleRecord = {
+      ...buildOfflineSaleRecord(
+        {
+          scope,
+          session,
+          cashierId: "cashier-1",
+          lines: [line()],
+          cashReceivedPaise: 10000,
+          customerName: "Asha",
+          operationId: "op-cancelled",
+        },
+        3,
+        new Date("2026-09-13T07:00:00.000Z"),
+      ),
+      syncState: "cancelled",
+    };
+
+    expect(localStockDeductions([sale])["sku-1"]).toBeUndefined();
+  });
+
   it("rejects overselling after prior local offline sales", () => {
     expect(() =>
       buildOfflineSaleRecord(

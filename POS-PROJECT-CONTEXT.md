@@ -4,6 +4,44 @@
 
 # KOMOLA Organic POS — Project Context
 
+## Offline POS implementation tracker
+
+This tracker records the offline-first POS work so implementation can continue without losing context. The aim is to let sellers complete cash/product-based selling when the internet is slow or unavailable, then sync safely when the connection returns.
+
+### Implemented
+
+- Offline product catalogue is saved per user, organization, and location in browser IndexedDB.
+- Saved products can be searched and browsed while offline.
+- Product reads fall back to the saved catalogue during offline/server-unavailable states.
+- Product create/edit remains online-only so the app does not pretend catalogue mutations were saved.
+- Offline cash sales can be created from eligible saved products.
+- Offline sales preserve browser transaction time, customer details, cash received, change, local receipt number, and idempotency key.
+- Local stock is reduced immediately for pending offline sales on the same device.
+- Offline sales are queued with statuses including pending, retry, blocked, synced, cancelled, and auth-required.
+- Automatic sync runs when the seller workspace is opened, when the browser comes online, and after offline sale changes.
+- Synced offline sales leave the active queue; blocked/cancelled/synced states are retained long enough for recovery and cleanup.
+- Blocked sale rows show automatic check reasons and support customer correction, retry, and local cancellation.
+- Backend `POST /api/v1/pos/sync/sales` accepts offline sale operations, preserves actual offline sale time, uses idempotency, supports walk-in cash customers, and returns per-operation outcomes.
+- Server-side stock conflicts now return product-level detail, such as required quantity versus available server quantity.
+- Offline sale sync refreshes the saved product catalogue before syncing and again after successful sync, keeping cached stock closer to the server.
+
+### Remaining work
+
+1. Recheck blocked/pending offline sales against refreshed stock before syncing, keeping only true conflicts blocked.
+2. Add local sale detail/receipt view so a seller can open, verify, and print/show a pending offline receipt.
+3. Update offline receipt after sync with the server sale number while preserving the local receipt reference.
+4. Merge offline pending/synced sales into dashboard and recent-sales views so session totals feel consistent during weak internet.
+5. Improve cash drawer/session reconciliation to clearly include pending offline cash and synced server cash.
+6. Add conflict repair for unavailable products: edit quantity, remove a line, or cancel the local sale.
+7. Add safer cleanup policy for old synced/cancelled records and a recovery/export path before deletion.
+8. Document multi-device limits: offline stock is reliable per device only; the server remains final authority when devices reconnect.
+9. Add broader tests for blocked-sale recheck, repair, receipts, dashboard totals, and cleanup.
+
+### Current next task
+
+Recheck blocked and pending offline sales after product refresh: if refreshed server stock means a sale can now sync, retry it automatically; if it still cannot sync, keep the exact reason visible and prepare repair actions such as quantity edit or line removal.
+
+
 > **⚠️ Partly superseded (2026-09).** Sections 2 (architecture), 3 (roles /
 > `pos_token`) and 5–8 describe the earlier embedded-Mongoose "thin vertical
 > slice". This app now has **no database and no local JWT**: `go-api-backend`

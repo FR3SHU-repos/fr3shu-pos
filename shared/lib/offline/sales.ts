@@ -5,7 +5,7 @@ import type { CartLine } from "@/shared/components/pos/types";
 import { computeLineTotals, sumCartTotals } from "@/shared/lib/money";
 import { fromBaseQuantity, toBaseQuantity } from "@/shared/lib/units";
 
-export type OfflineSaleSyncState = "pending" | "uploading" | "retry_wait" | "synced" | "blocked" | "needs_review" | "auth_required";
+export type OfflineSaleSyncState = "pending" | "uploading" | "retry_wait" | "synced" | "blocked" | "cancelled" | "needs_review" | "auth_required";
 
 export interface OfflineScope {
   userId: string;
@@ -199,6 +199,7 @@ export function localStockDeductions(
   const snapshotTime = snapshotSavedAt ?? Number.POSITIVE_INFINITY;
   const out: LocalStockDeductions = {};
   for (const sale of sales) {
+    if (sale.syncState === "cancelled") continue;
     if (sale.syncState === "synced" && new Date(sale.createdAt).getTime() <= snapshotTime) continue;
     for (const line of sale.lines) {
       out[line.productId] = (out[line.productId] ?? 0) + line.qtyBase;
@@ -387,7 +388,7 @@ export async function listPendingOfflineSales(scope: OfflineScope): Promise<Offl
     );
     return allSales
       .filter((sale) => offlineScopeKey(sale.scope) === key)
-      .filter((sale) => sale.syncState !== "synced" && sale.syncState !== "blocked" && sale.syncState !== "needs_review")
+      .filter((sale) => sale.syncState !== "synced" && sale.syncState !== "blocked" && sale.syncState !== "cancelled" && sale.syncState !== "needs_review")
       .filter((sale) => syncableOperationIds.has(sale.operationId))
       .sort((a, b) => a.createdAt.localeCompare(b.createdAt));
   } catch {
@@ -440,7 +441,7 @@ export async function markOfflineSaleSyncState(
     } else {
       const outbox = await requestResult<OfflineOutboxEntry | undefined>(outboxStore.get(operationId));
       if (outbox) {
-        outbox.status = syncState === "auth_required" ? "auth_required" : syncState === "blocked" || syncState === "needs_review" ? syncState : "retry_wait";
+        outbox.status = syncState === "auth_required" ? "auth_required" : syncState === "blocked" || syncState === "cancelled" || syncState === "needs_review" ? syncState : "retry_wait";
         outbox.attempts += 1;
         outbox.updatedAt = new Date().toISOString();
         outbox.nextAttemptAt = new Date(Date.now() + 60_000).toISOString();
@@ -523,6 +524,62 @@ export async function updateOfflineSaleCustomer(
     return sale;
   } finally {
     db.close();
+  }
+}
+
+export async function cancelOfflineSale(scope: OfflineScope, operationId: string): Promise<boolean> {
+  if (typeof indexedDB === "undefined") return false;
+  try {
+    const db = await database();
+    const tx = db.transaction([SALE_STORE, OUTBOX_STORE], "readwrite");
+    const saleStore = tx.objectStore(SALE_STORE);
+    const outboxStore = tx.objectStore(OUTBOX_STORE);
+    const sale = await requestResult<OfflineSaleRecord | undefined>(saleStore.get(operationId));
+    if (!sale || offlineScopeKey(sale.scope) !== offlineScopeKey(scope) || sale.syncState === "synced") {
+      tx.abort();
+      db.close();
+      return false;
+    }
+    sale.syncState = "cancelled";
+    sale.syncMessage = "Cancelled locally. This sale will not sync to the database.";
+    sale.lastSyncAttemptAt = new Date().toISOString();
+    saleStore.put(sale);
+    outboxStore.delete(operationId);
+    await txDone(tx);
+    db.close();
+    notifyOfflineSalesChanged();
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export async function cleanupOfflineSales(scope: OfflineScope, olderThanMs = 7 * 24 * 60 * 60 * 1000): Promise<number> {
+  if (typeof indexedDB === "undefined") return 0;
+  try {
+    const db = await database();
+    const tx = db.transaction([SALE_STORE, OUTBOX_STORE], "readwrite");
+    const saleStore = tx.objectStore(SALE_STORE);
+    const outboxStore = tx.objectStore(OUTBOX_STORE);
+    const all = await requestResult<OfflineSaleRecord[]>(saleStore.getAll());
+    const key = offlineScopeKey(scope);
+    const cutoff = Date.now() - olderThanMs;
+    let removed = 0;
+    for (const sale of all) {
+      const terminal = sale.syncState === "synced" || sale.syncState === "cancelled";
+      const saleTime = new Date(sale.lastSyncAttemptAt ?? sale.createdAt).getTime();
+      if (offlineScopeKey(sale.scope) === key && terminal && saleTime < cutoff) {
+        saleStore.delete(sale.id);
+        outboxStore.delete(sale.operationId);
+        removed += 1;
+      }
+    }
+    await txDone(tx);
+    db.close();
+    if (removed > 0) notifyOfflineSalesChanged();
+    return removed;
+  } catch {
+    return 0;
   }
 }
 
