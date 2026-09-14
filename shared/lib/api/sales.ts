@@ -84,6 +84,31 @@ export const get = async (id: string): Promise<ApiResult<SaleDetail>> => {
       : null,
   };
 };
+export interface WhatsAppReceiptResult {
+  messageId: string;
+  status: string;
+  phone: string;
+}
+
+export interface WhatsAppMessageStatus {
+  messageId: string;
+  phone: string;
+  messageType: string;
+  status: string;
+  failureCode?: string;
+  failureReason?: string;
+  submittedAt: string;
+  lastEventAt?: string;
+}
+
+export const sendWhatsAppReceipt = async (saleId: string): Promise<ApiResult<WhatsAppReceiptResult>> => (
+  goRequest<WhatsAppReceiptResult>(`sales/${saleId}/whatsapp-receipt`, { method: "POST" })
+);
+
+export const whatsappMessages = async (saleId: string): Promise<ApiResult<{ items: WhatsAppMessageStatus[] }>> => (
+  goRequest<{ items: WhatsAppMessageStatus[] }>(`sales/${saleId}/whatsapp-messages`)
+);
+
 
 /** Maps a legacy cart payment to a provider-neutral canonical tender. */
 function toTender(p: LegacyPayment, stableReference: string) {

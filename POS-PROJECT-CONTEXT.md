@@ -4,6 +4,29 @@
 
 # KOMOLA Organic POS — Project Context
 
+## WhatsApp / Gupshup implementation tracker
+
+Reference: backend setup details are in `../go-api-backend/docs/gupshup-whatsapp.md`.
+
+### Implemented
+
+- Added a server-side Gupshup WhatsApp client for `POST https://api.gupshup.io/wa/api/v1/msg`.
+- Added Go API environment variables `GUPSHUP_API_KEY`, `GUPSHUP_API_URL`, `GUPSHUP_SOURCE`, and `GUPSHUP_APP_NAME`; the API key remains server-side only.
+- Added protected POS route `POST /api/v1/pos/sales/:id/whatsapp-receipt` to send a simple receipt text to the sale customer phone.
+- Added a `WhatsApp` button on the seller sale detail page, disabled when the sale has no customer phone.
+- Added backend client tests and OpenAPI route documentation.
+- Added migration-backed WhatsApp message tracking for Gupshup provider message IDs and status events.
+- Added protected internal Gupshup webhook route for delivery/failure/read callback ingestion.
+
+### Next tasks
+
+1. Run migration 18 and configure `GUPSHUP_WEBHOOK_ENABLED=true` plus `GUPSHUP_WEBHOOK_TOKEN` in the API environment.
+2. Configure the Gupshup callback URL to `/api/v1/internal/webhooks/gupshup?token=<token>`.
+3. Add seller-facing message status display on sale detail/history.
+4. Replace simple receipt text with approved template flow if required for production conversations.
+5. Decide separately whether WhatsApp OTP authentication should migrate from Interakt to Gupshup.
+
+
 ## Offline POS implementation tracker
 
 This tracker records the offline-first POS work so implementation can continue without losing context. The aim is to let sellers complete cash/product-based selling when the internet is slow or unavailable, then sync safely when the connection returns.
