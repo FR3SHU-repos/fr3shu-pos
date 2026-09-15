@@ -19,14 +19,17 @@ Reference: backend setup details are in `../go-api-backend/docs/gupshup-whatsapp
 - Added protected internal Gupshup webhook route for delivery/failure/read callback ingestion.
 - Migrated WhatsApp OTP sending from the old Interakt adapter path to Gupshup for the signed Supabase Send SMS Hook.
 - Added automatic account linking for WhatsApp login when the verified phone matches an existing active seller person, so WhatsApp login reuses the existing seller workspace instead of restarting onboarding.
+- Live Gupshup app `komola` is active with sender `918125410293`; simple text OTP submission is accepted by Gupshup, but webhook status persistence needs follow-up logging/DB inspection.
 
 ### Next tasks
 
 1. Run migration 18 and configure `GUPSHUP_WEBHOOK_ENABLED=true` plus `GUPSHUP_WEBHOOK_TOKEN` in the API environment.
 2. Configure the Gupshup callback URL to `/gupshup`.
-3. Test Supabase Phone Auth locally and on Render with a sandbox phone that has sent `proxy komola`.
-4. Add seller-facing message status display on sale detail/history.
-5. Replace simple receipt/OTP text with approved template flows if required for production conversations.
+3. Switch Render `GUPSHUP_SOURCE`, `GUPSHUP_APP_NAME`, and `GUPSHUP_API_KEY` from sandbox values to the real live WhatsApp Business app values.
+4. Test Supabase Phone Auth locally and on Render with the real business sender.
+5. Deploy webhook persistence error logging and inspect the exact DB error from `/gupshup` live events.
+6. Add seller-facing message status display on sale detail/history.
+7. Replace simple receipt/OTP text with approved template flows if required for production conversations.
 
 
 ## Offline POS implementation tracker

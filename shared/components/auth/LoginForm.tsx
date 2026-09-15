@@ -91,7 +91,9 @@ export function LoginForm({ intent }: { intent: AuthIntent }) {
       router.replace(ADMIN_HOME);
       return;
     }
+    console.info("[whatsapp-auth] POS reconcile completed");
     const target = await destination(accessToken);
+    console.info("[whatsapp-auth] destination resolved", { target });
     if (target === "/buyer" || target === "/buyer/setup") {
       setBusy(false);
       router.replace(target);
@@ -121,19 +123,25 @@ export function LoginForm({ intent }: { intent: AuthIntent }) {
     }
   }
   async function onWhatsAppVerified(accessToken?: string) {
+    console.info("[whatsapp-auth] POS reconcile started", { hasAccessToken: Boolean(accessToken) });
     const reconciled = await reconcileIdentity(accessToken);
     if (!reconciled || reconciled.error) {
+      console.warn("[whatsapp-auth] POS reconcile failed", { status: reconciled?.status, error: reconciled?.error });
       const detail = reconciled?.status ? `${reconciled.error ?? "Unable to verify your account with the POS service."} (${reconciled.status})` : (reconciled?.error ?? "Unable to verify your account with the POS service.");
       toast.error(detail);
       return;
     }
+    console.info("[whatsapp-auth] POS reconcile completed");
     const target = await destination(accessToken);
+    console.info("[whatsapp-auth] destination resolved", { target });
     if (target === "/buyer" || target === "/buyer/setup" || target === "/seller/onboarding") {
       router.replace(target);
       return;
     }
     const org = await getMyOrganization(accessToken);
-    router.replace(org.status === 404 ? "/seller/onboarding" : sellerDestination(org.data?.approvalStatus) || next);
+    const finalTarget = org.status === 404 ? "/seller/onboarding" : sellerDestination(org.data?.approvalStatus) || next;
+    console.info("[whatsapp-auth] seller org lookup completed", { status: org.status, approvalStatus: org.data?.approvalStatus, finalTarget });
+    router.replace(finalTarget);
   }
 
   return (

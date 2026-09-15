@@ -39,14 +39,22 @@ export default function SaleDetailPage({ params }: { params: Promise<{ id: strin
 
   async function sendWhatsApp() {
     if (!sale.customerPhone || sendingWhatsApp) return;
+    console.info("[whatsapp-receipt] send started", { saleId: sale._id, phoneSuffix: sale.customerPhone.slice(-4) });
     setSendingWhatsApp(true);
     const result = await salesApi.sendWhatsAppReceipt(sale._id);
     setSendingWhatsApp(false);
     if (result.success) {
+      console.info("[whatsapp-receipt] send submitted", { saleId: sale._id, messageId: result.data?.messageId, status: result.data?.status });
       toast.success("WhatsApp receipt submitted");
       const messages = await salesApi.whatsappMessages(sale._id);
-      if (messages.success && messages.data) setWhatsAppMessages(messages.data.items);
+      if (messages.success && messages.data) {
+        console.info("[whatsapp-receipt] status refresh completed", { saleId: sale._id, count: messages.data.items.length, latestStatus: messages.data.items[0]?.status, latestFailureCode: messages.data.items[0]?.failureCode });
+        setWhatsAppMessages(messages.data.items);
+      } else {
+        console.warn("[whatsapp-receipt] status refresh failed", { saleId: sale._id, message: messages.message, status: messages.status });
+      }
     } else {
+      console.warn("[whatsapp-receipt] send failed", { saleId: sale._id, message: result.message, status: result.status });
       toast.error(result.message || "Could not send WhatsApp receipt");
     }
   }
@@ -108,7 +116,14 @@ export default function SaleDetailPage({ params }: { params: Promise<{ id: strin
                 </div>
                 <p className="mt-1 text-xs text-foreground-muted">Submitted {new Date(message.submittedAt).toLocaleString("en-IN")}</p>
                 {message.lastEventAt ? <p className="text-xs text-foreground-muted">Last update {new Date(message.lastEventAt).toLocaleString("en-IN")}</p> : null}
-                {message.failureReason ? <p className="mt-1 text-xs font-medium text-status-danger">{message.failureReason}</p> : null}
+                {message.failureCode || message.failureReason ? (
+                  <p className="mt-1 text-xs font-medium text-status-danger">
+                    {message.failureCode ? `Error ${message.failureCode}` : "Delivery failed"}
+                    {message.failureReason ? `: ${message.failureReason}` : ""}
+                  </p>
+                ) : message.status === "failed" ? (
+                  <p className="mt-1 text-xs font-medium text-status-danger">Delivery failed. No provider reason was received for this event.</p>
+                ) : null}
               </li>
             ))}
           </ul>
