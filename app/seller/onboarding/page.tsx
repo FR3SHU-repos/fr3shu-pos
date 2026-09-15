@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { registerSeller, type SellerOrgType } from "@/shared/lib/api/sellerOrgs";
-import { normalizeIndianWhatsApp } from "@/shared/lib/auth/whatsapp";
+import { normalizeIndianMobile } from "@/shared/lib/auth/phone";
 import { cardCls, inputCls, primaryBtnCls } from "@/shared/components/ui";
 import { createAuthBrowserClient } from "@/shared/lib/supabase/auth-client";
 
@@ -49,7 +49,7 @@ export default function SellerOnboarding() {
   async function submit(event: React.FormEvent) {
     event.preventDefault();
     setError("");
-    const phoneE164 = normalizeIndianWhatsApp(form.phone);
+    const phoneE164 = normalizeIndianMobile(form.phone);
     if (!phoneE164) {
       setError("Enter a valid 10-digit Indian mobile number.");
       return;

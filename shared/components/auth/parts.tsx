@@ -1,10 +1,8 @@
 "use client";
 
-import { useEffect, useId, useState } from "react";
+import { useId, useState } from "react";
 import { Eye, EyeOff } from "lucide-react";
-import { googleAuthEnabled, whatsappAuthEnabled } from "@/shared/lib/auth/providers";
-import { createAuthBrowserClient } from "@/shared/lib/supabase/auth-client";
-import { maskedPhone, normalizeIndianWhatsApp, validOtp } from "@/shared/lib/auth/whatsapp";
+import { googleAuthEnabled } from "@/shared/lib/auth/providers";
 
 export const INPUT_CLS =
   "mt-1.5 w-full rounded-xl border border-border bg-surface px-4 py-2.5 text-sm text-foreground-heading placeholder:text-foreground-muted outline-none transition focus:border-primary focus:ring-4 focus:ring-primary/10";
@@ -112,31 +110,6 @@ export function GoogleButton({
       {loading ? "Connecting…" : "Continue with Google"}
       {!enabled && <span className="text-xs text-foreground-muted">(unavailable)</span>}
     </button>
-  );
-}
-
-/** "Continue with WhatsApp" — disabled pill while the feature flag is off. */
-export function WhatsAppButton({ onVerified }: { onVerified?: (accessToken?: string) => void | Promise<void> }) {
-  const enabled = whatsappAuthEnabled();
-  const [open,setOpen]=useState(false), [phone,setPhone]=useState(""), [e164,setE164]=useState(""), [otp,setOtp]=useState(""), [error,setError]=useState(""), [busy,setBusy]=useState(false), [seconds,setSeconds]=useState(0);
-  useEffect(()=>{if(seconds<=0)return;const timer=window.setInterval(()=>setSeconds(s=>Math.max(0,s-1)),1000);return()=>window.clearInterval(timer)},[seconds]);
-  async function send(){const normalized=normalizeIndianWhatsApp(phone);if(!normalized){setError("Enter a valid 10-digit Indian mobile number.");return}console.info("[whatsapp-auth] otp send started",{phoneSuffix:normalized.slice(-4)});setBusy(true);setError("");const {error}=await createAuthBrowserClient().auth.signInWithOtp({phone:normalized,options:{shouldCreateUser:true}});setBusy(false);if(error){console.warn("[whatsapp-auth] otp send failed",{status:error.status,message:error.message});setError(error.status===429?"Too many requests. Please wait and try again.":"Code could not be sent. Try again or use another sign-in method.");return}console.info("[whatsapp-auth] otp send submitted",{phoneSuffix:normalized.slice(-4)});setE164(normalized);setSeconds(60)}
-  async function verify(){if(!validOtp(otp)){setError("Enter the six-digit code.");return}console.info("[whatsapp-auth] otp verify started",{phoneSuffix:e164.slice(-4)});setBusy(true);setError("");const supabase=createAuthBrowserClient();const {data,error}=await supabase.auth.verifyOtp({phone:e164,token:otp,type:"sms"});let accessToken=data.session?.access_token;if(!error&&!accessToken){const refreshed=await supabase.auth.getSession();accessToken=refreshed.data.session?.access_token}setBusy(false);if(error||!accessToken){console.warn("[whatsapp-auth] otp verify failed",{status:error?.status,message:error?.message,hasAccessToken:Boolean(accessToken)});setError("The code is incorrect or expired. Request a new code and try again.");return}console.info("[whatsapp-auth] otp verify completed",{phoneSuffix:e164.slice(-4)});await onVerified?.(accessToken)}
-  return (
-    <>{open&&enabled?<div className="space-y-3 rounded-xl border border-border p-4" aria-live="polite"><h2 className="font-semibold">Continue with WhatsApp</h2>{!e164?<><label className="block text-sm font-medium" htmlFor="wa-phone">WhatsApp number</label><div className="flex gap-2"><span className="grid min-h-12 place-items-center rounded-xl border px-3">India +91</span><input id="wa-phone" inputMode="tel" autoComplete="tel" className={INPUT_CLS+" mt-0"} value={phone} onChange={e=>setPhone(e.target.value)} placeholder="98765 43210"/></div><p className="text-xs text-foreground-muted">We’ll send a one-time verification code through WhatsApp.</p><button type="button" onClick={send} disabled={busy} className="min-h-12 w-full rounded-xl bg-green-700 font-semibold text-white">{busy?"Sending…":"Send code on WhatsApp"}</button></>:<><p className="text-sm">Enter the code sent to {maskedPhone(e164)}</p><input aria-label="Six-digit WhatsApp code" inputMode="numeric" autoComplete="one-time-code" maxLength={6} className={INPUT_CLS+" mt-0 text-center text-xl tracking-[0.4em]"} value={otp} onChange={e=>setOtp(e.target.value.replace(/\D/g,""))}/><button type="button" onClick={verify} disabled={busy} className="min-h-12 w-full rounded-xl bg-green-700 font-semibold text-white">{busy?"Verifying…":"Verify and continue"}</button><div className="flex justify-between text-sm"><button type="button" onClick={()=>{setE164("");setOtp("");setError("")}}>Change number</button><button type="button" disabled={seconds>0||busy} onClick={send}>{seconds>0?`Resend in ${seconds}s`:"Resend code"}</button></div></>}{error&&<p role="alert" className="text-sm text-red-700">{error}</p>}<button type="button" className="text-sm text-foreground-muted" onClick={()=>setOpen(false)}>Use another sign-in method</button></div>:<button
-      type="button"
-      onClick={()=>enabled&&setOpen(true)} disabled={!enabled}
-      aria-disabled={!enabled}
-      title={enabled ? undefined : "Coming soon"}
-      className="flex w-full items-center justify-center gap-2 rounded-full border border-border bg-surface py-3 text-sm font-medium text-foreground-heading transition hover:bg-surface-card disabled:cursor-not-allowed disabled:opacity-60"
-    >
-      Continue with WhatsApp
-      {!enabled && (
-        <span className="rounded-full bg-border px-2 py-0.5 text-xs text-foreground-muted">
-          Coming soon
-        </span>
-      )}
-    </button>}</>
   );
 }
 

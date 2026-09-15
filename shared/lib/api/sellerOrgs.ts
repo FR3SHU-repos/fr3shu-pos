@@ -34,7 +34,6 @@ export interface SellerOrganization {
   status: SellerOrgStatus;
   ownerUserId: string;
   phoneE164?: string;
-  whatsappPhoneE164?: string;
   gstin?: string;
   billingAddress?: SellerAddress;
   onboardingState: OnboardingState;
@@ -75,7 +74,6 @@ export interface RegisterSellerBody {
     contactName: string;
     type: SellerOrgType;
     phoneE164: string;
-    whatsappPhoneE164?: string;
     gstin?: string;
     billingAddress?: SellerAddress;
   };

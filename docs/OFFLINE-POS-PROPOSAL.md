@@ -43,7 +43,7 @@ Do not rebuild inventory as a new event-sourcing system, replace PostgreSQL prim
 | Product/price edits | Online only |
 | UPI/card/split | Keep existing online behavior; exclude from initial offline release |
 | Returns/voids, reward redemption | Online only initially |
-| WhatsApp/email | No automatic send in this milestone; explicit delivery jobs later |
+| Email delivery | No automatic send in this milestone; explicit delivery jobs later |
 | Reports | Local pending-sale history and totals; cloud reports require connection |
 
 Offline checkout is available only within these eligibility rules. Storage failure or an expired offline authorization must prevent a false success message.

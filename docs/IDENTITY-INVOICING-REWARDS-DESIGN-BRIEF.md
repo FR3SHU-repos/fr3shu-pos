@@ -53,7 +53,7 @@ Checkout starts anonymous. **Identify buyer** opens a sheet with:
 
 1. Scan buyer code.
 2. Enter short code.
-3. Enter WhatsApp phone.
+3. Enter mobile number as unverified contact information.
 4. Enter email.
 5. Continue without buyer.
 
@@ -121,7 +121,7 @@ verified organic.
 
 The seller completes the sale first. In one database transaction the API creates
 the sale, invoice, provisional customer relationship, pending reward entitlement,
-single-use invitation, and outbox message. A worker later sends WhatsApp or email.
+single-use invitation and outbox message. A future worker may deliver email notifications.
 The buyer opens the link, signs in or registers, verifies the original destination,
 and claims the invoice. The receipt remains valid if the invitation is never used.
 
@@ -363,7 +363,7 @@ plain and does not reveal whether another identity exists.
 │ Identify buyer          ×    │
 │ [ Scan buyer code          ] │
 │ [ Enter short code         ] │
-│ [ WhatsApp phone           ] │
+│ [ Mobile number            ] │
 │ [ Email                    ] │
 │                              │
 │ [ Continue without buyer   ] │
@@ -402,7 +402,7 @@ available in English and Telugu.
    attempts.
 
 Messaging-provider selection remains deferred by design. The integration boundary
-is provider-neutral and supports WhatsApp, email, and a future SMS channel.
+is provider-neutral and supports email and a future verified messaging channel.
 
 ## 16. Acceptance coverage and implementation order
 

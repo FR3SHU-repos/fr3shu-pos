@@ -96,7 +96,7 @@ path, honestly built, with offline explicitly deferred.
 
 | Area | File | State |
 |---|---|---|
-| Sign in | `app/(auth)/login/page.tsx` | Email/password + Google + WhatsApp(disabled) via Supabase |
+| Sign in | `app/(auth)/login/page.tsx` | Email/password + Google via Supabase |
 | Register (create account) | `app/(auth)/register/page.tsx` | Supabase `signUp`; seller draft saved to `sessionStorage` |
 | Seller onboarding | `app/seller/onboarding/page.tsx` (15 lines) | Thin; posts to `POST /seller-organizations` |
 | Access-status screens | `app/seller/{pending,rejected,suspended}` | Static status pages |
@@ -143,7 +143,7 @@ default (dashboard is). No connectivity indicator anywhere in the shell.
   large buttons. Split is an extra concept most stalls will not use.
 - The whole screen is a `lg:grid-cols-[1fr_380px]` — on a phone the cart sits
   **below** the fold under the product grid; a cashier scrolls a lot.
-- Success state replaces the screen; no "share on WhatsApp", no QR, no
+- Success state replaces the screen; no external sharing, no QR, no
   provisional-receipt labelling.
 
 **Product create.** All ~8 fields shown at once, `SKU` is **required** and
@@ -416,7 +416,7 @@ button ≥ 24px.
 
 ### 6.2 Sign in  (`app/(auth)/login`)
 
-Mostly keep. Changes: bigger inputs (h-48), show Google prominently, WhatsApp
+Mostly keep. Changes: bigger inputs (h-48), show Google prominently,
 button visibly "Coming soon" (already), plain-language errors ("We couldn't sign
 you in. Check your email and password."), Telugu strings, `autocomplete`
 attributes, `inputmode="email"`. Offline: if unreachable, "You're offline. Sign
@@ -527,7 +527,7 @@ Content (superset of current):
 
 Actions: **Print** (`window.print()` + a real thermal-friendly `@media print`
 stylesheet, 58mm & 80mm), **Download PDF** (client-side render; must not use a
-blocked CDN — bundle the generator), **Share on WhatsApp** (`https://wa.me/?text=`
+blocked CDN — bundle the generator), share through the device share sheet
 with the short URL; only when online), **Reopen** (from Sales history).
 An offline/provisional receipt is clearly watermarked and says which fields are
 pending.
@@ -841,7 +841,7 @@ backend `go build/vet/test`), and touches only `komola-pos` unless noted.
 - `ReceiptView` v2: seller/stall name, location, verification status wording,
   points-earned line, **QR + short URL**, provisional watermark slot.
 - Real thermal `@media print` (58/80mm); **Download PDF** (bundled generator);
-  **Share on WhatsApp** (`wa.me`).
+  native sharing where supported.
 - `app/(buyer)/r/[token]/page.tsx` reading a public receipt endpoint
   (**needs backend**, Phase 6 — until then, render from a signed client token or
   the authenticated `GET /pos/sales/{id}` for staff preview).
