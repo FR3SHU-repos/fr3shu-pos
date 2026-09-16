@@ -81,9 +81,6 @@ export default function SaleDetailPage({ params }: { params: Promise<{ id: strin
             </li>
           ))}
         </ul>
-        <p className="mt-2 text-xs text-foreground-muted">
-          Idempotency key: <span className="font-mono">{sale.idempotencyKey}</span>
-        </p>
       </div>
 
     </div>
