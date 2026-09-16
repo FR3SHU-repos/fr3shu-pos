@@ -36,6 +36,8 @@ export interface SellerOrganization {
   phoneE164?: string;
   gstin?: string;
   billingAddress?: SellerAddress;
+  upiId?: string;
+  upiPayeeName?: string;
   onboardingState: OnboardingState;
   createdAt: string;
   updatedAt: string;
@@ -142,6 +144,16 @@ export function registerSeller(
 export function getMyOrganization(accessToken?: string): Promise<ApiResult<MyOrganization>> {
   return request<MyOrganization>("seller-organizations/me", {
     headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : undefined,
+  });
+}
+
+export function updatePaymentSettings(body: {
+  upiId: string;
+  upiPayeeName: string;
+}): Promise<ApiResult<SellerOrganization>> {
+  return request<SellerOrganization>("seller-organizations/me/payment-settings", {
+    method: "PATCH",
+    body,
   });
 }
 

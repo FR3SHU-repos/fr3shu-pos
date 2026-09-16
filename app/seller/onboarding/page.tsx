@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { registerSeller, type SellerOrgType } from "@/shared/lib/api/sellerOrgs";
+import { newUuid } from "@/shared/lib/uuid";
 import { normalizeIndianMobile } from "@/shared/lib/auth/phone";
 import { cardCls, inputCls, primaryBtnCls } from "@/shared/components/ui";
 import { createAuthBrowserClient } from "@/shared/lib/supabase/auth-client";
@@ -84,7 +85,7 @@ export default function SellerOnboarding() {
         billingAddress: address,
       },
       location: { code: "MAIN", name: displayName, phoneE164, address },
-    }, crypto.randomUUID(), accessToken);
+    }, newUuid(), accessToken);
     setBusy(false);
     if (!result.success) {
       setError(result.message);

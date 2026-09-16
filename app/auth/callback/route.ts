@@ -78,13 +78,17 @@ export async function GET(request: NextRequest) {
     }
     if (destination === "/buyer") return NextResponse.redirect(`${origin}/buyer`);
 
-    const me = await fetch(`${apiBase}/api/v1/pos/auth/me`, { headers, cache: "no-store" });
+    const [me, status] = await Promise.all([
+      fetch(`${apiBase}/api/v1/pos/auth/me`, { headers, cache: "no-store" }),
+      destination === "/dashboard"
+        ? fetch(`${apiBase}/api/v1/seller-organizations/me`, { headers, cache: "no-store" })
+        : Promise.resolve(null),
+    ]);
     if (!me.ok) return NextResponse.redirect(`${origin}/login?error=reconcile_failed`);
     const profile = await me.json();
     if (isPlatformAdmin(profile?.data)) {
       destination = ADMIN_HOME;
-    } else if (destination === "/dashboard") {
-      const status = await fetch(`${apiBase}/api/v1/seller-organizations/me`, { headers, cache: "no-store" });
+    } else if (destination === "/dashboard" && status) {
       if (status.status === 404) destination = "/seller/onboarding";
       else if (status.ok) {
         const body = await status.json();

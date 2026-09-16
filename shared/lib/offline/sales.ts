@@ -1,6 +1,7 @@
 import type { ProductDTO } from "@/shared/lib/api/products";
 import type { SaleDTO } from "@/shared/lib/api/sales";
 import type { SessionDTO } from "@/shared/lib/api/registers";
+import { newUuid } from "@/shared/lib/uuid";
 import type { CartLine } from "@/shared/components/pos/types";
 import { computeLineTotals, sumCartTotals } from "@/shared/lib/money";
 import { fromBaseQuantity, toBaseQuantity } from "@/shared/lib/units";
@@ -349,7 +350,7 @@ export function buildOfflineSaleRecord(
   const saleLines = buildOfflineLines(input.lines);
   const cart = sumCartTotals(saleLines);
   const payment = validateCashPayment(cart.netPaise, input.cashReceivedPaise);
-  const operationId = input.operationId ?? crypto.randomUUID();
+  const operationId = input.operationId ?? newUuid();
   const receiptNo = `LOCAL-${input.session.registerId.slice(0, 8).toUpperCase()}-${String(receiptSequence).padStart(6, "0")}`;
   const timestamp = now.toISOString();
   return {

@@ -3,6 +3,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import toast from "react-hot-toast";
+import { QRCodeSVG } from "qrcode.react";
 import {
   Search,
   Plus,
@@ -42,6 +43,8 @@ import { type CartLine, type HeldCart } from "@/shared/components/pos/types";
 import { loadHeldCarts, saveHeldCarts } from "@/shared/lib/offline/held-carts";
 import { BuyerQrScanner } from "@/shared/components/pos/BuyerQrScanner";
 import { OFFLINE_SALES_SYNC_EVENT } from "@/shared/components/pos/OfflineSalesSyncWorker";
+import { buildUpiPaymentUri, isValidUpiId } from "@/shared/lib/upi";
+import { newUuid } from "@/shared/lib/uuid";
 import {
   commitOfflineCashSale,
   listPendingOfflineSales,
@@ -70,6 +73,7 @@ export default function PosPage() {
   const [payMethod, setPayMethod] = useState<PayMethod>("cash");
   const [cashPart, setCashPart] = useState("");
   const [upiPart, setUpiPart] = useState("");
+  const [upiAmount, setUpiAmount] = useState("");
   const [upiRef, setUpiRef] = useState("");
   const [tendered, setTendered] = useState("");
   const [customerName, setCustomerName] = useState("");
@@ -86,13 +90,13 @@ export default function PosPage() {
     lines: ReceiptPaymentLine[];
     changePaise: number;
   } | null>(null);
-  const [store, setStore] = useState<{ name?: string; location?: string }>({});
+  const [store, setStore] = useState<{ name?: string; location?: string; upiId?: string; upiPayeeName?: string }>({});
   const [offlineSessionSavedAt, setOfflineSessionSavedAt] = useState<number | null>(null);
   const [pendingOfflineCount, setPendingOfflineCount] = useState(0);
 
   const searchRef = useRef<HTMLInputElement>(null);
   // One idempotency key per cart attempt. Regenerated after a completed sale.
-  const idemRef = useRef<string>(crypto.randomUUID());
+  const idemRef = useRef<string>(newUuid());
 
   const offlineScope = useMemo<OfflineScope | null>(() => {
     if (!user) return null;
@@ -150,7 +154,12 @@ export default function PosPage() {
       if (!res.success || !res.data) return;
       const locs = res.data.locations ?? [];
       const active = locs.find((l) => l.active) ?? locs[0];
-      setStore({ name: res.data.displayName, location: active?.name });
+      setStore({
+        name: res.data.displayName,
+        location: active?.name,
+        upiId: res.data.organization.upiId,
+        upiPayeeName: res.data.organization.upiPayeeName,
+      });
     });
   }, []);
 
@@ -194,6 +203,18 @@ export default function PosPage() {
     [lines],
   );
   const cart = useMemo(() => sumCartTotals(lineTotals), [lineTotals]);
+  const qrAmountPaise = payMethod === "split"
+    ? Math.round(Number(upiPart || 0) * 100)
+    : Math.round(Number(upiAmount || 0) * 100);
+  const upiPaymentUri = useMemo(() => {
+    if (!store.upiId || !isValidUpiId(store.upiId) || qrAmountPaise <= 0) return null;
+    return buildUpiPaymentUri({
+      upiId: store.upiId,
+      payeeName: store.upiPayeeName || store.name || store.upiId,
+      amountPaise: qrAmountPaise,
+      note: "KOMOLA POS payment",
+    });
+  }, [qrAmountPaise, store]);
 
   function addProduct(p: ProductDTO) {
     setLines((prev) => {
@@ -216,7 +237,7 @@ export default function PosPage() {
       return [
         ...prev,
         {
-          key: crypto.randomUUID(),
+          key: newUuid(),
           product: p,
           qty: initialQty,
           saleUnit: p.saleUnit,
@@ -256,6 +277,7 @@ export default function PosPage() {
     setPayMethod("cash");
     setCashPart("");
     setUpiPart("");
+    setUpiAmount("");
     setUpiRef("");
     setTendered("");
     setCustomerName("");
@@ -265,7 +287,7 @@ export default function PosPage() {
     setMarketingConsent(false);
     setCompletedPayment(null);
     setCompletedOffline(false);
-    idemRef.current = crypto.randomUUID();
+    idemRef.current = newUuid();
   }
 
   async function persistHeld(next: HeldCart[]) {
@@ -277,7 +299,7 @@ export default function PosPage() {
   async function holdCart() {
     if (lines.length === 0) return;
     const entry: HeldCart = {
-      id: crypto.randomUUID(),
+      id: newUuid(),
       label: `${lines.length} item(s) · ${formatPaise(cart.netPaise)}`,
       savedAt: new Date().toISOString(),
       lines: lines.map((l) => ({
@@ -306,7 +328,7 @@ export default function PosPage() {
         toast.error("This held cart cannot be resumed until all of its products are available.");
         return;
       }
-      restored.push({ key: crypto.randomUUID(), product, qty: l.qty, saleUnit: l.saleUnit, discountPaise: l.discountPaise });
+      restored.push({ key: newUuid(), product, qty: l.qty, saleUnit: l.saleUnit, discountPaise: l.discountPaise });
     }
     try {
       await persistHeld(held.filter((h) => h.id !== entry.id));
@@ -339,12 +361,25 @@ export default function PosPage() {
       }
       payments.push({ method: "cash", amountPaise: cashReceivedPaise });
     } else if (payMethod === "upi") {
-      payments.push({ method: "upi", amountPaise: cart.netPaise, upiRef: upiRef.trim() || undefined });
+      const upi = parseRupeesToPaise(upiAmount);
+      if (upi == null || upi !== cart.netPaise) {
+        toast.error(`UPI amount must equal ${formatPaise(cart.netPaise)}`);
+        return;
+      }
+      if (!store.upiId) {
+        toast.error("Add the seller UPI ID in Payment settings first.");
+        return;
+      }
+      payments.push({ method: "upi", amountPaise: upi, upiRef: upiRef.trim() || undefined });
     } else {
       const cash = Math.round(Number(cashPart || 0) * 100);
       const upi = Math.round(Number(upiPart || 0) * 100);
       if (cash + upi !== cart.netPaise) {
         toast.error(`Split must total ${formatPaise(cart.netPaise)}`);
+        return;
+      }
+      if (upi > 0 && !store.upiId) {
+        toast.error("Add the seller UPI ID in Payment settings first.");
         return;
       }
       if (cash > 0) payments.push({ method: "cash", amountPaise: cash });
@@ -747,6 +782,7 @@ export default function PosPage() {
               setTendered("");
               setCashPart(String((cart.netPaise / 100).toFixed(2)));
               setUpiPart("0");
+              setUpiAmount((cart.netPaise / 100).toFixed(2));
             }}
           >
             {t("pos.pay")} · {formatPaise(cart.netPaise)}
@@ -801,12 +837,19 @@ export default function PosPage() {
             ) : null}
 
             {payMethod === "upi" ? (
-              <input
-                placeholder={t("pos.upi_ref")}
-                value={upiRef}
-                onChange={(e) => setUpiRef(e.target.value)}
-                className={inputCls}
-              />
+              <div className="space-y-3">
+                <label className="block text-xs font-medium text-foreground-body">UPI amount (₹)
+                  <input type="number" min="0.01" step="0.01" value={upiAmount} onChange={(e) => setUpiAmount(e.target.value)} className={`${inputCls} mt-1`} />
+                </label>
+                <UpiQr
+                  uri={upiPaymentUri}
+                  upiId={store.upiId}
+                  payeeName={store.upiPayeeName || store.name || ""}
+                  amountPaise={qrAmountPaise}
+                  onSaved={(upiId, upiPayeeName) => setStore((current) => ({ ...current, upiId, upiPayeeName }))}
+                />
+                <input placeholder={t("pos.upi_ref")} value={upiRef} onChange={(e) => setUpiRef(e.target.value)} className={inputCls} />
+              </div>
             ) : null}
 
             {payMethod === "split" ? (
@@ -845,6 +888,15 @@ export default function PosPage() {
                   onChange={(e) => setUpiRef(e.target.value)}
                   className={inputCls}
                 />
+                {Number(upiPart) > 0 ? (
+                  <UpiQr
+                    uri={upiPaymentUri}
+                    upiId={store.upiId}
+                    payeeName={store.upiPayeeName || store.name || ""}
+                    amountPaise={qrAmountPaise}
+                    onSaved={(upiId, upiPayeeName) => setStore((current) => ({ ...current, upiId, upiPayeeName }))}
+                  />
+                ) : null}
               </div>
             ) : null}
 
@@ -939,6 +991,66 @@ function Row({ label, value, strong }: { label: string; value: string; strong?: 
     >
       <dt>{label}</dt>
       <dd>{value}</dd>
+    </div>
+  );
+}
+
+function UpiQr({
+  uri,
+  upiId,
+  payeeName,
+  amountPaise,
+  onSaved,
+}: {
+  uri: string | null;
+  upiId?: string;
+  payeeName: string;
+  amountPaise: number;
+  onSaved: (upiId: string, upiPayeeName: string) => void;
+}) {
+  const [draftUpiId, setDraftUpiId] = useState("");
+  const [draftPayeeName, setDraftPayeeName] = useState(payeeName);
+  const [saving, setSaving] = useState(false);
+
+  if (!upiId) {
+    return (
+      <div className="space-y-3 rounded-lg bg-amber-50 p-3 text-sm text-amber-900">
+        <p className="font-medium">Add this seller&apos;s UPI ID to display a payment QR.</p>
+        <input className={inputCls} value={draftUpiId} onChange={(event) => setDraftUpiId(event.target.value)} placeholder="business@bank" autoCapitalize="none" />
+        <input className={inputCls} value={draftPayeeName} onChange={(event) => setDraftPayeeName(event.target.value)} placeholder="Payee or business name" />
+        <button
+          type="button"
+          className={primaryBtnCls}
+          disabled={saving}
+          onClick={async () => {
+            if (!isValidUpiId(draftUpiId)) {
+              toast.error("Enter a valid UPI ID, for example seller@bank.");
+              return;
+            }
+            setSaving(true);
+            const result = await sellerOrgsApi.updatePaymentSettings({ upiId: draftUpiId.trim(), upiPayeeName: draftPayeeName.trim() });
+            setSaving(false);
+            if (!result.success) {
+              toast.error(result.message || "Could not save the UPI ID.");
+              return;
+            }
+            onSaved(draftUpiId.trim(), draftPayeeName.trim());
+            window.dispatchEvent(new Event("komola:payment-settings-changed"));
+            toast.success("UPI ID saved for future payments.");
+          }}
+        >
+          {saving ? "Saving…" : "Save and generate QR"}
+        </button>
+        <p className="text-xs text-amber-800">This is stored for this seller and reused at future checkouts. It can be changed later in <Link href="/settings" className="font-semibold underline">Payment settings</Link>.</p>
+      </div>
+    );
+  }
+  if (!uri || amountPaise <= 0) return <p className="text-xs text-foreground-muted">Enter a UPI amount to display the QR code.</p>;
+  return (
+    <div className="rounded-xl border border-border bg-white p-4 text-center">
+      <QRCodeSVG value={uri} size={192} className="mx-auto" title={`Pay ${formatPaise(amountPaise)} by UPI`} />
+      <p className="mt-3 text-lg font-bold text-foreground-heading">Pay {formatPaise(amountPaise)}</p>
+      <p className="mt-1 text-xs text-foreground-muted">to {upiId}</p>
     </div>
   );
 }

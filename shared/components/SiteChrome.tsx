@@ -1,17 +1,33 @@
 "use client";
 
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { LogOut } from "lucide-react";
+import { LogOut, QrCode } from "lucide-react";
 import { usePosUser } from "@/shared/context/PosUserContext";
 import { ADMIN_HOME, isPlatformAdmin } from "@/shared/lib/auth/routing";
+import { sellerOrgsApi } from "@/shared/lib/api";
 
 export function SiteHeader() {
   const { user, capabilities, loading, logout } = usePosUser();
+  const [hasUpiId, setHasUpiId] = useState<boolean | null>(null);
   const accountHref = isPlatformAdmin(user)
     ? ADMIN_HOME
     : user?.orgId
       ? "/dashboard"
       : "/buyer";
+
+  const loadPaymentSettings = useCallback(() => {
+    if (!capabilities?.seller || !user?.orgId) return;
+    void sellerOrgsApi.getMyOrganization().then((result) => {
+      if (result.success && result.data) setHasUpiId(Boolean(result.data.organization.upiId));
+    });
+  }, [capabilities?.seller, user?.orgId]);
+
+  useEffect(() => {
+    loadPaymentSettings();
+    window.addEventListener("komola:payment-settings-changed", loadPaymentSettings);
+    return () => window.removeEventListener("komola:payment-settings-changed", loadPaymentSettings);
+  }, [loadPaymentSettings]);
 
   async function handleLogout() {
     await logout();
@@ -42,6 +58,15 @@ export function SiteHeader() {
           {capabilities?.seller || isPlatformAdmin(user) ? (
             <Link href="/dashboard" className={navLinkClass}>
               Seller POS
+            </Link>
+          ) : null}
+          {capabilities?.seller && user?.orgId ? (
+            <Link
+              href="/settings"
+              className="inline-flex min-h-10 items-center gap-1.5 rounded-lg border border-primary/30 bg-primary/5 px-2 py-2 text-xs font-semibold text-primary transition hover:bg-primary/10 sm:px-3 sm:text-sm"
+            >
+              <QrCode className="h-4 w-4" aria-hidden="true" />
+              {hasUpiId ? "Edit UPI ID" : "Add UPI ID"}
             </Link>
           ) : null}
           {loading ? (

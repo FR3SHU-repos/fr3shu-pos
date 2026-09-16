@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
-import { ADMIN_HOME, isPlatformAdmin } from "@/shared/lib/auth/routing";
 import { isBuyerExperiencePath } from "@/shared/lib/auth/intent";
-import { serverGoApiBase } from "@/shared/lib/api/server-base";
 import { requestOrigin } from "@/shared/lib/http/request-origin";
 
 const URL = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
@@ -75,51 +73,8 @@ export async function updateSession(request: NextRequest): Promise<NextResponse>
     return NextResponse.redirect(url);
   }
 
-  // Buyer reward pages require the exclusive buyer capability. Seller
-  // membership takes precedence and routes the identity to its POS dashboard.
-  if (isBuyerExperiencePath(pathname)) {
-    const { data: { session } } = await supabase.auth.getSession();
-    const base = serverGoApiBase();
-    if (base && session?.access_token) {
-      try {
-        const capabilities = await fetch(`${base}/api/v1/me/capabilities`, {
-          headers: { Authorization: `Bearer ${session.access_token}` },
-          cache: "no-store",
-        });
-        if (capabilities.ok) {
-          const body = await capabilities.json();
-          if (body?.data?.seller || (pathname !== "/buyer/setup" && !body?.data?.buyer)) {
-            const url = redirectTo(request, body?.data?.seller ? "/dashboard" : "/buyer/setup");
-            return NextResponse.redirect(url);
-          }
-        }
-      } catch { /* page API requests show backend availability errors */ }
-    }
-    return response;
-  }
-
-  // UX gate only; Go independently enforces administrative restrictions.
-  if (!pathname.startsWith("/seller/") && pathname !== "/") {
-    const { data: { session } } = await supabase.auth.getSession();
-    const base = serverGoApiBase();
-    if (base && session?.access_token) {
-      try {
-        const headers = { Authorization: `Bearer ${session.access_token}` };
-        const me = await fetch(`${base}/api/v1/pos/auth/me`, { headers, cache: "no-store" });
-        if (!me.ok) return response;
-        const profile = await me.json();
-        if (isPlatformAdmin(profile?.data)) {
-          if (!pathname.startsWith("/admin/")) { return NextResponse.redirect(redirectTo(request, ADMIN_HOME)); }
-          return response;
-        }
-        if (pathname.startsWith("/admin/")) { return NextResponse.redirect(redirectTo(request, "/dashboard")); }
-        const status = await fetch(`${base}/api/v1/seller-organizations/me`, { headers, cache: "no-store" });
-        const body = status.ok ? await status.json() : null;
-        const approval = body?.data?.approvalStatus;
-        const target = status.status === 404 ? "/seller/onboarding" : approval === "Pending" ? "/seller/pending" : approval === "Rejected" ? "/seller/rejected" : approval === "Suspended" ? "/seller/suspended" : null;
-        if (target) { return NextResponse.redirect(redirectTo(request, target)); }
-      } catch { /* backend failures are handled by the page/API client */ }
-    }
-  }
+  // Keep navigation fast and resilient: middleware only verifies the Supabase
+  // session. Capability, organization status, and role checks belong to the Go
+  // API, which enforces them independently for every protected operation.
   return response;
 }

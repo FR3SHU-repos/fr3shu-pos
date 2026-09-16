@@ -13,6 +13,7 @@ import {
   LogOut,
   Menu,
   X,
+  Settings,
 } from "lucide-react";
 // Boxes now labels "Stock"; the old warehouse-style "Inventory & lots" screen is gone.
 import { cx } from "@/shared/lib/utils";
@@ -30,6 +31,7 @@ const NAV = [
   { href: "/register-sessions", label: "Register sessions", icon: Calculator },
   { href: "/products", label: "Products", icon: Package },
   { href: "/stock", label: "Stock", icon: Boxes },
+  { href: "/settings", label: "Payment settings", icon: Settings },
 ];
 
 export default function SellerShell({ children }: { children: React.ReactNode }) {
