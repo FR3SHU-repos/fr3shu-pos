@@ -2,12 +2,14 @@
 
 import React, { use, useEffect, useState } from "react";
 import Link from "next/link";
-import { Printer } from "lucide-react";
+import { MessageCircle, Printer } from "lucide-react";
+import toast from "react-hot-toast";
 import { salesApi } from "@/shared/lib/api";
 import type { SaleDetail } from "@/shared/lib/api/sales";
 import { ghostBtnCls, Skeleton, StatusBadge } from "@/shared/components/ui";
 import { ReceiptView } from "@/shared/components/pos/ReceiptView";
 import { formatPaise } from "@/shared/lib/money";
+import { buildWhatsAppReceiptUrl } from "@/shared/lib/whatsapp-share";
 
 export default function SaleDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
@@ -30,6 +32,14 @@ export default function SaleDetailPage({ params }: { params: Promise<{ id: strin
     amountPaise: p.amountPaise,
     reference: p.upiRef,
   }));
+  const shareOnWhatsApp = () => {
+    const url = buildWhatsAppReceiptUrl(sale);
+    if (!url) {
+      toast.error("This sale does not have a valid Indian customer mobile number.");
+      return;
+    }
+    window.open(url, "_blank", "noopener,noreferrer");
+  };
 
   return (
     <div className="mx-auto max-w-md space-y-4">
@@ -38,6 +48,10 @@ export default function SaleDetailPage({ params }: { params: Promise<{ id: strin
           ← Back to history
         </Link>
         <div className="flex gap-2">
+          <button className={ghostBtnCls} onClick={shareOnWhatsApp}>
+            <MessageCircle className="h-4 w-4" />
+            Share via WhatsApp
+          </button>
           <button className={ghostBtnCls} onClick={() => window.print()}>
             <Printer className="h-4 w-4" />
             Print

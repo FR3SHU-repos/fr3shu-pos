@@ -15,6 +15,7 @@ import {
   PlayCircle,
   Coins,
   UserRoundSearch,
+  MessageCircle,
 } from "lucide-react";
 import { customersApi, productsApi, registersApi, salesApi, sellerOrgsApi } from "@/shared/lib/api";
 import type { ResolvedBuyer } from "@/shared/lib/api/customers";
@@ -36,6 +37,7 @@ import { formatBaseQuantity, SALE_UNIT_BASE, toBaseQuantity, type SaleUnit } fro
 import { clampQuantityToStock, remainingStockBase } from "@/shared/lib/pos-stock";
 import { translator, LOCALES, type Locale } from "@/shared/lib/i18n";
 import { ReceiptView, type ReceiptPaymentLine } from "@/shared/components/pos/ReceiptView";
+import { buildWhatsAppReceiptUrl } from "@/shared/lib/whatsapp-share";
 import { HELD_CARTS_KEY, type CartLine, type HeldCart } from "@/shared/components/pos/types";
 import { BuyerQrScanner } from "@/shared/components/pos/BuyerQrScanner";
 import { OFFLINE_SALES_SYNC_EVENT } from "@/shared/components/pos/OfflineSalesSyncWorker";
@@ -463,6 +465,15 @@ export default function PosPage() {
   }
 
   if (completed) {
+    const shareOnWhatsApp = () => {
+      const url = buildWhatsAppReceiptUrl(completed, { storeName: store.name });
+      if (!url) {
+        toast.error("Add a valid Indian customer mobile number to share this receipt.");
+        return;
+      }
+      window.open(url, "_blank", "noopener,noreferrer");
+    };
+
     return (
       <div className="mx-auto max-w-md space-y-5 text-center">
         <CheckCircle2 className="mx-auto h-14 w-14 text-status-success" />
@@ -499,7 +510,7 @@ export default function PosPage() {
           payments={completedPayment?.lines}
           changePaise={completedPayment?.changePaise}
         />
-        <div className="flex justify-center gap-2 no-print">
+        <div className="flex flex-wrap justify-center gap-2 no-print">
           <button
             className={primaryBtnCls}
             onClick={() => {
@@ -513,6 +524,10 @@ export default function PosPage() {
           <button className={ghostBtnCls} onClick={() => window.print()}>
             <Printer className="h-4 w-4" />
             {t("pos.print_receipt")}
+          </button>
+          <button className={ghostBtnCls} onClick={shareOnWhatsApp}>
+            <MessageCircle className="h-4 w-4" />
+            Share via WhatsApp
           </button>
         </div>
       </div>
