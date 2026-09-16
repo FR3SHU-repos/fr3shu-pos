@@ -128,11 +128,12 @@ export interface OfflineSaleInput {
 export type LocalStockDeductions = Record<string, number>;
 
 const DB_NAME = "komola-offline-pos-v1";
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 const SALE_STORE = "sales";
 const OUTBOX_STORE = "outbox";
 const CONTEXT_STORE = "contexts";
 const META_STORE = "meta";
+const HELD_CART_STORE = "heldCarts";
 
 function notifyOfflineSalesChanged() {
   if (typeof window !== "undefined") window.dispatchEvent(new Event("komola:offline-sales-changed"));
@@ -142,7 +143,7 @@ export function offlineScopeKey(scope: OfflineScope): string {
   return JSON.stringify([scope.userId, scope.orgId, scope.locationId]);
 }
 
-async function database(): Promise<IDBDatabase> {
+export async function openOfflineDatabase(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
     const request = indexedDB.open(DB_NAME, DB_VERSION);
     request.onupgradeneeded = () => {
@@ -151,6 +152,7 @@ async function database(): Promise<IDBDatabase> {
       if (!db.objectStoreNames.contains(OUTBOX_STORE)) db.createObjectStore(OUTBOX_STORE, { keyPath: "id" });
       if (!db.objectStoreNames.contains(CONTEXT_STORE)) db.createObjectStore(CONTEXT_STORE);
       if (!db.objectStoreNames.contains(META_STORE)) db.createObjectStore(META_STORE);
+      if (!db.objectStoreNames.contains(HELD_CART_STORE)) db.createObjectStore(HELD_CART_STORE);
     };
     request.onsuccess = () => resolve(request.result);
     request.onerror = () => reject(request.error);
@@ -380,7 +382,7 @@ export function buildOfflineSaleRecord(
 export async function saveOfflineSessionContext(scope: OfflineScope, session: SessionDTO): Promise<boolean> {
   if (typeof indexedDB === "undefined") return false;
   try {
-    const db = await database();
+    const db = await openOfflineDatabase();
     const tx = db.transaction(CONTEXT_STORE, "readwrite");
     tx.objectStore(CONTEXT_STORE).put({ session, savedAt: Date.now() }, offlineScopeKey(scope));
     await txDone(tx);
@@ -394,7 +396,7 @@ export async function saveOfflineSessionContext(scope: OfflineScope, session: Se
 export async function readOfflineSessionContext(scope: OfflineScope): Promise<{ session: SessionDTO; savedAt: number } | null> {
   if (typeof indexedDB === "undefined") return null;
   try {
-    const db = await database();
+    const db = await openOfflineDatabase();
     const tx = db.transaction(CONTEXT_STORE, "readonly");
     const result = await requestResult<{ session: SessionDTO; savedAt: number } | undefined>(
       tx.objectStore(CONTEXT_STORE).get(offlineScopeKey(scope)),
@@ -409,7 +411,7 @@ export async function readOfflineSessionContext(scope: OfflineScope): Promise<{ 
 
 export async function commitOfflineCashSale(input: OfflineSaleInput): Promise<OfflineSaleRecord> {
   if (typeof indexedDB === "undefined") throw new Error("Offline storage is not available in this browser.");
-  const db = await database();
+  const db = await openOfflineDatabase();
   try {
     const key = offlineScopeKey(input.scope);
     const tx = db.transaction([SALE_STORE, OUTBOX_STORE, META_STORE], "readwrite");
@@ -448,7 +450,7 @@ export async function commitOfflineCashSale(input: OfflineSaleInput): Promise<Of
 export async function listPendingOfflineSales(scope: OfflineScope): Promise<OfflineSaleRecord[]> {
   if (typeof indexedDB === "undefined") return [];
   try {
-    const db = await database();
+    const db = await openOfflineDatabase();
     const tx = db.transaction([SALE_STORE, OUTBOX_STORE], "readonly");
     const saleStore = tx.objectStore(SALE_STORE);
     const outboxStore = tx.objectStore(OUTBOX_STORE);
@@ -480,7 +482,7 @@ export async function listPendingOfflineSales(scope: OfflineScope): Promise<Offl
 export async function listOfflineSales(scope: OfflineScope): Promise<OfflineSaleRecord[]> {
   if (typeof indexedDB === "undefined") return [];
   try {
-    const db = await database();
+    const db = await openOfflineDatabase();
     const tx = db.transaction(SALE_STORE, "readonly");
     const all = await requestResult<OfflineSaleRecord[]>(tx.objectStore(SALE_STORE).getAll());
     await txDone(tx);
@@ -517,7 +519,7 @@ export async function markOfflineSaleSyncState(
 ): Promise<boolean> {
   if (typeof indexedDB === "undefined") return false;
   try {
-    const db = await database();
+    const db = await openOfflineDatabase();
     const tx = db.transaction([SALE_STORE, OUTBOX_STORE], "readwrite");
     const saleStore = tx.objectStore(SALE_STORE);
     const outboxStore = tx.objectStore(OUTBOX_STORE);
@@ -576,7 +578,7 @@ export async function repairOfflineSaleLines(
 ): Promise<OfflineSaleRecord> {
   if (typeof indexedDB === "undefined") throw new Error("Offline sale storage is not available.");
   if (changes.length === 0) throw new Error("Choose at least one line to repair.");
-  const db = await database();
+  const db = await openOfflineDatabase();
   try {
     const tx = db.transaction([SALE_STORE, OUTBOX_STORE], "readwrite");
     const saleStore = tx.objectStore(SALE_STORE);
@@ -628,7 +630,7 @@ export async function updateOfflineSaleCustomer(
   const customerPhone = normalizeOfflinePhone(patch.customerPhone);
   const buyerCode = patch.buyerCode?.trim().toUpperCase();
   if (buyerCode && !/^BYR-[A-F0-9]{10}$/.test(buyerCode)) throw new Error("Enter a valid buyer code.");
-  const db = await database();
+  const db = await openOfflineDatabase();
   try {
     const tx = db.transaction([SALE_STORE, OUTBOX_STORE], "readwrite");
     const saleStore = tx.objectStore(SALE_STORE);
@@ -675,7 +677,7 @@ export async function updateOfflineSaleCustomer(
 export async function cancelOfflineSale(scope: OfflineScope, operationId: string): Promise<boolean> {
   if (typeof indexedDB === "undefined") return false;
   try {
-    const db = await database();
+    const db = await openOfflineDatabase();
     const tx = db.transaction([SALE_STORE, OUTBOX_STORE], "readwrite");
     const saleStore = tx.objectStore(SALE_STORE);
     const outboxStore = tx.objectStore(OUTBOX_STORE);
@@ -702,7 +704,7 @@ export async function cancelOfflineSale(scope: OfflineScope, operationId: string
 export async function cleanupOfflineSales(scope: OfflineScope, olderThanMs = 7 * 24 * 60 * 60 * 1000): Promise<number> {
   if (typeof indexedDB === "undefined") return 0;
   try {
-    const db = await database();
+    const db = await openOfflineDatabase();
     const tx = db.transaction([SALE_STORE, OUTBOX_STORE], "readwrite");
     const saleStore = tx.objectStore(SALE_STORE);
     const outboxStore = tx.objectStore(OUTBOX_STORE);
@@ -735,7 +737,7 @@ export async function requeueBlockedOfflineSalesWithAvailableStock(
 ): Promise<number> {
   if (typeof indexedDB === "undefined" || products.length === 0) return 0;
   try {
-    const db = await database();
+    const db = await openOfflineDatabase();
     const tx = db.transaction([SALE_STORE, OUTBOX_STORE], "readwrite");
     const saleStore = tx.objectStore(SALE_STORE);
     const outboxStore = tx.objectStore(OUTBOX_STORE);
@@ -785,7 +787,7 @@ export async function requeueBlockedOfflineSalesWithAvailableStock(
 export async function requeueOfflineSale(scope: OfflineScope, operationId: string): Promise<boolean> {
   if (typeof indexedDB === "undefined") return false;
   try {
-    const db = await database();
+    const db = await openOfflineDatabase();
     const tx = db.transaction([SALE_STORE, OUTBOX_STORE], "readwrite");
     const saleStore = tx.objectStore(SALE_STORE);
     const outboxStore = tx.objectStore(OUTBOX_STORE);
@@ -825,7 +827,7 @@ export async function requeueOfflineSale(scope: OfflineScope, operationId: strin
 export async function incrementOfflineSaleAttempt(scope: OfflineScope, operationId: string, retryInMs: number, message?: string): Promise<void> {
   if (typeof indexedDB === "undefined") return;
   try {
-    const db = await database();
+    const db = await openOfflineDatabase();
     const tx = db.transaction([SALE_STORE, OUTBOX_STORE], "readwrite");
     const saleStore = tx.objectStore(SALE_STORE);
     const store = tx.objectStore(OUTBOX_STORE);

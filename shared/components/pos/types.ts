@@ -20,5 +20,3 @@ export interface HeldCart {
     discountPaise: number;
   }>;
 }
-
-export const HELD_CARTS_KEY = "fr3shu-pos:held-carts";

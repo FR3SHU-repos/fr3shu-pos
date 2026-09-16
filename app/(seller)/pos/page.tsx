@@ -38,7 +38,8 @@ import { clampQuantityToStock, remainingStockBase } from "@/shared/lib/pos-stock
 import { translator, LOCALES, type Locale } from "@/shared/lib/i18n";
 import { ReceiptView, type ReceiptPaymentLine } from "@/shared/components/pos/ReceiptView";
 import { buildWhatsAppReceiptUrl } from "@/shared/lib/whatsapp-share";
-import { HELD_CARTS_KEY, type CartLine, type HeldCart } from "@/shared/components/pos/types";
+import { type CartLine, type HeldCart } from "@/shared/components/pos/types";
+import { loadHeldCarts, saveHeldCarts } from "@/shared/lib/offline/held-carts";
 import { BuyerQrScanner } from "@/shared/components/pos/BuyerQrScanner";
 import { OFFLINE_SALES_SYNC_EVENT } from "@/shared/components/pos/OfflineSalesSyncWorker";
 import {
@@ -154,13 +155,15 @@ export default function PosPage() {
   }, []);
 
   useEffect(() => {
-    try {
-      const raw = localStorage.getItem(HELD_CARTS_KEY);
-      if (raw) setHeld(JSON.parse(raw) as HeldCart[]);
-    } catch {
-      /* ignore */
+    if (!offlineScope) {
+      return;
     }
-  }, []);
+    let current = true;
+    void loadHeldCarts(offlineScope)
+      .then((carts) => { if (current) setHeld(carts); })
+      .catch(() => { if (current) toast.error("Held carts could not be loaded on this device."); });
+    return () => { current = false; };
+  }, [offlineScope]);
 
   useEffect(() => {
     searchRef.current?.focus();
@@ -265,16 +268,13 @@ export default function PosPage() {
     idemRef.current = crypto.randomUUID();
   }
 
-  function persistHeld(next: HeldCart[]) {
+  async function persistHeld(next: HeldCart[]) {
+    if (!offlineScope) throw new Error("Seller scope is not ready.");
+    await saveHeldCarts(offlineScope, next);
     setHeld(next);
-    try {
-      localStorage.setItem(HELD_CARTS_KEY, JSON.stringify(next));
-    } catch {
-      /* ignore */
-    }
   }
 
-  function holdCart() {
+  async function holdCart() {
     if (lines.length === 0) return;
     const entry: HeldCart = {
       id: crypto.randomUUID(),
@@ -287,21 +287,34 @@ export default function PosPage() {
         discountPaise: l.discountPaise,
       })),
     };
-    persistHeld([entry, ...held].slice(0, 10));
+    try {
+      await persistHeld([entry, ...held].slice(0, 10));
+    } catch {
+      toast.error("Cart could not be held safely on this device.");
+      return;
+    }
     resetCart();
     toast.success("Cart held");
   }
 
-  function resumeCart(entry: HeldCart) {
+  async function resumeCart(entry: HeldCart) {
     const restored: CartLine[] = [];
     for (const l of entry.lines) {
-      const product = catalog.find((p) => p._id === l.productId);
-      if (product) {
-        restored.push({ key: crypto.randomUUID(), product, qty: l.qty, saleUnit: l.saleUnit, discountPaise: l.discountPaise });
+      const visibleProduct = catalog.find((p) => p._id === l.productId);
+      const product = visibleProduct ?? (await productsApi.get(l.productId)).data;
+      if (!product) {
+        toast.error("This held cart cannot be resumed until all of its products are available.");
+        return;
       }
+      restored.push({ key: crypto.randomUUID(), product, qty: l.qty, saleUnit: l.saleUnit, discountPaise: l.discountPaise });
+    }
+    try {
+      await persistHeld(held.filter((h) => h.id !== entry.id));
+    } catch {
+      toast.error("Held cart could not be updated on this device.");
+      return;
     }
     setLines(restored);
-    persistHeld(held.filter((h) => h.id !== entry.id));
     toast.success("Cart resumed");
   }
 

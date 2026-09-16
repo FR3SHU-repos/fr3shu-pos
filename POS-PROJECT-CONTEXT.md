@@ -35,6 +35,7 @@ This tracker records the offline-first POS work so implementation can continue w
 - Offline sales can be exported as a JSON backup for recovery; successful synced records are cleaned automatically, and manual cleanup removes old terminal records.
 - Multi-device offline limits are documented: each device has local stock knowledge only, and the server remains final authority at sync.
 - Broader offline summary tests cover dashboard cash totals, active sale-list merging, synced-local hiding, and export/cleanup no-IndexedDB safety.
+- Held carts are stored in versioned IndexedDB, isolated by seller/organization/location, and legacy localStorage carts migrate without being discarded.
 
 
 ### Multi-device offline limits
