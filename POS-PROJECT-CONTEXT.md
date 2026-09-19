@@ -1,5 +1,7 @@
 > Proposed offline extension (2026-09-13): [Offline POS proposal](docs/OFFLINE-POS-PROPOSAL.md). This is a phased design, not a statement of implemented billing behavior.
 
+> Startup and reload performance policy: [PERFORMANCE-STARTUP.md](docs/PERFORMANCE-STARTUP.md).
+
 > Historical reference. The current PostgreSQL architecture is documented in `cross-platform-assets/project-context.md`.
 
 # KOMOLA Organic POS — Project Context

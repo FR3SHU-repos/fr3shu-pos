@@ -13,6 +13,9 @@ Browser API calls use the typed clients in `shared/lib/api/` and the database-fr
 `NEXT_PUBLIC_API_BASE_URL` / `NEXT_PUBLIC_CATALOGUE_API_BASE_URL` aliases.
 Server auth callbacks also call the configured Go server over HTTP.
 
+Startup/reload performance rules and caching strategy are documented in
+[docs/PERFORMANCE-STARTUP.md](docs/PERFORMANCE-STARTUP.md).
+
 Supabase Auth owns password login, OAuth, password reset and sign-out. Go verifies
 the access token and looks up organization membership in PostgreSQL. UI domain
 interfaces are under `shared/interfaces/domain`; they are not database models.
