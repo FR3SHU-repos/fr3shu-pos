@@ -28,18 +28,8 @@ export async function updateSession(request: NextRequest): Promise<NextResponse>
   let response = NextResponse.next({ request });
   if (!URL || !KEY) return response;
 
-  // Some Supabase confirmation/OAuth links can fall back to their requested
-  // destination while still carrying the PKCE code. Always exchange that code
-  // in the callback before a protected page or API attempts to use the session.
   const { pathname, searchParams } = request.nextUrl;
   const authCode = searchParams.get("code");
-  if (isAuthLandingPath(pathname) && authCode && /^[0-9a-f-]{36}$/i.test(authCode)) {
-    const callback = redirectTo(request, "/auth/callback");
-    callback.searchParams.set("code", authCode);
-    callback.searchParams.set("next", safe(pathname) ? pathname : "/dashboard");
-    if (isBuyerExperiencePath(pathname)) callback.searchParams.set("as", "buyer");
-    return NextResponse.redirect(callback);
-  }
 
   // These routes do not use the middleware's verified user. API requests
   // carry their bearer token to Go, and auth routes manage their own session.
@@ -66,6 +56,23 @@ export async function updateSession(request: NextRequest): Promise<NextResponse>
   const {
     data: { user },
   } = await supabase.auth.getUser();
+
+  // Supabase can occasionally return an OAuth code to the original landing
+  // path instead of the configured callback. Exchange it only when there is
+  // no session yet. If the callback already stored the session, strip the
+  // stale code instead of sending the browser through the callback again;
+  // this prevents Safari's "too many redirects" loop.
+  if (isAuthLandingPath(pathname) && authCode && /^[0-9a-f-]{36}$/i.test(authCode)) {
+    if (user) {
+      const clean = redirectTo(request, pathname);
+      return NextResponse.redirect(clean);
+    }
+    const callback = redirectTo(request, "/auth/callback");
+    callback.searchParams.set("code", authCode);
+    callback.searchParams.set("next", safe(pathname) ? pathname : "/dashboard");
+    if (isBuyerExperiencePath(pathname)) callback.searchParams.set("as", "buyer");
+    return NextResponse.redirect(callback);
+  }
 
   if (!user) {
     const url = redirectTo(request, "/login");
