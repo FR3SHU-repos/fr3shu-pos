@@ -1,8 +1,11 @@
-import { describe, expect, it } from "vitest";
+import "fake-indexeddb/auto";
+import { beforeEach, describe, expect, it } from "vitest";
 import {
   buildOfflineSaleRecord,
   applyLocalStockDeductions,
   applyOfflineSaleLineRepair,
+  commitOfflineCashSale,
+  listPendingOfflineSales,
   localStockDeductions,
   offlineSaleToDTO,
   parseRupeesToPaise,
@@ -35,6 +38,14 @@ const session: SessionDTO = {
     saleCount: 0,
   },
 };
+
+beforeEach(async () => {
+  await new Promise<void>((resolve, reject) => {
+    const request = indexedDB.deleteDatabase("komola-offline-pos-v1");
+    request.onsuccess = () => resolve();
+    request.onerror = () => reject(request.error);
+  });
+});
 
 function product(overrides: Partial<ProductDTO> = {}): ProductDTO {
   return {
@@ -70,6 +81,25 @@ function line(overrides: Partial<CartLine> = {}): CartLine {
 }
 
 describe("offline cash sales", () => {
+  it("atomically persists the sale, outbox, and receipt sequence", async () => {
+    const input = {
+      scope,
+      session,
+      cashierId: "cashier-1",
+      lines: [line()],
+      cashReceivedPaise: 10000,
+      customerName: "Asha",
+      operationId: "atomic-op-1",
+    };
+
+    const sale = await commitOfflineCashSale(input);
+    expect((await listPendingOfflineSales(scope)).map((item) => item.id)).toEqual([sale.id]);
+
+    const replay = await commitOfflineCashSale(input);
+    expect(replay.id).toBe(sale.id);
+    expect((await listPendingOfflineSales(scope)).length).toBe(1);
+  });
+
   it("parses rupee input into integer paise", () => {
     expect(parseRupeesToPaise("95")).toBe(9500);
     expect(parseRupeesToPaise("95.5")).toBe(9550);

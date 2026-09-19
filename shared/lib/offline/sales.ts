@@ -417,6 +417,16 @@ export async function commitOfflineCashSale(input: OfflineSaleInput): Promise<Of
     const key = offlineScopeKey(input.scope);
     const tx = db.transaction([SALE_STORE, OUTBOX_STORE, META_STORE], "readwrite");
     const metaStore = tx.objectStore(META_STORE);
+    // Replays can happen when the browser crashes after IndexedDB commits but
+    // before the UI receives the result. Treat the operation ID as an atomic
+    // local idempotency key instead of creating a second receipt.
+    const existing = await requestResult<OfflineSaleRecord | undefined>(
+      tx.objectStore(SALE_STORE).get(input.operationId ?? ""),
+    );
+    if (existing) {
+      await txDone(tx);
+      return existing;
+    }
     const existingSales = await requestResult<OfflineSaleRecord[]>(tx.objectStore(SALE_STORE).getAll());
     const deductions = localStockDeductions(
       existingSales.filter((sale) => offlineScopeKey(sale.scope) === key),

@@ -9,6 +9,9 @@ contract, and offline tests.
   fallback.
 - IndexedDB-backed scoped product snapshots and offline catalogue browsing.
 - Local held carts and offline-sale records with durable operation IDs.
+- Atomic local cash checkout: sale, receipt/cash/change, outbox entry, and
+  receipt sequence are committed in one IndexedDB transaction; operation-ID
+  replays are locally idempotent.
 - Offline cash-sale queue, automatic/manual retry, status display, local
   receipt view, export backup, repair of blocked lines/customer details, and
   local cancellation.
@@ -26,30 +29,27 @@ first-release acceptance criteria:
 1. Offline readiness/enrollment: enrolled terminal/register binding, bounded
    offline authorization grant, expiry, revocation handling, and local unlock
    after browser restart.
-2. Atomic local checkout transaction: persist immutable sale, receipt snapshot,
-   cash received/applied/change, local inventory effect, outbox entry, and cart
-   completion in one IndexedDB transaction before showing success.
-3. Durable outbox leasing: transactional single-uploader claim, expiry/recovery
+2. Durable outbox leasing: transactional single-uploader claim, expiry/recovery
    after crashes, bounded batches, exponential backoff/jitter, and
    `Retry-After` handling.
-4. Historical pricing and lot correctness: cache price/tax/lot snapshots and a
+3. Historical pricing and lot correctness: cache price/tax/lot snapshots and a
    versioned stale-price policy; current aggregate product caching cannot safely
    promise lot allocation while offline.
-5. Inventory reconciliation: retain local deductions until a server snapshot or
+4. Inventory reconciliation: retain local deductions until a server snapshot or
    cursor includes the accepted sale, avoiding double deduction or temporary
    stock restoration.
-6. Local cash semantics: persist tendered cash and change as first-class sale
+5. Local cash semantics: persist tendered cash and change as first-class sale
    data and validate insufficient/invalid cash before local commit.
-7. Recovery hardening: persistent-storage/quota checks, protected pending data
+6. Recovery hardening: persistent-storage/quota checks, protected pending data
    across logout/account switching, schema migration failure handling, and
    validated import/recovery of exported records.
-8. Service-worker/PWA hardening: production deep-link/reload verification,
+7. Service-worker/PWA hardening: production deep-link/reload verification,
    complete shell asset precaching, safe upgrades, and proof that migrations
    never delete pending financial records.
-9. Full failure matrix: lost response after server commit, concurrent tabs,
+8. Full failure matrix: lost response after server commit, concurrent tabs,
    duplicate/altered operation IDs, shift closure, revoked user/device,
    archived products, stale prices, insufficient stock, and restored backups.
-10. Pilot gates: supported browser/device matrix, receipt-printing tests,
+9. Pilot gates: supported browser/device matrix, receipt-printing tests,
     storage-denial/eviction tests, five-sale acceptance run, and a feature flag
     preventing unprepared terminals from accepting offline sales.
 

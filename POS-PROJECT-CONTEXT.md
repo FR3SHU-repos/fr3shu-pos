@@ -35,6 +35,7 @@ This tracker records the offline-first POS work so implementation can continue w
 - Register session reconciliation shows server cash, pending offline cash, combined expected cash, and variance against the combined drawer total.
 - Blocked offline sale conflicts can be repaired by reducing quantities or removing product lines, with totals/cash/change recalculated before requeueing sync.
 - Offline sales can be exported as a JSON backup for recovery; successful synced records are cleaned automatically, and manual cleanup removes old terminal records.
+- Offline checkout commits the immutable sale, cash/change, outbox entry, and receipt sequence in one IndexedDB transaction; replaying an operation ID returns the existing local sale.
 - Multi-device offline limits are documented: each device has local stock knowledge only, and the server remains final authority at sync.
 - Broader offline summary tests cover dashboard cash totals, active sale-list merging, synced-local hiding, and export/cleanup no-IndexedDB safety.
 - Held carts are stored in versioned IndexedDB, isolated by seller/organization/location, and legacy localStorage carts migrate without being discarded.
@@ -52,7 +53,7 @@ The first offline POS implementation pass is complete. Future hardening can add 
 
 ### Current next task
 
-Run a real browser QA pass: create an offline sale, refresh while offline, reconnect, confirm it auto-syncs and disappears from the offline panel, then verify it appears as a completed server sale in dashboard/history/register totals.
+Implement durable outbox leasing: transactional single-uploader claims, crash recovery after lease expiry, bounded batches, exponential backoff with jitter, and `Retry-After` handling. Then run a real browser QA pass: create an offline sale, refresh while offline, reconnect, confirm it auto-syncs and disappears from the offline panel, then verify it appears as a completed server sale in dashboard/history/register totals.
 
 
 > **⚠️ Partly superseded (2026-09).** Sections 2 (architecture), 3 (roles /
