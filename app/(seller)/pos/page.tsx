@@ -113,10 +113,29 @@ export default function PosPage() {
   }, [offlineScope]);
 
   const load = useCallback(async () => {
-    const [ov, pl] = await Promise.all([
-      registersApi.overview(),
-      productsApi.list({ limit: 12, status: "active" }),
+    // Do not block the POS shell indefinitely on a slow/unavailable backend.
+    // The last locally saved register context is enough to render the screen;
+    // catalogue hydration and server refresh can complete independently.
+    const result = await Promise.race([
+      Promise.all([
+        registersApi.overview(),
+        productsApi.list({ limit: 12, status: "active" }),
+      ]),
+      new Promise<null>((resolve) => window.setTimeout(() => resolve(null), 1500)),
     ]);
+    if (!result) {
+      if (offlineScope) {
+        const saved = await readOfflineSessionContext(offlineScope);
+        if (saved) {
+          setSession(saved.session);
+          setOfflineSessionSavedAt(saved.savedAt);
+        }
+      }
+      await refreshPendingOfflineCount();
+      setLoading(false);
+      return;
+    }
+    const [ov, pl] = result;
     if (ov.success && ov.data) {
       setSession(ov.data.currentSession);
       if (offlineScope && ov.data.currentSession) {
