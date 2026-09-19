@@ -21,7 +21,7 @@ export function RegisterForm({ intent }: { intent: AuthIntent }) {
     if (googleBusy) return;
     setGoogleBusy(true); setError("");
     rememberAuthIntent(intent);
-    const redirectTo = authCallbackRedirect(window.location.origin);
+    const redirectTo = authCallbackRedirect(window.location.origin, { intent });
     const { error } = await createAuthBrowserClient().auth.signInWithOAuth({ provider: "google", options: { redirectTo } });
     if (error) { setGoogleBusy(false); setError("Google registration is temporarily unavailable."); }
   }

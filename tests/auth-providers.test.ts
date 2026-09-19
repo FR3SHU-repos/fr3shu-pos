@@ -14,4 +14,8 @@ describe("seller auth providers", () => {
     expect(authCallbackRedirect("http://localhost:3000")).toBe("http://localhost:3000/auth/callback");
     expect(authCallbackRedirect("https://pos.komola.in")).toBe("https://pos.komola.in/auth/callback");
   });
+  it("carries OAuth intent and a safe destination in the callback URL", () => {
+    expect(authCallbackRedirect("https://pos.komola.in", { intent: "seller", next: "/dashboard" }))
+      .toBe("https://pos.komola.in/auth/callback?as=seller&next=%2Fdashboard");
+  });
 });

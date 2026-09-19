@@ -1,4 +1,8 @@
-# KOMOLA Organic POS — API (`/api/v1`)
+# KOMOLA Organic POS — historical API notes
+
+> This file is retained for migration history only. The current API is the Go
+> backend contract in [`go-api-backend/docs/api-current.md`](../go-api-backend/docs/api-current.md)
+> and [`go-api-backend/openapi/openapi.yaml`](../go-api-backend/openapi/openapi.yaml).
 
 > **⚠️ Superseded (2026-09).** This document describes the earlier embedded
 > Mongoose slice, where this app served `/api/v1/*` itself and auth was a local

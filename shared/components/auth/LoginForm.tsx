@@ -109,7 +109,9 @@ export function LoginForm({ intent }: { intent: AuthIntent }) {
   async function onGoogle() {
     setGoogleBusy(true);
     rememberAuthIntent(intent);
-    const redirectTo = authCallbackRedirect(window.location.origin);
+    // Keep intent in the OAuth redirect itself. Safari can be stricter about
+    // short-lived client cookies across an external-provider round trip.
+    const redirectTo = authCallbackRedirect(window.location.origin, { intent, next });
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
       options: { redirectTo },
