@@ -18,6 +18,7 @@ import {
 // Boxes now labels "Stock"; the old warehouse-style "Inventory & lots" screen is gone.
 import { cx } from "@/shared/lib/utils";
 import { usePosUser } from "@/shared/context/PosUserContext";
+import { getMyOrganization, sellerDestination } from "@/shared/lib/api/sellerOrgs";
 import { Skeleton } from "@/shared/components/ui";
 
 import { OfflineCatalogue } from "@/shared/components/products/OfflineCatalogue";
@@ -45,17 +46,22 @@ export default function SellerShell({ children }: { children: React.ReactNode })
   }, [loading, user, router]);
 
   useEffect(() => {
+    if (loading || !user) return;
+    let active = true;
+    void getMyOrganization().then((result) => {
+      if (!active || result.status === 0) return;
+      if (result.status === 404) router.replace("/seller/onboarding");
+      else {
+        const destination = sellerDestination(result.data?.approvalStatus);
+        if (destination && destination !== pathname) router.replace(destination);
+      }
+    });
+    return () => { active = false; };
+  }, [loading, pathname, router, user]);
+
+  useEffect(() => {
     setMobileOpen(false);
   }, [pathname]);
-
-  if (loading || !user) {
-    return (
-      <div className="min-h-screen p-6">
-        <Skeleton className="mb-4 h-10 w-48" />
-        <Skeleton className="h-64 w-full" />
-      </div>
-    );
-  }
 
   const nav = (
     <nav className="flex flex-col gap-1">
@@ -86,7 +92,7 @@ export default function SellerShell({ children }: { children: React.ReactNode })
       <aside className="hidden w-64 shrink-0 flex-col border-r border-border bg-surface-card p-4 lg:flex">
         <Brand />
         <div className="mt-6 flex-1">{nav}</div>
-        <UserFooter name={user.name} role={user.role} onLogout={handleLogout} />
+        {user ? <UserFooter name={user.name} role={user.role} onLogout={handleLogout} /> : <Skeleton className="h-10 w-full" />}
       </aside>
 
       {/* Mobile top bar */}
@@ -107,15 +113,15 @@ export default function SellerShell({ children }: { children: React.ReactNode })
           <div className="border-b border-border bg-surface-card p-4 lg:hidden">
             {nav}
             <div className="mt-4">
-              <UserFooter name={user.name} role={user.role} onLogout={handleLogout} />
+              {user ? <UserFooter name={user.name} role={user.role} onLogout={handleLogout} /> : <Skeleton className="h-10 w-full" />}
             </div>
           </div>
         ) : null}
 
         <main className="min-w-0 flex-1 p-4 sm:p-6">
-          <OfflineSalesSyncWorker key={`sales-sync:${user.id}:${user.orgId}:${user.locationId}`} />
-          <OfflineCatalogue key={`catalogue:${user.id}:${user.orgId}:${user.locationId}`} />
-          <OfflineSalesPanel key={`sales:${user.id}:${user.orgId}:${user.locationId}`} />
+          {user ? <OfflineSalesSyncWorker key={`sales-sync:${user.id}:${user.orgId}:${user.locationId}`} /> : null}
+          {user ? <OfflineCatalogue key={`catalogue:${user.id}:${user.orgId}:${user.locationId}`} /> : null}
+          {user ? <OfflineSalesPanel key={`sales:${user.id}:${user.orgId}:${user.locationId}`} /> : null}
           {children}
         </main>
       </div>
