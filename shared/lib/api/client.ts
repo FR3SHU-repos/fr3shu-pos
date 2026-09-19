@@ -62,6 +62,8 @@ export interface RequestOptions {
   idempotencyKey?: string;
 }
 
+const inFlightGets = new Map<string, Promise<ApiResult<unknown>>>();
+
 /** The current Supabase access token (browser only), for `Authorization: Bearer`. */
 async function supabaseBearer(): Promise<string | null> {
   if (typeof window === "undefined") return null;
@@ -93,7 +95,14 @@ async function requestAt<T>(base: string, path: string, opts: RequestOptions = {
 
   const bearer = await supabaseBearer();
 
-  try {
+  const isCacheableGet = method === "GET" && !signal;
+  const cacheKey = isCacheableGet ? `${target}|${bearer ?? "anonymous"}` : "";
+  if (cacheKey) {
+    const existing = inFlightGets.get(cacheKey);
+    if (existing) return existing as Promise<ApiResult<T>>;
+  }
+
+  const requestPromise = (async () => { try {
     const res = await fetch(target, {
       method,
       credentials: "include",
@@ -114,7 +123,15 @@ async function requestAt<T>(base: string, path: string, opts: RequestOptions = {
       data: null,
       status: 0,
     };
+  } })();
+  if (cacheKey) {
+    inFlightGets.set(cacheKey, requestPromise as Promise<ApiResult<unknown>>);
+    void requestPromise.then(
+      () => inFlightGets.delete(cacheKey),
+      () => inFlightGets.delete(cacheKey),
+    );
   }
+  return requestPromise;
 }
 
 /** Call an arbitrary `/api/v1/<path>` operation on the Go backend. */
