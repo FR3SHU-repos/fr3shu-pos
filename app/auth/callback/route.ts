@@ -54,8 +54,15 @@ export async function GET(request: NextRequest) {
       cache: "no-store",
     });
     if (!reconciled.ok) return NextResponse.redirect(`${origin}/login?error=reconcile_failed`);
-    const capabilitiesResponse = await fetch(`${apiBase}/api/v1/me/capabilities`, { headers, cache: "no-store" });
-    if (!capabilitiesResponse.ok) return NextResponse.redirect(`${origin}/login?error=reconcile_failed`);
+    // These reads are independent after reconciliation. Running them together
+    // shortens the first post-Google navigation, which is especially
+    // important in Safari where a slow callback can surface as a page-load
+    // failure even though the auth cookies were already stored.
+    const [capabilitiesResponse, me] = await Promise.all([
+      fetch(`${apiBase}/api/v1/me/capabilities`, { headers, cache: "no-store" }),
+      fetch(`${apiBase}/api/v1/pos/auth/me`, { headers, cache: "no-store" }),
+    ]);
+    if (!capabilitiesResponse.ok || !me.ok) return NextResponse.redirect(`${origin}/login?error=reconcile_failed`);
     const capabilitiesBody = await capabilitiesResponse.json();
     const capabilities = capabilitiesBody?.data ?? { buyer: false, seller: false };
 
@@ -78,13 +85,9 @@ export async function GET(request: NextRequest) {
     }
     if (destination === "/buyer") return NextResponse.redirect(`${origin}/buyer`);
 
-    const [me, status] = await Promise.all([
-      fetch(`${apiBase}/api/v1/pos/auth/me`, { headers, cache: "no-store" }),
-      destination === "/dashboard"
-        ? fetch(`${apiBase}/api/v1/seller-organizations/me`, { headers, cache: "no-store" })
-        : Promise.resolve(null),
-    ]);
-    if (!me.ok) return NextResponse.redirect(`${origin}/login?error=reconcile_failed`);
+    const status = destination === "/dashboard"
+      ? await fetch(`${apiBase}/api/v1/seller-organizations/me`, { headers, cache: "no-store" })
+      : null;
     const profile = await me.json();
     if (isPlatformAdmin(profile?.data)) {
       destination = ADMIN_HOME;
