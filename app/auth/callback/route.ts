@@ -58,13 +58,20 @@ export async function GET(request: NextRequest) {
     // shortens the first post-Google navigation, which is especially
     // important in Safari where a slow callback can surface as a page-load
     // failure even though the auth cookies were already stored.
-    const [capabilitiesResponse, me] = await Promise.all([
-      fetch(`${apiBase}/api/v1/me/capabilities`, { headers, cache: "no-store" }),
-      fetch(`${apiBase}/api/v1/pos/auth/me`, { headers, cache: "no-store" }),
-    ]);
-    if (!capabilitiesResponse.ok || !me.ok) return NextResponse.redirect(`${origin}/login?error=reconcile_failed`);
-    const capabilitiesBody = await capabilitiesResponse.json();
-    const capabilities = capabilitiesBody?.data ?? { buyer: false, seller: false };
+    const bootstrapResponse = intent === "seller"
+      ? await fetch(`${apiBase}/api/v1/pos/bootstrap`, { headers, cache: "no-store" })
+      : null;
+    const [capabilitiesResponse, me] = intent === "seller"
+      ? [null, null]
+      : await Promise.all([
+          fetch(`${apiBase}/api/v1/me/capabilities`, { headers, cache: "no-store" }),
+          fetch(`${apiBase}/api/v1/pos/auth/me`, { headers, cache: "no-store" }),
+        ]);
+    if (intent === "seller" && !bootstrapResponse?.ok) return NextResponse.redirect(`${origin}/login?error=reconcile_failed`);
+    if (intent !== "seller" && (!capabilitiesResponse?.ok || !me?.ok)) return NextResponse.redirect(`${origin}/login?error=reconcile_failed`);
+    const bootstrapBody = bootstrapResponse ? await bootstrapResponse.json() : null;
+    const capabilitiesBody = bootstrapBody ?? await capabilitiesResponse!.json();
+    const capabilities = capabilitiesBody?.data?.capabilities ?? capabilitiesBody?.data ?? { buyer: false, seller: false };
 
     // A registered category takes priority over the category selected during
     // login. Only identities with no category enter an onboarding flow.
@@ -85,7 +92,7 @@ export async function GET(request: NextRequest) {
     }
     if (destination === "/buyer") return NextResponse.redirect(`${origin}/buyer`);
 
-    const profile = await me.json();
+    const profile = bootstrapBody?.data?.user ?? await me!.json();
     if (isPlatformAdmin(profile?.data)) {
       destination = ADMIN_HOME;
     }

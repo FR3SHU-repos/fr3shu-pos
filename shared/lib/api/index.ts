@@ -10,6 +10,7 @@ export * as sellerOrgsApi from "./sellerOrgs";
 export * as identityApi from "./identity";
 export * as rewardsApi from "./rewards";
 export * as receiptsApi from "./receipts";
+export * as bootstrapApi from "./bootstrap";
 export * as customersApi from "./customers";
 export { request } from "./client";
 export type { ApiResult } from "./client";

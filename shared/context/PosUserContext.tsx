@@ -1,16 +1,18 @@
 "use client";
 
 import React, { createContext, useCallback, useContext, useEffect, useState } from "react";
-import { authApi, identityApi } from "@/shared/lib/api";
+import { authApi, bootstrapApi } from "@/shared/lib/api";
 import type { SessionUser } from "@/shared/lib/api/auth";
 import type { Capabilities } from "@/shared/lib/api/identity";
 import { createAuthBrowserClient } from "@/shared/lib/supabase/auth-client";
 
 import { setProductScope } from "@/shared/lib/offline/products";
+import type { MyOrganization } from "@/shared/lib/api/sellerOrgs";
 
 interface PosUserContextValue {
   user: SessionUser | null;
   capabilities: Capabilities | null;
+  organization: MyOrganization | null;
   loading: boolean;
   setUser: (u: SessionUser | null) => void;
   refresh: () => Promise<void>;
@@ -20,6 +22,7 @@ interface PosUserContextValue {
 const PosUserContext = createContext<PosUserContextValue>({
   user: null,
   capabilities: null,
+  organization: null,
   loading: true,
   setUser: () => {},
   refresh: async () => {},
@@ -29,18 +32,20 @@ const PosUserContext = createContext<PosUserContextValue>({
 export function PosUserProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<SessionUser | null>(null);
   const [capabilities, setCapabilities] = useState<Capabilities | null>(null);
+  const [organization, setOrganization] = useState<MyOrganization | null>(null);
   const [loading, setLoading] = useState(true);
 
   const refresh = useCallback(async () => {
-    const [session, access] = await Promise.all([authApi.me(), identityApi.capabilities()]);
+    const result = await bootstrapApi.load();
     // A connection loss must not evict an already open seller workspace.
-    if (session.status === 0 || session.status >= 500) {
+    if (result.status === 0 || result.status >= 500) {
       setLoading(false);
       return;
     }
-    setProductScope(session.success ? session.data : null);
-    setUser(session.success ? session.data : null);
-    setCapabilities(access.success ? access.data : null);
+    setProductScope(result.success ? result.data?.user ?? null : null);
+    setUser(result.success ? result.data?.user ?? null : null);
+    setCapabilities(result.success ? result.data?.capabilities ?? null : null);
+    setOrganization(result.success ? result.data?.organization ?? null : null);
     setLoading(false);
   }, []);
 
@@ -49,6 +54,7 @@ export function PosUserProvider({ children }: { children: React.ReactNode }) {
     await authApi.logout();
     setUser(null);
     setCapabilities(null);
+    setOrganization(null);
   }, []);
 
   useEffect(() => {
@@ -62,6 +68,7 @@ export function PosUserProvider({ children }: { children: React.ReactNode }) {
         setProductScope(null);
         setUser(null);
         setCapabilities(null);
+        setOrganization(null);
         setLoading(false);
         return;
       }
@@ -74,7 +81,7 @@ export function PosUserProvider({ children }: { children: React.ReactNode }) {
   }, [refresh]);
 
   return (
-    <PosUserContext.Provider value={{ user, capabilities, loading, setUser, refresh, logout }}>
+    <PosUserContext.Provider value={{ user, capabilities, organization, loading, setUser, refresh, logout }}>
       {children}
     </PosUserContext.Provider>
   );

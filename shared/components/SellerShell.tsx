@@ -18,7 +18,7 @@ import {
 // Boxes now labels "Stock"; the old warehouse-style "Inventory & lots" screen is gone.
 import { cx } from "@/shared/lib/utils";
 import { usePosUser } from "@/shared/context/PosUserContext";
-import { getMyOrganization, sellerDestination } from "@/shared/lib/api/sellerOrgs";
+import { sellerDestination } from "@/shared/lib/api/sellerOrgs";
 import { Skeleton } from "@/shared/components/ui";
 
 import { OfflineCatalogue } from "@/shared/components/products/OfflineCatalogue";
@@ -36,7 +36,7 @@ const NAV = [
 ];
 
 export default function SellerShell({ children }: { children: React.ReactNode }) {
-  const { user, loading, logout } = usePosUser();
+  const { user, organization, loading, logout } = usePosUser();
   const router = useRouter();
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -46,18 +46,10 @@ export default function SellerShell({ children }: { children: React.ReactNode })
   }, [loading, user, router]);
 
   useEffect(() => {
-    if (loading || !user) return;
-    let active = true;
-    void getMyOrganization().then((result) => {
-      if (!active || result.status === 0) return;
-      if (result.status === 404) router.replace("/seller/onboarding");
-      else {
-        const destination = sellerDestination(result.data?.approvalStatus);
-        if (destination && destination !== pathname) router.replace(destination);
-      }
-    });
-    return () => { active = false; };
-  }, [loading, pathname, router, user]);
+    if (loading || !user || !organization) return;
+    const destination = sellerDestination(organization.approvalStatus);
+    if (destination && destination !== pathname) router.replace(destination);
+  }, [loading, organization, pathname, router, user]);
 
   useEffect(() => {
     setMobileOpen(false);
