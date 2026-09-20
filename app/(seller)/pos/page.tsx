@@ -615,11 +615,14 @@ export default function PosPage() {
   }
 
   return (
-    <div className="grid gap-4 lg:grid-cols-[1fr_380px]">
+    <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_390px]">
       {/* Left: search + results */}
-      <div className="space-y-4">
-        <div className="flex items-center justify-between gap-2">
-          <h1 className="text-lg font-semibold text-foreground-heading">{t("pos.title")}</h1>
+      <div className="space-y-5">
+        <div className="flex items-end justify-between gap-3">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wider text-primary">Checkout</p>
+            <h1 className="mt-1 text-2xl font-bold text-foreground-heading">{t("pos.title")}</h1>
+          </div>
           <select
             value={locale}
             onChange={(e) => setLocale(e.target.value as Locale)}
@@ -634,7 +637,7 @@ export default function PosPage() {
           </select>
         </div>
 
-        <div className="relative">
+        <div className="relative rounded-2xl border border-border bg-white p-2 shadow-sm">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-foreground-muted" />
           <input
             ref={searchRef}
@@ -642,29 +645,40 @@ export default function PosPage() {
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={onSearchKey}
             placeholder={t("pos.search")}
-            className={`${inputCls} pl-9`}
+            className={`${inputCls} border-0 bg-surface pl-10 shadow-none focus:ring-0`}
             autoComplete="off"
           />
         </div>
 
-        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-base font-semibold text-foreground-heading">Products</h2>
+            <p className="text-xs text-foreground-muted">Tap a product to add it to the cart</p>
+          </div>
+          <span className="rounded-full bg-surface px-3 py-1 text-xs font-medium text-foreground-muted">{results.length} available</span>
+        </div>
+
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
           {results.map((p) => (
             <button
               key={p._id}
               type="button"
               onClick={() => addProduct(p)}
               disabled={p.availableBase <= 0}
-              className="flex min-h-16 flex-col items-start rounded-xl border border-border bg-surface-card p-3 text-left transition hover:border-border-focus disabled:cursor-not-allowed disabled:opacity-50"
+              className="group flex min-h-36 flex-col items-start rounded-2xl border border-border bg-white p-3 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-primary/50 hover:shadow-md disabled:cursor-not-allowed disabled:opacity-45"
             >
-              <span className="line-clamp-2 text-sm font-medium text-foreground-heading">
+              <div className="mb-3 flex h-16 w-full items-center justify-center overflow-hidden rounded-xl bg-surface">
+                {p.imageUrl ? <img src={p.imageUrl} alt="" className="h-full w-full object-cover" /> : <span className="text-[11px] text-foreground-muted">No image</span>}
+              </div>
+              <span className="line-clamp-2 text-sm font-semibold text-foreground-heading group-hover:text-primary">
                 {p.name}
               </span>
-              <span className="mt-1 text-xs text-foreground-muted">
+              <span className="mt-1 text-sm font-semibold text-primary">
                 {typeof p.basePricePaise === "number" ? formatPaise(p.basePricePaise) : "—"} /{" "}
                 {p.saleUnit}
               </span>
-              <span className="mt-1 text-xs font-semibold text-foreground-body">
-                Stock: {formatBaseQuantity(remainingStockBase(p.availableBase, lines.find((line) => line.product._id === p._id)?.qty ?? 0, lines.find((line) => line.product._id === p._id)?.saleUnit ?? p.saleUnit), p.saleUnit)}
+              <span className={cx("mt-auto pt-2 text-xs font-medium", p.availableBase > 0 ? "text-status-success" : "text-status-danger")}>
+                {p.availableBase > 0 ? "Stock: " : "Out of stock · "}{formatBaseQuantity(remainingStockBase(p.availableBase, lines.find((line) => line.product._id === p._id)?.qty ?? 0, lines.find((line) => line.product._id === p._id)?.saleUnit ?? p.saleUnit), p.saleUnit)}
               </span>
             </button>
           ))}
@@ -699,9 +713,12 @@ export default function PosPage() {
       </div>
 
       {/* Right: cart */}
-      <div className={cx(cardCls, "flex h-fit flex-col lg:sticky lg:top-6")}>
-        <div className="mb-2 flex items-center justify-between">
-          <h2 className="text-sm font-semibold text-foreground-heading">{t("pos.cart")}</h2>
+      <div className={cx(cardCls, "flex h-fit flex-col border-primary/20 bg-white p-5 shadow-md lg:sticky lg:top-6")}>
+        <div className="mb-4 flex items-center justify-between border-b border-border pb-4">
+          <div>
+            <h2 className="text-lg font-bold text-foreground-heading">{t("pos.cart")}</h2>
+            <p className="mt-0.5 text-xs text-foreground-muted">Review items before payment</p>
+          </div>
           {lines.length > 0 ? (
             <button
               className="flex items-center gap-1 text-xs text-foreground-muted"
