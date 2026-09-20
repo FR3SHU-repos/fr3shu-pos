@@ -97,7 +97,7 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
 
   return (
     <div className="mx-auto max-w-xl space-y-5">
-      <header className="flex items-center justify-between">
+      <header className="flex items-start justify-between gap-4">
         <div>
           <h1 className="text-xl font-semibold text-foreground-heading">{product.name}</h1>
           <p className="text-xs text-foreground-muted">
@@ -105,16 +105,18 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
             {product.barcode ? ` · barcode ${product.barcode}` : ""} · {product.saleUnit}
           </p>
         </div>
-        {product.imageUrl ? <img src={product.imageUrl} alt={product.name} className="h-48 w-full rounded-xl object-cover" /> : <div className="flex h-32 items-center justify-center rounded-xl border border-dashed border-border text-sm text-foreground-muted">No product image yet</div>}
-        <div>
-          <label className="mb-1 block text-xs font-medium text-foreground-body">Product image</label>
-          <input type="file" accept="image/jpeg,image/png,image/webp" onChange={(e) => setImage(e.target.files?.[0] ?? null)} className={inputCls} />
-          <p className="mt-1 text-xs text-foreground-muted">Optional · JPG, PNG, or WebP up to 5 MB.</p>
-        </div>
         <StatusBadge status={product.organicStatus} />
       </header>
 
       <form onSubmit={save} className={`${cardCls} space-y-4`}>
+        <div className="grid gap-4 sm:grid-cols-[160px_1fr] sm:items-start">
+          {product.imageUrl ? <img src={product.imageUrl} alt={product.name} className="h-40 w-40 rounded-xl object-cover ring-1 ring-border" /> : <div className="flex h-40 w-40 items-center justify-center rounded-xl border border-dashed border-border text-center text-sm text-foreground-muted">No product image yet</div>}
+          <div>
+            <label className="mb-1 block text-xs font-medium text-foreground-body">Product image</label>
+            <input type="file" accept="image/jpeg,image/png,image/webp" onChange={(e) => setImage(e.target.files?.[0] ?? null)} className={`${inputCls} w-full`} />
+            <p className="mt-1 text-xs text-foreground-muted">Optional · JPG, PNG, or WebP up to 5 MB.</p>
+          </div>
+        </div>
         <div>
           <label className="mb-1 block text-xs font-medium text-foreground-body">
             Base price (₹ per {product.saleUnit})
