@@ -12,12 +12,15 @@ import { listOfflineSales, type OfflineSaleRecord, type OfflineScope } from "@/s
 import { mergeSalesWithOffline } from "@/shared/lib/offline/session-summary";
 
 export default function SalesHistoryPage() {
+  const PAGE_SIZE = 15;
   const { user } = usePosUser();
   const [items, setItems] = useState<SaleDTO[]>([]);
   const [offlineSales, setOfflineSales] = useState<OfflineSaleRecord[]>([]);
   const [receiptNo, setReceiptNo] = useState("");
   const [phone, setPhone] = useState("");
   const [loading, setLoading] = useState(true);
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
 
   useEffect(() => {
     let alive = true;
@@ -26,14 +29,18 @@ export default function SalesHistoryPage() {
       const scope: OfflineScope | null = user ? { userId: user.id, orgId: user.orgId, locationId: user.locationId } : null;
       const [res, local] = await Promise.all([
         salesApi.list({
-          limit: 50,
+          page,
+          limit: PAGE_SIZE,
           receiptNo: receiptNo.trim() || undefined,
           phone: phone.trim() || undefined,
         }),
         scope ? listOfflineSales(scope) : Promise.resolve([]),
       ]);
       if (!alive) return;
-      if (res.success && res.data) setItems(res.data.items);
+      if (res.success && res.data) {
+        setItems(res.data.items);
+        setTotalPages(Math.max(1, res.data.meta.totalPages));
+      }
       setOfflineSales(local);
       setLoading(false);
     };
@@ -45,7 +52,11 @@ export default function SalesHistoryPage() {
       clearTimeout(timer);
       window.removeEventListener("komola:offline-sales-changed", onOfflineSalesChanged);
     };
-  }, [receiptNo, phone, user]);
+  }, [page, receiptNo, phone, user]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [receiptNo, phone]);
 
   const visibleItems = useMemo(() => {
     const receiptQuery = receiptNo.trim().toLowerCase();
@@ -53,7 +64,7 @@ export default function SalesHistoryPage() {
     const filteredOffline = offlineSales
       .filter((sale) => !receiptQuery || sale.receiptNo.toLowerCase().includes(receiptQuery) || sale.serverReceiptNo?.toLowerCase().includes(receiptQuery))
       .filter((sale) => !phoneQuery || sale.customerPhone?.includes(phoneQuery));
-    return mergeSalesWithOffline(items, filteredOffline, new Date().toISOString().slice(0, 10));
+    return mergeSalesWithOffline(items, filteredOffline, new Date().toISOString().slice(0, 10)).slice(0, PAGE_SIZE);
   }, [items, offlineSales, phone, receiptNo]);
 
   return (
@@ -108,6 +119,25 @@ export default function SalesHistoryPage() {
               </li>
             ))}
           </ul>
+          <div className="flex items-center justify-between border-t border-border px-3 py-3 text-sm">
+            <button
+              type="button"
+              className="rounded-lg border border-border px-3 py-2 disabled:cursor-not-allowed disabled:opacity-50"
+              disabled={page <= 1 || loading}
+              onClick={() => setPage((current) => Math.max(1, current - 1))}
+            >
+              Previous
+            </button>
+            <span className="text-foreground-muted">Page {page} of {totalPages}</span>
+            <button
+              type="button"
+              className="rounded-lg border border-border px-3 py-2 disabled:cursor-not-allowed disabled:opacity-50"
+              disabled={page >= totalPages || loading}
+              onClick={() => setPage((current) => Math.min(totalPages, current + 1))}
+            >
+              Next
+            </button>
+          </div>
         </div>
       )}
     </div>
