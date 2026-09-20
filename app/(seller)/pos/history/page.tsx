@@ -11,6 +11,11 @@ import { formatPaise } from "@/shared/lib/money";
 import { listOfflineSales, type OfflineSaleRecord, type OfflineScope } from "@/shared/lib/offline/sales";
 import { mergeSalesWithOffline } from "@/shared/lib/offline/session-summary";
 
+function normalizePhoneSearch(value: string): string {
+  const digits = value.replace(/\D/g, "");
+  return digits.length > 10 ? digits.slice(-10) : digits;
+}
+
 export default function SalesHistoryPage() {
   const PAGE_SIZE = 15;
   const { user } = usePosUser();
@@ -32,7 +37,7 @@ export default function SalesHistoryPage() {
           page,
           limit: PAGE_SIZE,
           receiptNo: receiptNo.trim() || undefined,
-          phone: phone.trim() || undefined,
+          phone: normalizePhoneSearch(phone) || undefined,
         }),
         scope ? listOfflineSales(scope) : Promise.resolve([]),
       ]);
@@ -60,10 +65,10 @@ export default function SalesHistoryPage() {
 
   const visibleItems = useMemo(() => {
     const receiptQuery = receiptNo.trim().toLowerCase();
-    const phoneQuery = phone.trim();
+    const phoneQuery = normalizePhoneSearch(phone);
     const filteredOffline = offlineSales
       .filter((sale) => !receiptQuery || sale.receiptNo.toLowerCase().includes(receiptQuery) || sale.serverReceiptNo?.toLowerCase().includes(receiptQuery))
-      .filter((sale) => !phoneQuery || sale.customerPhone?.includes(phoneQuery));
+      .filter((sale) => !phoneQuery || normalizePhoneSearch(sale.customerPhone ?? "") === phoneQuery);
     return mergeSalesWithOffline(items, filteredOffline, new Date().toISOString().slice(0, 10)).slice(0, PAGE_SIZE);
   }, [items, offlineSales, phone, receiptNo]);
 
