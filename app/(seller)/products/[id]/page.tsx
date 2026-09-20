@@ -42,6 +42,9 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
     productsApi.get(id).then((res) => {
       if (res.success && res.data) {
         setProduct(res.data);
+        if (res.data.slug && res.data.slug !== id) {
+          router.replace(`/products/${res.data.slug}`);
+        }
         setPriceRupees(
           typeof res.data.basePricePaise === "number"
             ? String(paiseToRupees(res.data.basePricePaise))
@@ -87,7 +90,7 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
   }
 
   async function copyProductLink() {
-    await navigator.clipboard.writeText(window.location.href);
+    await navigator.clipboard.writeText(`${window.location.origin}/products/${product?.slug ?? id}`);
     setCopied(true);
     window.setTimeout(() => setCopied(false), 1800);
   }
@@ -104,6 +107,7 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
             SKU {product.sku}
             {product.barcode ? ` · barcode ${product.barcode}` : ""} · {product.saleUnit}
           </p>
+          <p className="mt-1 text-xs text-foreground-muted">Product link: /products/{product.slug}</p>
         </div>
         <StatusBadge status={product.organicStatus} />
       </header>
