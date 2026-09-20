@@ -79,7 +79,7 @@ describe("offline sale sync API", () => {
 
     const result = await syncPendingOfflineSales(scope);
 
-    expect(mocks.increment).toHaveBeenCalledWith(scope, "op-1", 60_000);
+    expect(mocks.increment).toHaveBeenCalledWith(scope, "op-1", expect.any(Number));
     expect(result).toEqual({ attempted: 1, synced: 0, blocked: 0, authRequired: false, message: "Offline sale sync did not complete.", blockedMessages: [] });
   });
 
@@ -89,7 +89,7 @@ describe("offline sale sync API", () => {
 
     const result = await syncPendingOfflineSales(scope);
 
-    expect(mocks.increment).toHaveBeenCalledWith(scope, "op-1", 60_000);
+    expect(mocks.increment).toHaveBeenCalledWith(scope, "op-1", expect.any(Number));
     expect(result.unavailable).toBe(true);
     expect(result.message).toContain("backend sync endpoint");
   });
@@ -118,7 +118,7 @@ describe("offline sale sync API", () => {
 
     const result = await syncPendingOfflineSales(scope);
 
-    expect(mocks.increment).toHaveBeenCalledWith(scope, "op-1", 60_000, expect.stringContaining("retry automatically"));
+    expect(mocks.increment).toHaveBeenCalledWith(scope, "op-1", expect.any(Number), expect.stringContaining("retry automatically"));
     expect(result).toEqual({ attempted: 1, synced: 0, blocked: 0, authRequired: false, blockedMessages: [] });
   });
 

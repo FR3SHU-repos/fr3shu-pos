@@ -8,6 +8,8 @@ export interface ApiResult<T> {
   status: number;
   /** Machine-readable error code from the Go envelope, when present. */
   code?: string;
+  /** Server-provided retry delay from Retry-After, in milliseconds. */
+  retryAfterMs?: number;
 }
 
 export function apiBase(value: string | undefined): string {
@@ -49,7 +51,16 @@ async function normalize<T>(res: Response): Promise<ApiResult<T>> {
     data: (b.data ?? null) as T | null,
     status: res.status,
     code: b.code,
+    retryAfterMs: parseRetryAfter(res.headers.get("Retry-After")),
   };
+}
+
+function parseRetryAfter(value: string | null): number | undefined {
+  if (!value) return undefined;
+  const seconds = Number(value);
+  if (Number.isFinite(seconds)) return Math.max(0, Math.round(seconds * 1000));
+  const date = Date.parse(value);
+  return Number.isFinite(date) ? Math.max(0, date - Date.now()) : undefined;
 }
 
 export interface RequestOptions {

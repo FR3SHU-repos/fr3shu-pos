@@ -176,6 +176,13 @@ function automaticSyncMessage(reason?: string): string {
   }
 }
 
+function retryDelayMs(sale: { syncAttempts?: number }, retryAfterMs?: number): number {
+  if (retryAfterMs !== undefined) return Math.min(15 * 60_000, Math.max(1_000, retryAfterMs));
+  const attempt = Math.max(1, sale.syncAttempts ?? 1);
+  const base = Math.min(15 * 60_000, 1_000 * (2 ** Math.min(attempt - 1, 10)));
+  return Math.round(base * (0.875 + Math.random() * 0.25));
+}
+
 export async function syncPendingOfflineSales(scope: OfflineScope): Promise<{
   attempted: number;
   synced: number;
@@ -201,7 +208,7 @@ export async function syncPendingOfflineSales(scope: OfflineScope): Promise<{
     return { attempted: batch.length, synced: 0, blocked: 0, authRequired: true };
   }
   if (res.status === 404) {
-    await Promise.all(batch.map((sale) => incrementOfflineSaleAttempt(scope, sale.operationId, 60_000)));
+    await Promise.all(batch.map((sale) => incrementOfflineSaleAttempt(scope, sale.operationId, retryDelayMs(sale, res.retryAfterMs))));
     return {
       attempted: batch.length,
       synced: 0,
@@ -213,7 +220,7 @@ export async function syncPendingOfflineSales(scope: OfflineScope): Promise<{
     };
   }
   if (!res.success || !res.data) {
-    await Promise.all(batch.map((sale) => incrementOfflineSaleAttempt(scope, sale.operationId, 60_000)));
+    await Promise.all(batch.map((sale) => incrementOfflineSaleAttempt(scope, sale.operationId, retryDelayMs(sale, res.retryAfterMs))));
     return {
       attempted: batch.length,
       synced: 0,
@@ -245,7 +252,8 @@ export async function syncPendingOfflineSales(scope: OfflineScope): Promise<{
       blockedMessages.push(message);
       await markOfflineSaleSyncState(scope, result.operationId, "blocked", { message });
     } else {
-      await incrementOfflineSaleAttempt(scope, result.operationId, 60_000, automaticSyncMessage(result.reason));
+      const sale = batch.find((item) => item.operationId === result.operationId);
+      await incrementOfflineSaleAttempt(scope, result.operationId, retryDelayMs(sale ?? {}, res.retryAfterMs), automaticSyncMessage(result.reason));
     }
   }
   if (synced > 0) await refreshOfflineProducts();

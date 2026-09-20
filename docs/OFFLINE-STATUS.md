@@ -14,6 +14,8 @@ contract, and offline tests.
   replays are locally idempotent.
 - Durable outbox leasing: one uploader claims a bounded batch, and abandoned
   uploads become claimable again after lease expiry.
+- Durable retry scheduling: exponential backoff with bounded jitter and
+  server `Retry-After` support.
 - Offline cash-sale queue, automatic/manual retry, status display, local
   receipt view, export backup, repair of blocked lines/customer details, and
   local cancellation.
@@ -31,26 +33,24 @@ first-release acceptance criteria:
 1. Offline readiness/enrollment: enrolled terminal/register binding, bounded
    offline authorization grant, expiry, revocation handling, and local unlock
    after browser restart.
-2. Outbox retry refinement: exponential backoff/jitter and server
-   `Retry-After` handling still need to replace the current fixed retry delay.
-3. Historical pricing and lot correctness: cache price/tax/lot snapshots and a
+2. Historical pricing and lot correctness: cache price/tax/lot snapshots and a
    versioned stale-price policy; current aggregate product caching cannot safely
    promise lot allocation while offline.
-4. Inventory reconciliation: retain local deductions until a server snapshot or
+3. Inventory reconciliation: retain local deductions until a server snapshot or
    cursor includes the accepted sale, avoiding double deduction or temporary
    stock restoration.
-5. Local cash semantics: persist tendered cash and change as first-class sale
+4. Local cash semantics: persist tendered cash and change as first-class sale
    data and validate insufficient/invalid cash before local commit.
-6. Recovery hardening: persistent-storage/quota checks, protected pending data
+5. Recovery hardening: persistent-storage/quota checks, protected pending data
    across logout/account switching, schema migration failure handling, and
    validated import/recovery of exported records.
-7. Service-worker/PWA hardening: production deep-link/reload verification,
+6. Service-worker/PWA hardening: production deep-link/reload verification,
    complete shell asset precaching, safe upgrades, and proof that migrations
    never delete pending financial records.
-8. Full failure matrix: lost response after server commit, concurrent tabs,
+7. Full failure matrix: lost response after server commit, concurrent tabs,
    duplicate/altered operation IDs, shift closure, revoked user/device,
    archived products, stale prices, insufficient stock, and restored backups.
-9. Pilot gates: supported browser/device matrix, receipt-printing tests,
+8. Pilot gates: supported browser/device matrix, receipt-printing tests,
     storage-denial/eviction tests, five-sale acceptance run, and a feature flag
     preventing unprepared terminals from accepting offline sales.
 

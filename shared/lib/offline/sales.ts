@@ -54,6 +54,7 @@ export interface OfflineSaleRecord {
   serverSaleId?: string;
   serverReceiptNo?: string;
   lastSyncAttemptAt?: string;
+  syncAttempts?: number;
   lines: OfflineSaleLine[];
   grossPaise: number;
   discountPaise: number;
@@ -531,6 +532,7 @@ export async function claimPendingOfflineSales(
       entry.updatedAt = now;
       outboxStore.put(entry);
       sale.syncState = "uploading";
+      sale.syncAttempts = entry.attempts + 1;
       sale.lastSyncAttemptAt = now;
       saleStore.put(sale);
       claimed.push(sale);
@@ -912,6 +914,10 @@ export async function incrementOfflineSaleAttempt(scope: OfflineScope, operation
       outbox.updatedAt = new Date().toISOString();
       outbox.nextAttemptAt = new Date(Date.now() + retryInMs).toISOString();
       store.put(outbox);
+      if (sale) {
+        sale.syncAttempts = outbox.attempts;
+        saleStore.put(sale);
+      }
     }
     await txDone(tx);
     db.close();
