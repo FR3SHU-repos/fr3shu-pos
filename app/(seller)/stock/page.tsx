@@ -7,7 +7,7 @@ import { inventoryApi, productsApi, stockApi } from "@/shared/lib/api";
 import type { ProductDTO } from "@/shared/lib/api/products";
 import type { InventoryBalanceDTO } from "@/shared/lib/api/inventory";
 import { cardCls, EmptyState, inputCls, primaryBtnCls, SkeletonRows } from "@/shared/components/ui";
-import { formatBaseQuantity, type SaleUnit } from "@/shared/lib/units";
+import { formatBaseQuantity, toBaseQuantity, type SaleUnit } from "@/shared/lib/units";
 
 interface OnHand {
   productId: string;
@@ -73,10 +73,26 @@ export default function StockPage() {
     });
     setBusy(false);
     if (!res.success) return toast.error(res.message);
+    if (res.data && selected) {
+      const addedBase = toBaseQuantity(Number(qty.trim()), selected.saleUnit);
+      setBalances((current) => {
+        const next: InventoryBalanceDTO = {
+          _id: `${selected._id}:${res.data!.lotId}`,
+          productId: selected._id,
+          productName: selected.name,
+          lotId: res.data!.lotId,
+          lotCode: res.data!.lotCode,
+          saleUnit: selected.saleUnit,
+          availableBase: addedBase,
+          expiryDate: res.data!.expiresAt ?? undefined,
+        };
+        return [...current, next];
+      });
+    }
     toast.success(`Added ${qty.trim()} ${selected?.saleUnit ?? ""} to stock`);
     setQty("");
     setExpiry("");
-    void load();
+    await load();
   }
 
   if (loading) return <SkeletonRows rows={5} />;
