@@ -12,6 +12,7 @@ import { listOfflineSales, type OfflineSaleRecord, type OfflineScope } from "@/s
 import { expectedCashWithOffline, pendingOfflineCashTotal } from "@/shared/lib/offline/session-summary";
 
 export default function RegisterSessionsPage() {
+  const PAGE_SIZE = 15;
   const { user } = usePosUser();
   const [registers, setRegisters] = useState<RegisterDTO[]>([]);
   const [current, setCurrent] = useState<SessionDTO | null>(null);
@@ -19,6 +20,7 @@ export default function RegisterSessionsPage() {
   const [offlineSales, setOfflineSales] = useState<OfflineSaleRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
+  const [recentPage, setRecentPage] = useState(1);
 
   const [registerId, setRegisterId] = useState("");
   const [openingCash, setOpeningCash] = useState("");
@@ -91,6 +93,9 @@ export default function RegisterSessionsPage() {
     : { serverExpectedPaise: 0, combinedExpectedPaise: 0 };
   const countedCashPaise = rupeesToPaise(Number(countedCash || 0));
   const combinedVariancePaise = countedCash ? countedCashPaise - combinedExpectedCashPaise : null;
+  const recentPages = Math.max(1, Math.ceil(recent.length / PAGE_SIZE));
+  const visibleRecent = recent.slice((recentPage - 1) * PAGE_SIZE, recentPage * PAGE_SIZE);
+  useEffect(() => { setRecentPage((page) => Math.min(page, recentPages)); }, [recentPages]);
 
   if (loading) return <SkeletonRows rows={4} />;
 
@@ -212,8 +217,9 @@ export default function RegisterSessionsPage() {
         {recent.length === 0 ? (
           <p className="text-sm text-foreground-muted">No closed sessions yet.</p>
         ) : (
+          <>
           <ul className="divide-y divide-border text-sm">
-            {recent.map((s) => (
+            {visibleRecent.map((s) => (
               <li key={s._id} className="flex flex-wrap items-center justify-between gap-2 py-2.5">
                 <span className="text-foreground-muted">
                   {s.closedAt ? new Date(s.closedAt).toLocaleString("en-IN") : "—"}
@@ -232,6 +238,8 @@ export default function RegisterSessionsPage() {
               </li>
             ))}
           </ul>
+          {recentPages > 1 ? <Pagination page={recentPage} pages={recentPages} onPageChange={setRecentPage} /> : null}
+          </>
         )}
       </section>
 
@@ -240,6 +248,14 @@ export default function RegisterSessionsPage() {
       </a>
     </div>
   );
+}
+
+function Pagination({ page, pages, onPageChange }: { page: number; pages: number; onPageChange: (page: number) => void }) {
+  return <div className="mt-3 flex items-center justify-between border-t border-border pt-3 text-sm">
+    <button type="button" className="rounded-lg border border-border px-3 py-2 disabled:cursor-not-allowed disabled:opacity-40" disabled={page <= 1} onClick={() => onPageChange(page - 1)}>Previous</button>
+    <span className="text-foreground-muted">Page {page} of {pages}</span>
+    <button type="button" className="rounded-lg border border-border px-3 py-2 disabled:cursor-not-allowed disabled:opacity-40" disabled={page >= pages} onClick={() => onPageChange(page + 1)}>Next</button>
+  </div>;
 }
 
 function Field({ label, value }: { label: string; value: string }) {

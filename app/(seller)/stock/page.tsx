@@ -18,10 +18,12 @@ interface OnHand {
 }
 
 export default function StockPage() {
+  const PAGE_SIZE = 15;
   const [products, setProducts] = useState<ProductDTO[]>([]);
   const [balances, setBalances] = useState<InventoryBalanceDTO[]>([]);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
+  const [stockPage, setStockPage] = useState(1);
 
   const [skuId, setSkuId] = useState("");
   const [qty, setQty] = useState("");
@@ -61,6 +63,9 @@ export default function StockPage() {
     }
     return [...byProduct.values()].sort((a, b) => a.availableBase - b.availableBase);
   }, [balances]);
+  const stockPages = Math.max(1, Math.ceil(onHand.length / PAGE_SIZE));
+  const visibleStock = onHand.slice((stockPage - 1) * PAGE_SIZE, stockPage * PAGE_SIZE);
+  useEffect(() => { setStockPage((current) => Math.min(current, stockPages)); }, [stockPages]);
 
   async function addStock(e: React.FormEvent) {
     e.preventDefault();
@@ -175,8 +180,9 @@ export default function StockPage() {
         {onHand.length === 0 ? (
           <EmptyState title="No stock yet" description="Add stock above to start selling." />
         ) : (
+          <>
           <ul className="space-y-2 text-sm">
-            {onHand.map((r) => (
+            {visibleStock.map((r) => (
               <li key={r.productId} className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 rounded-xl border border-border/70 bg-surface/40 px-4 py-3 sm:grid-cols-[minmax(0,1fr)_7rem_10rem]">
                 <div className="min-w-0"><p className="truncate font-semibold text-foreground-heading">{r.name}</p><p className="mt-0.5 text-xs text-foreground-muted">{r.saleUnit}</p></div>
                 <span className="text-right text-base font-bold text-primary">{formatBaseQuantity(r.availableBase, r.saleUnit)}</span>
@@ -184,11 +190,21 @@ export default function StockPage() {
               </li>
             ))}
           </ul>
+          {stockPages > 1 ? <Pagination page={stockPage} pages={stockPages} onPageChange={setStockPage} /> : null}
+          </>
         )}
       </section>
     </div>
     </div>
   );
+}
+
+function Pagination({ page, pages, onPageChange }: { page: number; pages: number; onPageChange: (page: number) => void }) {
+  return <div className="mt-4 flex items-center justify-between border-t border-border pt-3 text-sm">
+    <button type="button" className="rounded-lg border border-border px-3 py-2 disabled:cursor-not-allowed disabled:opacity-40" disabled={page <= 1} onClick={() => onPageChange(page - 1)}>Previous</button>
+    <span className="text-foreground-muted">Page {page} of {pages}</span>
+    <button type="button" className="rounded-lg border border-border px-3 py-2 disabled:cursor-not-allowed disabled:opacity-40" disabled={page >= pages} onClick={() => onPageChange(page + 1)}>Next</button>
+  </div>;
 }
 
 function Label({ children }: { children: React.ReactNode }) {
