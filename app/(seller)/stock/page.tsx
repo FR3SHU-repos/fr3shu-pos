@@ -187,6 +187,7 @@ export default function StockPage() {
         )}
       </section>
     </div>
+    </div>
   );
 }
 
