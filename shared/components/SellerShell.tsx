@@ -47,6 +47,10 @@ export default function SellerShell({ children }: { children: React.ReactNode })
 
   useEffect(() => {
     if (loading || !user || !organization) return;
+    // Approved sellers may navigate to every seller workspace route. The
+    // dashboard is only the default landing page; it must not be enforced on
+    // POS, history, products, stock, settings, or register-session routes.
+    if (organization.approvalStatus === "Approved") return;
     const destination = sellerDestination(organization.approvalStatus);
     if (destination && destination !== pathname) router.replace(destination);
   }, [loading, organization, pathname, router, user]);

@@ -51,7 +51,7 @@ async function normalize<T>(res: Response): Promise<ApiResult<T>> {
     data: (b.data ?? null) as T | null,
     status: res.status,
     code: b.code,
-    retryAfterMs: parseRetryAfter(res.headers.get("Retry-After")),
+    retryAfterMs: parseRetryAfter(res.headers?.get?.("Retry-After") ?? null),
   };
 }
 
