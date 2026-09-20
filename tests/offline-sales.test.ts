@@ -5,6 +5,7 @@ import {
   applyLocalStockDeductions,
   applyOfflineSaleLineRepair,
   commitOfflineCashSale,
+  claimPendingOfflineSales,
   listPendingOfflineSales,
   localStockDeductions,
   offlineSaleToDTO,
@@ -98,6 +99,26 @@ describe("offline cash sales", () => {
     const replay = await commitOfflineCashSale(input);
     expect(replay.id).toBe(sale.id);
     expect((await listPendingOfflineSales(scope)).length).toBe(1);
+  });
+
+  it("leases a pending sale once and recovers it after lease expiry", async () => {
+    const input = {
+      scope,
+      session,
+      cashierId: "cashier-1",
+      lines: [line()],
+      cashReceivedPaise: 10000,
+      customerName: "Asha",
+      operationId: "lease-op-1",
+    };
+    await commitOfflineCashSale(input);
+    const base = Date.now();
+    const first = await claimPendingOfflineSales(scope, 10, 30_000, base);
+    const second = await claimPendingOfflineSales(scope, 10, 30_000, base + 1_000);
+    const recovered = await claimPendingOfflineSales(scope, 10, 30_000, base + 32_000);
+    expect(first).toHaveLength(1);
+    expect(second).toHaveLength(0);
+    expect(recovered).toHaveLength(1);
   });
 
   it("parses rupee input into integer paise", () => {

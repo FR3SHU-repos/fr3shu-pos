@@ -12,7 +12,7 @@ import {
 import type { PageMeta } from "@/app/api/v1/utils/responses";
 import {
   incrementOfflineSaleAttempt,
-  listPendingOfflineSales,
+  claimPendingOfflineSales,
   requeueBlockedOfflineSalesWithAvailableStock,
   markOfflineSaleSyncState,
   offlineSaleToSyncOperation,
@@ -188,7 +188,7 @@ export async function syncPendingOfflineSales(scope: OfflineScope): Promise<{
   const empty = { attempted: 0, synced: 0, blocked: 0, authRequired: false, blockedMessages: [] };
   const refreshed = await refreshOfflineProducts();
   if (refreshed) await requeueBlockedOfflineSalesWithAvailableStock(scope, refreshed.items, refreshed.savedAt);
-  const pending = await listPendingOfflineSales(scope);
+  const pending = await claimPendingOfflineSales(scope, 10);
   if (pending.length === 0) return empty;
   const batch = pending.slice(0, 10);
   const res = await goRequest<{ results: OfflineSaleSyncResult[] }>("sync/sales", {

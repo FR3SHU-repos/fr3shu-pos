@@ -4,7 +4,7 @@ const mocks = vi.hoisted(() => ({
   request: vi.fn(),
   refreshProducts: vi.fn(),
   requeueBlockedWithStock: vi.fn(),
-  listPending: vi.fn(),
+  claimPending: vi.fn(),
   mark: vi.fn(),
   increment: vi.fn(),
   toOperation: vi.fn((sale: { operationId: string }) => ({ operationId: sale.operationId })),
@@ -13,7 +13,7 @@ const mocks = vi.hoisted(() => ({
 vi.mock("@/shared/lib/api/client", () => ({ goRequest: mocks.request }));
 vi.mock("@/shared/lib/api/products", () => ({ refreshOfflineProducts: mocks.refreshProducts }));
 vi.mock("@/shared/lib/offline/sales", () => ({
-  listPendingOfflineSales: mocks.listPending,
+  claimPendingOfflineSales: mocks.claimPending,
   requeueBlockedOfflineSalesWithAvailableStock: mocks.requeueBlockedWithStock,
   markOfflineSaleSyncState: mocks.mark,
   incrementOfflineSaleAttempt: mocks.increment,
@@ -31,14 +31,14 @@ describe("offline sale sync API", () => {
     mocks.refreshProducts.mockResolvedValue(null);
     mocks.requeueBlockedWithStock.mockReset();
     mocks.requeueBlockedWithStock.mockResolvedValue(0);
-    mocks.listPending.mockReset();
+    mocks.claimPending.mockReset();
     mocks.mark.mockReset();
     mocks.increment.mockReset();
     mocks.toOperation.mockClear();
   });
 
   it("marks accepted offline sales as synced", async () => {
-    mocks.listPending.mockResolvedValue([{ operationId: "op-1" }]);
+    mocks.claimPending.mockResolvedValue([{ operationId: "op-1" }]);
     mocks.request.mockResolvedValue({
       success: true,
       status: 200,
@@ -62,7 +62,7 @@ describe("offline sale sync API", () => {
   });
 
   it("pauses local outbox entries when authentication fails", async () => {
-    mocks.listPending.mockResolvedValue([{ operationId: "op-1" }, { operationId: "op-2" }]);
+    mocks.claimPending.mockResolvedValue([{ operationId: "op-1" }, { operationId: "op-2" }]);
     mocks.request.mockResolvedValue({ success: false, status: 403, data: null });
     mocks.mark.mockResolvedValue(true);
 
@@ -74,7 +74,7 @@ describe("offline sale sync API", () => {
   });
 
   it("schedules a retry when the sync request fails transiently", async () => {
-    mocks.listPending.mockResolvedValue([{ operationId: "op-1" }]);
+    mocks.claimPending.mockResolvedValue([{ operationId: "op-1" }]);
     mocks.request.mockResolvedValue({ success: false, status: 503, data: null });
 
     const result = await syncPendingOfflineSales(scope);
@@ -84,7 +84,7 @@ describe("offline sale sync API", () => {
   });
 
   it("reports clearly when the backend route is not loaded", async () => {
-    mocks.listPending.mockResolvedValue([{ operationId: "op-1" }]);
+    mocks.claimPending.mockResolvedValue([{ operationId: "op-1" }]);
     mocks.request.mockResolvedValue({ success: false, status: 404, data: null });
 
     const result = await syncPendingOfflineSales(scope);
@@ -95,7 +95,7 @@ describe("offline sale sync API", () => {
   });
 
   it("blocks rejected sales with an automatic check reason", async () => {
-    mocks.listPending.mockResolvedValue([{ operationId: "op-1" }]);
+    mocks.claimPending.mockResolvedValue([{ operationId: "op-1" }]);
     mocks.request.mockResolvedValue({
       success: true,
       status: 200,
@@ -109,7 +109,7 @@ describe("offline sale sync API", () => {
   });
 
   it("keeps retrying server-side sync failures automatically", async () => {
-    mocks.listPending.mockResolvedValue([{ operationId: "op-1" }]);
+    mocks.claimPending.mockResolvedValue([{ operationId: "op-1" }]);
     mocks.request.mockResolvedValue({
       success: true,
       status: 200,
@@ -126,7 +126,7 @@ describe("offline sale sync API", () => {
     const refreshed = { items: [{ _id: "sku-1", availableBase: 5000 }], savedAt: 1234 };
     mocks.refreshProducts.mockResolvedValueOnce(refreshed).mockResolvedValueOnce(null);
     mocks.requeueBlockedWithStock.mockResolvedValue(1);
-    mocks.listPending.mockResolvedValue([{ operationId: "op-1" }]);
+    mocks.claimPending.mockResolvedValue([{ operationId: "op-1" }]);
     mocks.request.mockResolvedValue({
       success: true,
       status: 200,
@@ -137,7 +137,7 @@ describe("offline sale sync API", () => {
     await syncPendingOfflineSales(scope);
 
     expect(mocks.requeueBlockedWithStock).toHaveBeenCalledWith(scope, refreshed.items, refreshed.savedAt);
-    expect(mocks.requeueBlockedWithStock.mock.invocationCallOrder[0]).toBeLessThan(mocks.listPending.mock.invocationCallOrder[0]);
+    expect(mocks.requeueBlockedWithStock.mock.invocationCallOrder[0]).toBeLessThan(mocks.claimPending.mock.invocationCallOrder[0]);
   });
 
 });

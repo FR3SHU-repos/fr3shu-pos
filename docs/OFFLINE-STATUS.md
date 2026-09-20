@@ -12,6 +12,8 @@ contract, and offline tests.
 - Atomic local cash checkout: sale, receipt/cash/change, outbox entry, and
   receipt sequence are committed in one IndexedDB transaction; operation-ID
   replays are locally idempotent.
+- Durable outbox leasing: one uploader claims a bounded batch, and abandoned
+  uploads become claimable again after lease expiry.
 - Offline cash-sale queue, automatic/manual retry, status display, local
   receipt view, export backup, repair of blocked lines/customer details, and
   local cancellation.
@@ -29,9 +31,8 @@ first-release acceptance criteria:
 1. Offline readiness/enrollment: enrolled terminal/register binding, bounded
    offline authorization grant, expiry, revocation handling, and local unlock
    after browser restart.
-2. Durable outbox leasing: transactional single-uploader claim, expiry/recovery
-   after crashes, bounded batches, exponential backoff/jitter, and
-   `Retry-After` handling.
+2. Outbox retry refinement: exponential backoff/jitter and server
+   `Retry-After` handling still need to replace the current fixed retry delay.
 3. Historical pricing and lot correctness: cache price/tax/lot snapshots and a
    versioned stale-price policy; current aggregate product caching cannot safely
    promise lot allocation while offline.

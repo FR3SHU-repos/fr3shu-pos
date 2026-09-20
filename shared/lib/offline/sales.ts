@@ -81,6 +81,8 @@ export interface OfflineOutboxEntry {
   nextAttemptAt: string;
   createdAt: string;
   updatedAt: string;
+  leaseId?: string;
+  leaseExpiresAt?: string;
 }
 
 export interface OfflineSaleSyncOperation {
@@ -490,6 +492,56 @@ export async function listPendingOfflineSales(scope: OfflineScope): Promise<Offl
   }
 }
 
+/** Claim a bounded batch so two tabs cannot upload the same local records. */
+export async function claimPendingOfflineSales(
+  scope: OfflineScope,
+  limit = 10,
+  leaseMs = 30_000,
+  nowMs = Date.now(),
+): Promise<OfflineSaleRecord[]> {
+  if (typeof indexedDB === "undefined") return [];
+  const db = await openOfflineDatabase();
+  try {
+    const tx = db.transaction([SALE_STORE, OUTBOX_STORE], "readwrite");
+    const saleStore = tx.objectStore(SALE_STORE);
+    const outboxStore = tx.objectStore(OUTBOX_STORE);
+    const [sales, outboxes] = await Promise.all([
+      requestResult<OfflineSaleRecord[]>(saleStore.getAll()),
+      requestResult<OfflineOutboxEntry[]>(outboxStore.getAll()),
+    ]);
+    const key = offlineScopeKey(scope);
+    const now = new Date(nowMs).toISOString();
+    const expires = new Date(nowMs + leaseMs).toISOString();
+    const salesById = new Map(sales.map((sale) => [sale.operationId, sale]));
+    const claimed: OfflineSaleRecord[] = [];
+    for (const entry of outboxes
+      .filter((item) => offlineScopeKey(item.scope) === key)
+      .filter((item) => item.status !== "blocked" && item.status !== "needs_review" && item.status !== "cancelled")
+      .filter((item) => new Date(item.nextAttemptAt).getTime() <= nowMs)
+      .sort((a, b) => a.createdAt.localeCompare(b.createdAt))) {
+      if (claimed.length >= limit) break;
+      const leaseActive = entry.status === "uploading" && entry.leaseExpiresAt && new Date(entry.leaseExpiresAt).getTime() > nowMs;
+      if (leaseActive) continue;
+      const sale = salesById.get(entry.operationId);
+      if (!sale || sale.syncState === "synced" || sale.syncState === "cancelled") continue;
+      const leaseId = newUuid();
+      entry.status = "uploading";
+      entry.leaseId = leaseId;
+      entry.leaseExpiresAt = expires;
+      entry.updatedAt = now;
+      outboxStore.put(entry);
+      sale.syncState = "uploading";
+      sale.lastSyncAttemptAt = now;
+      saleStore.put(sale);
+      claimed.push(sale);
+    }
+    await txDone(tx);
+    return claimed;
+  } finally {
+    db.close();
+  }
+}
+
 export async function listOfflineSales(scope: OfflineScope): Promise<OfflineSaleRecord[]> {
   if (typeof indexedDB === "undefined") return [];
   try {
@@ -552,6 +604,8 @@ export async function markOfflineSaleSyncState(
       const outbox = await requestResult<OfflineOutboxEntry | undefined>(outboxStore.get(operationId));
       if (outbox) {
         outbox.status = syncState === "auth_required" ? "auth_required" : syncState === "blocked" || syncState === "cancelled" || syncState === "needs_review" ? syncState : "retry_wait";
+        outbox.leaseId = undefined;
+        outbox.leaseExpiresAt = undefined;
         outbox.attempts += 1;
         outbox.updatedAt = new Date().toISOString();
         outbox.nextAttemptAt = new Date(Date.now() + 60_000).toISOString();
@@ -853,6 +907,8 @@ export async function incrementOfflineSaleAttempt(scope: OfflineScope, operation
     if (outbox && offlineScopeKey(outbox.scope) === offlineScopeKey(scope)) {
       outbox.status = "retry_wait";
       outbox.attempts += 1;
+      outbox.leaseId = undefined;
+      outbox.leaseExpiresAt = undefined;
       outbox.updatedAt = new Date().toISOString();
       outbox.nextAttemptAt = new Date(Date.now() + retryInMs).toISOString();
       store.put(outbox);
