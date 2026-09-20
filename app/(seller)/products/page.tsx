@@ -79,6 +79,7 @@ export default function ProductsPage() {
             {items.map((p) => (
               <li key={p._id} className="flex flex-wrap items-center justify-between gap-2 py-3">
                 <div className="min-w-0">
+                  {p.imageUrl ? <img src={p.imageUrl} alt="" className="mr-3 inline-block h-10 w-10 rounded-lg object-cover align-middle" /> : null}
                   <Link
                     href={`/products/${p._id}`}
                     className="block truncate text-sm font-medium text-brand"

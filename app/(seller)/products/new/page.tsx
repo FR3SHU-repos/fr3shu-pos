@@ -16,6 +16,7 @@ import {
   primaryBtnCls,
 } from "@/shared/components/ui";
 import { ProducerFields, toProducerPayload } from "@/shared/components/products/ProducerFields";
+import { uploadProductImage } from "@/shared/lib/supabase/product-images";
 
 const SALE_UNITS: SaleUnit[] = ["kg", "g", "l", "ml", "piece", "bunch", "pack"];
 const ORGANIC = [
@@ -33,6 +34,7 @@ export default function NewProductPage() {
   const [suppliers, setSuppliers] = useState<SupplierDTO[]>([]);
   const [busy, setBusy] = useState(false);
   const [producer, setProducer] = useState<Producer>({ kind: "self" });
+  const [image, setImage] = useState<File | null>(null);
 
   const [form, setForm] = useState({
     name: "",
@@ -59,6 +61,14 @@ export default function NewProductPage() {
     e.preventDefault();
     if (busy) return;
     setBusy(true);
+    let imageUrl: string | undefined;
+    try {
+      const categoryName = categories.find((c) => c._id === form.categoryId)?.name ?? "uncategorized";
+      if (image) imageUrl = await uploadProductImage(image, categoryName);
+    } catch (error) {
+      setBusy(false);
+      return toast.error(error instanceof Error ? error.message : "Image upload failed.");
+    }
     const res = await productsApi.create({
       name: form.name.trim(),
       categoryId: form.categoryId || undefined,
@@ -70,6 +80,7 @@ export default function NewProductPage() {
       organicStatus: form.organicStatus,
       isPinned: false,
       producer: toProducerPayload(producer),
+      imageUrl,
     });
     setBusy(false);
     if (!res.success || !res.data) return toast.error(res.message);
@@ -153,6 +164,12 @@ export default function NewProductPage() {
         </div>
 
         <ProducerFields value={producer} onChange={setProducer} suppliers={suppliers} />
+
+        <div>
+          <Label>Product image (optional)</Label>
+          <input type="file" accept="image/jpeg,image/png,image/webp" onChange={(e) => setImage(e.target.files?.[0] ?? null)} className={inputCls} />
+          <p className="mt-1 text-xs text-foreground-muted">JPG, PNG, or WebP up to 5 MB. Stored under the selected category.</p>
+        </div>
 
         <div className="flex gap-2 pt-2">
           <button type="submit" disabled={busy} className={primaryBtnCls}>

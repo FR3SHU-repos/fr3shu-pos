@@ -33,6 +33,7 @@ export interface ProductMutation {
   status?: ProductDTO["status"];
   isPinned?: boolean;
   producer?: Producer;
+  imageUrl?: string;
 }
 
 export const list = async (params?: {

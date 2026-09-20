@@ -87,6 +87,7 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
             {product.barcode ? ` · barcode ${product.barcode}` : ""} · {product.saleUnit}
           </p>
         </div>
+        {product.imageUrl ? <img src={product.imageUrl} alt={product.name} className="h-48 w-full rounded-xl object-cover" /> : null}
         <StatusBadge status={product.organicStatus} />
       </header>
 

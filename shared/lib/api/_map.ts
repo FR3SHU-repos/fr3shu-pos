@@ -56,6 +56,7 @@ export interface GoProduct {
   categoryId?: string;
   organicStatus?: OrganicStatus;
   isPinned?: boolean;
+  imageUrl?: string;
   producer?: Producer | null;
 }
 
@@ -110,6 +111,7 @@ export interface ProductDTO {
   status: ProductStatus;
   isPinned: boolean;
   availableBase: number;
+  imageUrl?: string;
   producer?: Producer;
 }
 
@@ -138,6 +140,7 @@ export function mapProduct(p: GoProduct): ProductDTO {
     isPinned: p.isPinned ?? false,
     availableBase: Math.round(Number(p.availableQty ?? 0) * unitFactor(p.unit)),
     producer: p.producer ?? undefined,
+    imageUrl: p.imageUrl || undefined,
   };
 }
 
