@@ -74,27 +74,31 @@ export default function ProductsPage() {
           }
         />
       ) : (
-        <div className={cardCls}>
-          <ul className="divide-y divide-border">
+        <div className={`${cardCls} p-3 sm:p-4`}>
+          <ul className="space-y-2">
             {items.map((p) => (
-              <li key={p._id} className="flex flex-wrap items-center justify-between gap-2 py-3">
+              <li key={p._id} className="group grid grid-cols-[3.5rem_minmax(0,1fr)] items-center gap-3 rounded-xl border border-border/70 bg-white px-3 py-3 transition hover:border-primary/40 hover:shadow-sm sm:grid-cols-[4.5rem_minmax(0,1fr)_auto] sm:gap-4 sm:px-4">
+                <div className="flex h-14 w-14 items-center justify-center overflow-hidden rounded-xl bg-surface sm:h-16 sm:w-16">
+                  {p.imageUrl ? <img src={p.imageUrl} alt="" className="h-full w-full object-cover" /> : <span className="text-xs font-medium text-foreground-muted">No image</span>}
+                </div>
                 <div className="min-w-0">
-                  {p.imageUrl ? <img src={p.imageUrl} alt="" className="mr-3 inline-block h-10 w-10 rounded-lg object-cover align-middle" /> : null}
                   <Link
-                    href={`/products/${p._id}`}
-                    className="block truncate text-sm font-medium text-brand"
+                    href={`/products/${p.slug ?? p._id}`}
+                    className="block truncate text-base font-semibold text-brand transition group-hover:text-primary"
                   >
                     {p.name}
                   </Link>
-                  <p className="text-xs text-foreground-muted">
-                    {p.sku} · {p.saleUnit}
+                  <p className="mt-1 truncate text-xs text-foreground-muted sm:text-sm">
+                    {p.sku} <span aria-hidden="true">·</span> {p.saleUnit}
                     {p.barcode ? ` · ${p.barcode}` : ""}
                   </p>
                 </div>
-                <div className="flex items-center gap-2">
-                  <StatusBadge status={p.organicStatus} />
-                  <StatusBadge status={p.status} />
-                  <span className="text-sm font-semibold text-foreground-heading">
+                <div className="col-span-2 flex items-center justify-between gap-3 border-t border-border/60 pt-2 sm:col-span-1 sm:border-t-0 sm:pt-0">
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <StatusBadge status={p.organicStatus} />
+                    <StatusBadge status={p.status} />
+                  </div>
+                  <span className="shrink-0 text-base font-bold text-foreground-heading">
                     {typeof p.basePricePaise === "number" ? formatPaise(p.basePricePaise) : "—"}
                   </span>
                 </div>
