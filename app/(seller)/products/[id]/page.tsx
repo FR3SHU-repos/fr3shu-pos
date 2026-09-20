@@ -9,6 +9,7 @@ import type { Producer, ProductDTO, SupplierDTO } from "@/shared/lib/api/product
 import { rupeesToPaise, paiseToRupees } from "@/shared/lib/money";
 import { cardCls, ghostBtnCls, inputCls, primaryBtnCls, Skeleton, StatusBadge } from "@/shared/components/ui";
 import { ProducerFields, toProducerPayload } from "@/shared/components/products/ProducerFields";
+import { uploadProductImage } from "@/shared/lib/supabase/product-images";
 
 const ORGANIC = [
   "Verified",
@@ -31,6 +32,8 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
   const [status, setStatus] = useState<"active" | "inactive" | "archived">("active");
   const [producer, setProducer] = useState<Producer>({ kind: "self" });
   const [suppliers, setSuppliers] = useState<SupplierDTO[]>([]);
+  const [image, setImage] = useState<File | null>(null);
+  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     suppliersApi.list().then((res) => {
@@ -56,6 +59,13 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
     e.preventDefault();
     if (busy || !product) return;
     setBusy(true);
+    let imageUrl = product.imageUrl;
+    try {
+      if (image) imageUrl = await uploadProductImage(image, product.category ?? "uncategorized");
+    } catch (error) {
+      setBusy(false);
+      return toast.error(error instanceof Error ? error.message : "Image upload failed.");
+    }
     const res = await productsApi.update(id, {
       name: product.name,
       description: product.description,
@@ -67,11 +77,19 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
       status,
       isPinned: product.isPinned,
       producer: toProducerPayload(producer),
+      imageUrl,
     });
     setBusy(false);
     if (!res.success || !res.data) return toast.error(res.message);
     setProduct(res.data);
+    setImage(null);
     toast.success("Product updated");
+  }
+
+  async function copyProductLink() {
+    await navigator.clipboard.writeText(window.location.href);
+    setCopied(true);
+    window.setTimeout(() => setCopied(false), 1800);
   }
 
   if (loading) return <Skeleton className="h-64 w-full max-w-xl" />;
@@ -87,7 +105,12 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
             {product.barcode ? ` · barcode ${product.barcode}` : ""} · {product.saleUnit}
           </p>
         </div>
-        {product.imageUrl ? <img src={product.imageUrl} alt={product.name} className="h-48 w-full rounded-xl object-cover" /> : null}
+        {product.imageUrl ? <img src={product.imageUrl} alt={product.name} className="h-48 w-full rounded-xl object-cover" /> : <div className="flex h-32 items-center justify-center rounded-xl border border-dashed border-border text-sm text-foreground-muted">No product image yet</div>}
+        <div>
+          <label className="mb-1 block text-xs font-medium text-foreground-body">Product image</label>
+          <input type="file" accept="image/jpeg,image/png,image/webp" onChange={(e) => setImage(e.target.files?.[0] ?? null)} className={inputCls} />
+          <p className="mt-1 text-xs text-foreground-muted">Optional · JPG, PNG, or WebP up to 5 MB.</p>
+        </div>
         <StatusBadge status={product.organicStatus} />
       </header>
 
@@ -141,6 +164,9 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
           </button>
           <button type="button" onClick={() => router.push("/products")} className={ghostBtnCls}>
             Back
+          </button>
+          <button type="button" onClick={() => void copyProductLink()} className={ghostBtnCls}>
+            {copied ? "Link copied" : "Copy product link"}
           </button>
         </div>
       </form>
