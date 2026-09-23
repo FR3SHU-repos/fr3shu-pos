@@ -6,10 +6,10 @@ import { Toaster } from "react-hot-toast";
 import { ServiceWorkerRegistration } from "@/shared/components/ServiceWorkerRegistration";
 
 export const metadata: Metadata = {
-  title: process.env.NEXT_PUBLIC_APP_NAME ?? "KOMOLA Organic POS",
-  description: "Seller-side Point of Sale for small organic sellers.",
+  title: process.env.NEXT_PUBLIC_APP_NAME ?? "KOMOLA POS",
+  description: "KOMOLA point-of-sale platform for sellers and buyers.",
   manifest: "/manifest.webmanifest",
-  applicationName: "KOMOLA Organic POS",
+  applicationName: "KOMOLA POS",
   appleWebApp: { capable: true, title: "KOMOLA POS", statusBarStyle: "default" },
   icons: {
     icon: [{ url: "/favicon.ico?v=komola-20260909", type: "image/x-icon", sizes: "64x64" }],

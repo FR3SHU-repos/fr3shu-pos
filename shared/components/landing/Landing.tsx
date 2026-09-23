@@ -2,9 +2,10 @@
 
 import React, { useState } from "react";
 import Link from "next/link";
-import { ArrowRight, ScanLine, Sprout, WifiOff } from "lucide-react";
+import { ArrowRight, Gift, ScanLine } from "lucide-react";
 import { cx } from "@/shared/lib/utils";
 import { ghostBtnCls, primaryBtnCls } from "@/shared/components/ui";
+import { Komo } from "@/shared/components/mascot";
 
 type Audience = "seller" | "buyer";
 
@@ -18,13 +19,14 @@ export function Landing({ signedIn }: { signedIn: boolean }) {
   return (
     <main className="flex flex-col overflow-x-hidden bg-surface">
       <section className="mx-auto w-full max-w-3xl flex-1 px-4 pb-16 pt-8 text-center sm:pt-14">
+        <Komo action="reward" size="lg" alt="Komo mascot holding a reward" priority className="mb-3" />
         <h1 className="text-2xl font-semibold text-foreground-heading sm:text-3xl">
-          Simple point of sale for organic sellers
+          Rewards for buying from agri sellers
         </h1>
         <p className="mx-auto mt-3 max-w-xl text-sm text-foreground-body sm:text-base">
-          Sell by weight or by piece, track every harvest batch, and keep selling
-          even when the internet drops. Buyers get a clear receipt and reward
-          points.
+          KOMOLA helps agri sellers manage sales and gives buyers rewards for
+          eligible purchases. Sell by weight or by piece, manage every
+          transaction clearly, and give every buyer a clear receipt.
         </p>
 
         <div
@@ -37,14 +39,14 @@ export function Landing({ signedIn }: { signedIn: boolean }) {
             selected={audience === "seller"}
             onClick={() => setAudience("seller")}
           >
-            For sellers
+            For agri sellers
           </TabButton>
           <TabButton
             id="tab-buyer"
             selected={audience === "buyer"}
             onClick={() => setAudience("buyer")}
           >
-            For buyers
+            For agri buyers
           </TabButton>
         </div>
 
@@ -56,7 +58,7 @@ export function Landing({ signedIn }: { signedIn: boolean }) {
           {audience === "seller" ? (
             <>
               <p className="text-sm text-foreground-body">
-                For farmers, FPOs and organic brands running a stall or a shop.
+                For farmers, FPOs and agri brands running a stall or a shop.
               </p>
               <div className="mt-4 flex flex-wrap justify-center gap-3">
                 {signedIn ? (
@@ -79,8 +81,8 @@ export function Landing({ signedIn }: { signedIn: boolean }) {
           ) : (
             <>
               <p className="text-sm text-foreground-body">
-                Scan the QR code on your KOMOLA receipt to open it again or to
-                check your reward points.
+                Show your KOMOLA buyer code at an agri seller to collect receipts
+                and earn rewards on eligible purchases.
               </p>
               <div className="mt-4 flex flex-wrap justify-center gap-3">
                 <Link href={signedIn ? "/buyer" : "/login/buyer"} className={primaryBtnCls}>Buyer dashboard<ArrowRight className="h-4 w-4" /></Link>
@@ -91,21 +93,16 @@ export function Landing({ signedIn }: { signedIn: boolean }) {
         </div>
       </section>
 
-      <section className="mx-auto grid w-full max-w-4xl gap-4 px-4 pb-16 sm:grid-cols-3">
+      <section className="mx-auto grid w-full max-w-4xl gap-4 px-4 pb-16 sm:grid-cols-2">
         <Feature
           icon={<ScanLine className="h-5 w-5" />}
           title="Fast checkout"
           text="Scan or tap, weigh, take cash or UPI, and print a receipt."
         />
         <Feature
-          icon={<WifiOff className="h-5 w-5" />}
-          title="Works offline"
-          text="Sales are saved on the device and sync when you reconnect."
-        />
-        <Feature
-          icon={<Sprout className="h-5 w-5" />}
-          title="Organic lots"
-          text="Track every harvest batch and its certification."
+          icon={<Gift className="h-5 w-5" />}
+          title="Rewards built in"
+          text="Turn eligible agri purchases into points and offers for buyers."
         />
       </section>
     </main>

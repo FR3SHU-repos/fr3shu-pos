@@ -90,7 +90,7 @@ export default function NewProductPage() {
 
   return (
     <div className="mx-auto max-w-xl space-y-5 pb-24">
-      <h1 className="text-xl font-semibold text-foreground-heading">New organic product</h1>
+      <h1 className="text-xl font-semibold text-foreground-heading">New agri product</h1>
 
       <form onSubmit={onSubmit} className={`${cardCls} space-y-4`}>
         <Text label="Name" value={form.name} onChange={(v) => set("name", v)} required />

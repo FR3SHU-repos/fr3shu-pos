@@ -14,12 +14,18 @@ import { BuyerCodeQr } from "@/shared/components/buyer/BuyerCodeQr";
 import { copyText } from "@/shared/lib/clipboard";
 import { KomoEmptyState, KomoMessage } from "@/shared/components/mascot";
 
+const PAGE_SIZE = 5;
+
 export default function BuyerDashboardPage() {
   const [profile, setProfile] = useState<PersonProfile | null>(null);
   const [code, setCode] = useState<DiscoveryCode | null>(null);
   const [summary, setSummary] = useState<RewardSummary | null>(null);
   const [entries, setEntries] = useState<RewardLedgerEntry[]>([]);
   const [receipts, setReceipts] = useState<BuyerReceiptSummary[]>([]);
+  const [rewardCursors, setRewardCursors] = useState<string[]>([""]);
+  const [rewardPage, setRewardPage] = useState(1);
+  const [rewardNextCursor, setRewardNextCursor] = useState<string | undefined>();
+  const [rewardLoading, setRewardLoading] = useState(false);
   const [receiptPage, setReceiptPage] = useState(1);
   const [receiptPages, setReceiptPages] = useState(1);
   const [receiptsLoading, setReceiptsLoading] = useState(false);
@@ -28,11 +34,15 @@ export default function BuyerDashboardPage() {
   const [copied, setCopied] = useState(false);
 
   useEffect(() => {
-    void Promise.all([identityApi.profile(), identityApi.discoveryCode(), rewardsApi.summary(), rewardsApi.ledger(undefined, 8), receiptsApi.list(10)]).then(([person, discovery, rewards, history, purchases]) => {
+    void Promise.all([identityApi.profile(), identityApi.discoveryCode(), rewardsApi.summary(), rewardsApi.ledger(undefined, PAGE_SIZE), receiptsApi.list(PAGE_SIZE)]).then(([person, discovery, rewards, history, purchases]) => {
       if (person.success) setProfile(person.data); else setError(person.message);
       if (discovery.success) setCode(discovery.data);
       if (rewards.success) setSummary(rewards.data); else setError(rewards.message);
-      if (history.success) setEntries(history.data?.items ?? []);
+      if (history.success) {
+        setEntries(history.data?.items ?? []);
+        setRewardNextCursor(history.data?.nextCursor);
+        setRewardCursors(history.data?.nextCursor ? ["", history.data.nextCursor] : [""]);
+      }
       if (purchases.success) {
         setReceipts(purchases.data?.items ?? []);
         setReceiptPages(Math.max(1, purchases.data?.meta?.totalPages ?? 1));
@@ -44,7 +54,7 @@ export default function BuyerDashboardPage() {
   async function loadReceiptPage(page: number) {
     if (receiptsLoading || page < 1 || page > receiptPages) return;
     setReceiptsLoading(true);
-    const result = await receiptsApi.list(10, page);
+    const result = await receiptsApi.list(PAGE_SIZE, page);
     setReceiptsLoading(false);
     if (!result.success || !result.data) {
       toast.error(result.message || "Could not load receipts");
@@ -53,6 +63,26 @@ export default function BuyerDashboardPage() {
     setReceipts(result.data.items);
     setReceiptPage(result.data.meta.page);
     setReceiptPages(Math.max(1, result.data.meta.totalPages));
+  }
+
+  async function loadRewardPage(page: number) {
+    if (rewardLoading || page < 1 || page > rewardCursors.length || page === rewardPage) return;
+    const cursor = rewardCursors[page - 1] || undefined;
+    setRewardLoading(true);
+    const result = await rewardsApi.ledger(cursor, PAGE_SIZE);
+    setRewardLoading(false);
+    if (!result.success || !result.data) {
+      toast.error(result.message || "Could not load reward history");
+      return;
+    }
+    setEntries(result.data.items);
+    setRewardPage(page);
+    setRewardNextCursor(result.data.nextCursor);
+    setRewardCursors((previous) => {
+      const next = previous.slice(0, page);
+      if (result.data?.nextCursor) next[page] = result.data.nextCursor;
+      return next;
+    });
   }
 
   async function shareCode() {
@@ -102,7 +132,7 @@ export default function BuyerDashboardPage() {
       <div className={cardCls}><p className="text-sm text-foreground-muted">Purchases</p><p className="mt-2 text-2xl font-bold">{summary?.verifiedPurchaseCount ?? 0}</p></div>
       <div className={cardCls}><p className="text-sm text-foreground-muted">Lifetime earned</p><p className="mt-2 text-2xl font-bold">{summary?.lifetimeEarnedCoins ?? 0} coins</p></div>
     </section>
-    <section className={`${cardCls} mt-4`} aria-labelledby="reward-history-title"><div className="mb-4 flex items-center gap-2"><ReceiptText className="h-6 w-6 text-primary"/><h2 id="reward-history-title" className="text-xl font-semibold">Reward history</h2></div>{entries.length===0?<KomoEmptyState action="reward" title="No rewards yet" description="Your Komola Coins will appear after a seller completes a purchase linked with your buyer code."/>:<ul className="divide-y divide-border">{entries.map(entry=><li key={entry.id} className="flex items-center justify-between gap-4 py-4"><div><p className="font-medium text-foreground-heading">{entry.reason === "Verified farm-produce purchase" ? "Purchase reward" : entry.reason}</p><p className="mt-1 text-xs text-foreground-muted">{new Date(entry.effectiveAt).toLocaleString("en-IN")} · {formatPaise(Math.abs(entry.eligibleAmountMinor))}</p></div><p className={`text-lg font-bold ${entry.coinAmount>=0?"text-status-success":"text-status-danger"}`}>{entry.coinAmount>=0?"+":""}{entry.coinAmount}</p></li>)}</ul>}</section>
+    <section className={`${cardCls} mt-4`} aria-labelledby="reward-history-title"><div className="mb-4 flex items-center gap-2"><ReceiptText className="h-6 w-6 text-primary"/><h2 id="reward-history-title" className="text-xl font-semibold">Reward history</h2></div>{entries.length===0?<KomoEmptyState action="reward" title="No rewards yet" description="Your Komola Coins will appear after a seller completes a purchase linked with your buyer code."/>:<><div className="relative">{rewardLoading ? <div className="absolute inset-0 z-10 grid place-items-center rounded-xl bg-white/75"><Loader2 className="h-6 w-6 animate-spin text-primary" aria-label="Loading reward history"/></div> : null}<ul className="divide-y divide-border">{entries.map(entry=><li key={entry.id} className="flex items-center justify-between gap-4 py-4"><div><p className="font-medium text-foreground-heading">{entry.reason === "Verified farm-produce purchase" ? "Purchase reward" : entry.reason}</p><p className="mt-1 text-xs text-foreground-muted">{new Date(entry.effectiveAt).toLocaleString("en-IN")} · {formatPaise(Math.abs(entry.eligibleAmountMinor))}</p></div><p className={`text-lg font-bold ${entry.coinAmount>=0?"text-status-success":"text-status-danger"}`}>{entry.coinAmount>=0?"+":""}{entry.coinAmount}</p></li>)}</ul></div><nav className="mt-4 flex items-center justify-between gap-3 border-t border-border pt-4" aria-label="Reward history pages"><button type="button" onClick={() => void loadRewardPage(rewardPage - 1)} disabled={rewardLoading || rewardPage <= 1} className="inline-flex min-h-11 items-center gap-1 rounded-lg border border-border px-3 font-semibold disabled:opacity-40"><ChevronLeft className="h-4 w-4"/>Previous</button><span className="text-sm text-foreground-muted">Page {rewardPage}</span><button type="button" onClick={() => void loadRewardPage(rewardPage + 1)} disabled={rewardLoading || !rewardNextCursor} className="inline-flex min-h-11 items-center gap-1 rounded-lg border border-border px-3 font-semibold disabled:opacity-40">Next<ChevronRight className="h-4 w-4"/></button></nav></>}</section>
     <section className={`${cardCls} mt-4`} aria-labelledby="receipts-title">
       <div className="mb-4 flex items-center gap-2"><Download className="h-6 w-6 text-primary"/><h2 id="receipts-title" className="text-xl font-semibold">My e-receipts</h2></div>
       {receipts.length===0?<KomoEmptyState action="shopping" title="No e-receipts yet" description="Receipts linked with your buyer code will appear here."/>:<>

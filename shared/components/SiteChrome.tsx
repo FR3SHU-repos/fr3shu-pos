@@ -2,7 +2,14 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { LogOut, QrCode } from "lucide-react";
+import {
+  CircleUserRound,
+  Gift,
+  LogOut,
+  Megaphone,
+  QrCode,
+  WalletCards,
+} from "lucide-react";
 import { usePosUser } from "@/shared/context/PosUserContext";
 import { ADMIN_HOME, isPlatformAdmin } from "@/shared/lib/auth/routing";
 import { sellerOrgsApi } from "@/shared/lib/api";
@@ -57,7 +64,7 @@ export function SiteHeader() {
             className="h-9 w-9 shrink-0 rounded-lg object-contain"
           />
           <span className="truncate text-sm font-semibold text-foreground-heading sm:text-base">
-            KOMOLA <span className="hidden sm:inline">Organic POS</span>
+            KOMOLA <span className="hidden sm:inline">POS</span>
           </span>
         </Link>
 
@@ -68,12 +75,15 @@ export function SiteHeader() {
           {capabilities?.buyer ? (
             <>
               <Link href="/buyer" className={navLinkClass}>
+                <Gift className="h-4 w-4" aria-hidden="true" />
                 Rewards
               </Link>
               <Link href="/buyer/campaigns" className={navLinkClass}>
+                <Megaphone className="h-4 w-4" aria-hidden="true" />
                 Offers
               </Link>
               <Link href="/buyer/wallet" className={navLinkClass}>
+                <WalletCards className="h-4 w-4" aria-hidden="true" />
                 Wallet
               </Link>
             </>
@@ -104,6 +114,7 @@ export function SiteHeader() {
                 className="hidden min-h-10 max-w-40 items-center truncate rounded-lg bg-surface px-3 py-2.5 text-sm font-semibold text-foreground-heading sm:inline-flex"
                 title={user.name || user.email}
               >
+                <CircleUserRound className="mr-1.5 h-4 w-4 shrink-0" aria-hidden="true" />
                 {user.name || "My account"}
               </Link>
               <button
@@ -134,7 +145,7 @@ export function SiteFooter() {
   return (
     <footer className="no-print border-t border-border bg-surface-card">
       <div className="mx-auto flex w-full max-w-7xl flex-col items-center justify-between gap-1 px-4 py-5 text-center text-xs text-foreground-muted sm:flex-row sm:px-6 sm:text-left">
-        <span>© {new Date().getFullYear()} KOMOLA Organic POS</span>
+        <span>© {new Date().getFullYear()} KOMOLA POS</span>
         <span>Visakhapatnam, India</span>
       </div>
     </footer>
@@ -142,4 +153,4 @@ export function SiteFooter() {
 }
 
 const navLinkClass =
-  "min-h-10 rounded-lg px-2 py-2.5 text-xs font-medium text-foreground-body transition hover:bg-surface hover:text-foreground-heading sm:px-3 sm:text-sm";
+  "inline-flex min-h-10 items-center gap-1.5 rounded-lg px-2 py-2.5 text-xs font-medium text-foreground-body transition hover:bg-surface hover:text-foreground-heading sm:px-3 sm:text-sm";

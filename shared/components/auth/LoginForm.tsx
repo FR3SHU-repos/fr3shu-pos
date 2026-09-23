@@ -129,7 +129,7 @@ export function LoginForm({ intent }: { intent: AuthIntent }) {
             <Lock className="h-6 w-6" />
           </span>
           <h1 className="mt-3 text-lg font-semibold text-foreground-heading">
-            KOMOLA Organic POS
+            KOMOLA POS
           </h1>
           <p className="text-sm text-foreground-muted">One account for buying and selling</p>
         </div>

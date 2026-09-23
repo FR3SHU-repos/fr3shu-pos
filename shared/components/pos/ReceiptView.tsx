@@ -36,13 +36,13 @@ export function ReceiptView({
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img className="rcpt-logo" src="/komola-logo.png" alt="" />
         <div className="rcpt-wordmark">KOMOLA</div>
-        <div className="rcpt-tagline">Organic produce</div>
+        <div className="rcpt-tagline">KOMOLA purchase</div>
       </div>
 
       <div className="rcpt-rule rcpt-rule--solid" />
 
       <div className="rcpt-store">
-        <div className="rcpt-store-name">{orgName || "Organic stall"}</div>
+        <div className="rcpt-store-name">{orgName || "KOMOLA store"}</div>
         {locationName ? <div className="rcpt-store-loc">{locationName}</div> : null}
       </div>
 

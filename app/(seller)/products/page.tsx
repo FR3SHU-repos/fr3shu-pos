@@ -65,7 +65,7 @@ export default function ProductsPage() {
       ) : items.length === 0 ? (
         <EmptyState
           title="No products found"
-          description="Create your first organic product to start selling."
+          description="Create your first agri product to start selling."
           action={
             <Link href="/products/new" className={primaryBtnCls}>
               <Plus className="h-4 w-4" />

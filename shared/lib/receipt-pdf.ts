@@ -1,4 +1,5 @@
 import type { BuyerReceiptDetail } from "@/shared/lib/api/receipts";
+import { formatBaseQuantity, type SaleUnit } from "@/shared/lib/units";
 
 const PRIMARY: [number, number, number] = [255, 87, 51];
 const INK: [number, number, number] = [28, 25, 23];
@@ -100,7 +101,7 @@ export async function createBuyerReceiptPdf(receipt: BuyerReceiptDetail) {
     pdf.setFont("helvetica", "normal");
     pdf.setFontSize(9);
     pdf.setTextColor(...MUTED);
-    pdf.text(`${line.quantity} ${line.unit} x ${money(line.unitPriceMinor)}`, left, y);
+    pdf.text(`${formatBaseQuantity(Number(line.quantity), line.unit as SaleUnit)} x ${money(line.unitPriceMinor)}`, left, y);
     if (line.discountMinor > 0) pdf.text(`Discount ${money(line.discountMinor)}`, right, y, { align: "right" });
     y += 6;
     pdf.setDrawColor(239, 232, 228);
@@ -153,7 +154,7 @@ export async function createBuyerReceiptPdf(receipt: BuyerReceiptDetail) {
     pdf.setFont("helvetica", "normal");
     pdf.setFontSize(8);
     pdf.setTextColor(...MUTED);
-    pdf.text(`KOMOLA Organic POS  |  ${receipt.receiptNo}`, left, height - 10);
+    pdf.text(`KOMOLA POS  |  ${receipt.receiptNo}`, left, height - 10);
     pdf.text(`Page ${page} of ${pages}`, right, height - 10, { align: "right" });
   }
 

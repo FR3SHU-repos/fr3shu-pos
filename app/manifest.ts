@@ -2,9 +2,9 @@ import type { MetadataRoute } from "next";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "KOMOLA Organic POS",
+    name: "KOMOLA POS",
     short_name: "KOMOLA POS",
-    description: "Seller-side Point of Sale for small organic sellers.",
+    description: "KOMOLA point-of-sale platform for sellers and buyers.",
     start_url: "/pos",
     display: "standalone",
     background_color: "#f8faf5",
