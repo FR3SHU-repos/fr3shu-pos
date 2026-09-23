@@ -1,4 +1,4 @@
-> Historical reference. The current PostgreSQL architecture is documented in `cross-platform-assets/project-context.md`.
+> Historical reference. The current PostgreSQL architecture is documented in `cross-platform-assets/project/project-context.md`.
 
 # Decisions & Trade-offs
 

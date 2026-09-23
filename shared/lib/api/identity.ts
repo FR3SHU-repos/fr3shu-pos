@@ -16,6 +16,28 @@ export interface PersonProfile {
   status: "active" | "merged" | "suspended";
   buyer: boolean;
   contacts: VerifiedContact[];
+  address?: UserAddress;
+  locationId?: string;
+  locationCode?: string;
+  locationName?: string;
+}
+
+export interface UserAddress {
+  line1: string;
+  line2?: string;
+  city: string;
+  state: string;
+  postalCode: string;
+  country: "India";
+}
+
+export interface PlatformLocation {
+  id: string;
+  code: string;
+  name: string;
+  timezone: string;
+  status: "enabled" | "disabled";
+  enabled: boolean;
 }
 
 export interface Capabilities {
@@ -31,7 +53,8 @@ export const capabilities = (accessToken?: string): Promise<ApiResult<Capabiliti
   request("me/capabilities", {
     headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : undefined,
   });
-export const updateProfile = (displayName: string, buyer: boolean, phoneE164?: string): Promise<ApiResult<PersonProfile>> =>
-  request("me/profile", { method: "PUT", body: { displayName, buyer, phoneE164 } });
+export const updateProfile = (displayName: string, buyer: boolean, phoneE164: string | undefined, locationCode: string | undefined, address: UserAddress): Promise<ApiResult<PersonProfile>> =>
+  request("me/profile", { method: "PUT", body: { displayName, buyer, phoneE164, locationCode, address } });
+export const locations = (): Promise<ApiResult<{ items: PlatformLocation[] }>> => request("locations");
 export const discoveryCode = (): Promise<ApiResult<DiscoveryCode>> => request("me/discovery-code");
 export const rotateDiscoveryCode = (): Promise<ApiResult<DiscoveryCode>> => request("me/discovery-code/rotate", { method: "POST" });

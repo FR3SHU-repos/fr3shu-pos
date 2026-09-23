@@ -50,10 +50,15 @@ export function SiteHeader() {
         </Link>
 
         <nav aria-label="Primary navigation" className="flex items-center gap-1 sm:gap-2">
-          {capabilities?.buyer && !capabilities.seller ? (
-            <Link href="/buyer" className={navLinkClass}>
-              Rewards
-            </Link>
+          {capabilities?.buyer ? (
+            <>
+              <Link href="/buyer" className={navLinkClass}>
+                Rewards
+              </Link>
+              <Link href="/buyer/campaigns" className={navLinkClass}>
+                Offers
+              </Link>
+            </>
           ) : null}
           {capabilities?.seller || isPlatformAdmin(user) ? (
             <Link href="/dashboard" className={navLinkClass}>

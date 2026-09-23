@@ -39,6 +39,7 @@ import { clampQuantityToStock, remainingStockBase } from "@/shared/lib/pos-stock
 import { translator, LOCALES, type Locale } from "@/shared/lib/i18n";
 import { ReceiptView, type ReceiptPaymentLine } from "@/shared/components/pos/ReceiptView";
 import { buildWhatsAppReceiptUrl } from "@/shared/lib/whatsapp-share";
+import { KomoMessage } from "@/shared/components/mascot";
 import { type CartLine, type HeldCart } from "@/shared/components/pos/types";
 import { loadHeldCarts, saveHeldCarts } from "@/shared/lib/offline/held-carts";
 import { BuyerQrScanner } from "@/shared/components/pos/BuyerQrScanner";
@@ -544,6 +545,12 @@ export default function PosPage() {
     return (
       <div className="mx-auto max-w-md space-y-5 text-center">
         <CheckCircle2 className="mx-auto h-14 w-14 text-status-success" />
+        <KomoMessage
+          action={completedOffline ? "offline" : completed.reward?.linked ? "reward" : "invoice"}
+          title={completedOffline ? "Sale saved safely on this device." : completed.reward?.linked ? "Your customer earned Komola Coins." : "Your receipt is ready."}
+          description={completedOffline ? "KOMOLA will sync it when the connection returns." : "The sale and receipt are ready for the next customer."}
+          compact
+        />
         <div>
           <h1 className="text-xl font-semibold text-foreground-heading">Purchase completed</h1>
           <p className="text-sm text-foreground-muted">
@@ -979,9 +986,10 @@ export default function PosPage() {
               <input
                 placeholder={t("pos.customer_phone")}
                 value={customerPhone}
-                onChange={(e) => setCustomerPhone(e.target.value)}
+                onChange={(e) => setCustomerPhone(e.target.value.replace(/\D/g, "").slice(0, 10))}
                 className={inputCls}
                 inputMode="numeric"
+                maxLength={10}
                 autoComplete="off"
                 readOnly={Boolean(resolvedBuyer)}
               />

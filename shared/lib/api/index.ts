@@ -9,6 +9,7 @@ export * as salesApi from "./sales";
 export * as sellerOrgsApi from "./sellerOrgs";
 export * as identityApi from "./identity";
 export * as rewardsApi from "./rewards";
+export * as campaignsApi from "./campaigns";
 export * as receiptsApi from "./receipts";
 export * as bootstrapApi from "./bootstrap";
 export * as customersApi from "./customers";

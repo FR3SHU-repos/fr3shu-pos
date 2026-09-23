@@ -1,7 +1,10 @@
+import { KomoStatus } from "@/shared/components/mascot";
+
 export default function OfflinePage() {
   return (
     <main className="mx-auto flex min-h-screen max-w-lg flex-col justify-center px-6 py-12">
       <div className="rounded-xl border border-border bg-surface-card p-5">
+        <KomoStatus status="offline" title="You’re offline" description="KOMOLA will keep this state clear while you reconnect." />
         <h1 className="text-lg font-semibold text-foreground-heading">KOMOLA POS is offline</h1>
         <p className="mt-2 text-sm text-foreground-muted">
           Reopen Point of Sale from this device after it has been prepared online. Saved products, register context, and pending offline sales are kept on this browser.

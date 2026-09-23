@@ -11,6 +11,7 @@ import { cardCls, primaryBtnCls, SkeletonRows, StatusBadge } from "@/shared/comp
 import { formatPaise } from "@/shared/lib/money";
 import { listOfflineSales, type OfflineSaleRecord, type OfflineScope } from "@/shared/lib/offline/sales";
 import { mergeSalesWithOffline, pendingOfflineCashTotal } from "@/shared/lib/offline/session-summary";
+import { KomoEmptyState, KomoMessage } from "@/shared/components/mascot";
 
 export default function DashboardPage() {
   const { user } = usePosUser();
@@ -68,6 +69,8 @@ export default function DashboardPage() {
         </Link>
       </header>
 
+      <KomoMessage action="wave" title="Ready for your first sale?" description="Komo is here to help you keep the counter moving." compact />
+
       {loading ? (
         <SkeletonRows rows={3} />
       ) : (
@@ -107,7 +110,7 @@ export default function DashboardPage() {
               </Link>
             </div>
             {recentSales.length === 0 ? (
-              <p className="py-6 text-center text-sm text-foreground-muted">No sales yet.</p>
+              <KomoEmptyState action="idle" title="Your sales will appear here." description="Complete your first sale from the POS to start building your history." buttonLabel="Open POS" buttonHref="/pos" />
             ) : (
               <ul className="divide-y divide-border">
                 {recentSales.map(({ sale: s, local, state, serverSaleId }) => (

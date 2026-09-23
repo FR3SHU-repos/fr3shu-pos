@@ -88,6 +88,65 @@ select {
   padding-bottom: max(0.5rem, env(safe-area-inset-bottom));
 }
 
+/* Komo movement is deliberately subtle and only affects the wrapper. */
+@keyframes komo-float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-3px);
+  }
+}
+
+@keyframes komo-pop {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.04);
+  }
+}
+
+@keyframes komo-celebrate {
+  0%,
+  100% {
+    transform: translateY(0) rotate(0deg);
+  }
+  50% {
+    transform: translateY(-4px) rotate(-2deg);
+  }
+}
+
+.komo-idle,
+.komo-offline,
+.komo-syncing {
+  animation: komo-float 2.8s ease-in-out infinite;
+}
+
+.komo-reward,
+.komo-success {
+  animation: komo-pop 1.8s ease-in-out infinite;
+}
+
+.komo-celebrate,
+.komo-wave {
+  animation: komo-celebrate 2.2s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .komo-idle,
+  .komo-offline,
+  .komo-syncing,
+  .komo-reward,
+  .komo-success,
+  .komo-celebrate,
+  .komo-wave {
+    animation: none;
+  }
+}
+
 /* ============================================================
    Point-of-sale receipt — shared by the on-screen preview and
    the print stylesheet. Monospace body, branded header.

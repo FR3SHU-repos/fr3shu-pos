@@ -88,8 +88,10 @@ export default function SalesHistoryPage() {
         </div>
         <input
           value={phone}
-          onChange={(e) => setPhone(e.target.value)}
-          placeholder="Customer phone"
+          onChange={(e) => setPhone(e.target.value.replace(/\D/g, "").slice(0, 10))}
+          placeholder="Customer phone (10 digits)"
+          inputMode="numeric"
+          maxLength={10}
           className={inputCls}
         />
       </div>

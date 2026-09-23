@@ -77,17 +77,6 @@ export async function GET(request: NextRequest) {
     // login. Only identities with no category enter an onboarding flow.
     destination = destinationForCapabilities(intent, capabilities);
     if (destination === "/buyer/setup") {
-      const phone = typeof session?.user.user_metadata?.buyer_phone_e164 === "string" ? session.user.user_metadata.buyer_phone_e164 : "";
-      const displayName = typeof session?.user.user_metadata?.display_name === "string" ? session.user.user_metadata.display_name : "Buyer";
-      if (phone) {
-        const profile = await fetch(`${apiBase}/api/v1/me/profile`, {
-          method: "PUT",
-          headers,
-          body: JSON.stringify({ displayName, buyer: true, phoneE164: phone }),
-          cache: "no-store",
-        });
-        return NextResponse.redirect(`${origin}${profile.ok ? "/buyer" : "/buyer/setup"}`);
-      }
       return NextResponse.redirect(`${origin}/buyer/setup`);
     }
     if (destination === "/buyer") return NextResponse.redirect(`${origin}/buyer`);

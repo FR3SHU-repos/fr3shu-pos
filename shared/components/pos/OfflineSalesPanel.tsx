@@ -476,7 +476,7 @@ export function OfflineSalesPanel() {
                           inputMode="numeric"
                           placeholder="9876543210"
                           value={editForm.customerPhone}
-                          onChange={(event) => setEditForm((form) => ({ ...form, customerPhone: event.target.value.replace(/\D/g, "").slice(0, 12) }))}
+                          onChange={(event) => setEditForm((form) => ({ ...form, customerPhone: event.target.value.replace(/\D/g, "").slice(0, 10) }))}
                         />
                       </label>
                       <label className="text-xs font-medium text-foreground-body">

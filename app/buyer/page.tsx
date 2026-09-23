@@ -5,13 +5,14 @@ import { identityApi, receiptsApi, rewardsApi } from "@/shared/lib/api";
 import type { BuyerReceiptSummary } from "@/shared/lib/api/receipts";
 import type { DiscoveryCode, PersonProfile } from "@/shared/lib/api/identity";
 import type { RewardLedgerEntry, RewardSummary } from "@/shared/lib/api/rewards";
-import { cardCls, EmptyState, Skeleton } from "@/shared/components/ui";
+import { cardCls, Skeleton } from "@/shared/components/ui";
 import { formatPaise } from "@/shared/lib/money";
 import { Check, ChevronLeft, ChevronRight, Coins, Copy, Download, Eye, Loader2, ReceiptText, Share2 } from "lucide-react";
 import Link from "next/link";
 import toast from "react-hot-toast";
 import { BuyerCodeQr } from "@/shared/components/buyer/BuyerCodeQr";
 import { copyText } from "@/shared/lib/clipboard";
+import { KomoEmptyState, KomoMessage } from "@/shared/components/mascot";
 
 export default function BuyerDashboardPage() {
   const [profile, setProfile] = useState<PersonProfile | null>(null);
@@ -79,6 +80,8 @@ export default function BuyerDashboardPage() {
 
   return <main className="mx-auto min-h-screen max-w-4xl bg-surface p-4 sm:p-8">
     <header className="mb-6"><p className="font-semibold text-primary">KOMOLA Buyer</p><h1 className="text-3xl font-bold">{profile?.displayName ? `Hello, ${profile.displayName}` : "Your rewards"}</h1><p className="mt-1 text-foreground-muted">Rewards and status from purchases completed by KOMOLA sellers.</p></header>
+    <KomoMessage action="wave" title="Let’s make every purchase count." description="Show your buyer code at a KOMOLA seller to collect receipts and rewards." compact />
+    <Link href="/buyer/campaigns" className={`${cardCls} mt-4 flex items-center justify-between gap-4 transition hover:shadow-md`}><div><p className="font-semibold text-primary">Rewards and offers</p><h2 className="mt-1 text-xl font-bold text-foreground-heading">Apply for location-based campaigns</h2><p className="mt-1 text-sm text-foreground-muted">See KOMOLA offers available in your area and apply for them.</p></div><span className="shrink-0 rounded-lg bg-primary px-4 py-2 font-semibold text-primary-foreground">View offers</span></Link>
     {error && <p role="alert" className="mb-4 rounded-lg bg-red-50 p-4 text-red-700">{error}</p>}
     <section className={`${cardCls} mb-4 text-center`} aria-labelledby="buyer-code-title">
       <h2 id="buyer-code-title" className="text-xl font-semibold">My buyer code</h2>
@@ -99,10 +102,10 @@ export default function BuyerDashboardPage() {
       <div className={cardCls}><p className="text-sm text-foreground-muted">Purchases</p><p className="mt-2 text-2xl font-bold">{summary?.verifiedPurchaseCount ?? 0}</p></div>
       <div className={cardCls}><p className="text-sm text-foreground-muted">Lifetime earned</p><p className="mt-2 text-2xl font-bold">{summary?.lifetimeEarnedCoins ?? 0} coins</p></div>
     </section>
-    <section className={`${cardCls} mt-4`} aria-labelledby="reward-history-title"><div className="mb-4 flex items-center gap-2"><ReceiptText className="h-6 w-6 text-primary"/><h2 id="reward-history-title" className="text-xl font-semibold">Reward history</h2></div>{entries.length===0?<EmptyState title="No rewards yet" description="Your Komola Coins will appear after a seller completes a purchase linked with your buyer code."/>:<ul className="divide-y divide-border">{entries.map(entry=><li key={entry.id} className="flex items-center justify-between gap-4 py-4"><div><p className="font-medium text-foreground-heading">{entry.reason === "Verified farm-produce purchase" ? "Purchase reward" : entry.reason}</p><p className="mt-1 text-xs text-foreground-muted">{new Date(entry.effectiveAt).toLocaleString("en-IN")} · {formatPaise(Math.abs(entry.eligibleAmountMinor))}</p></div><p className={`text-lg font-bold ${entry.coinAmount>=0?"text-status-success":"text-status-danger"}`}>{entry.coinAmount>=0?"+":""}{entry.coinAmount}</p></li>)}</ul>}</section>
+    <section className={`${cardCls} mt-4`} aria-labelledby="reward-history-title"><div className="mb-4 flex items-center gap-2"><ReceiptText className="h-6 w-6 text-primary"/><h2 id="reward-history-title" className="text-xl font-semibold">Reward history</h2></div>{entries.length===0?<KomoEmptyState action="reward" title="No rewards yet" description="Your Komola Coins will appear after a seller completes a purchase linked with your buyer code."/>:<ul className="divide-y divide-border">{entries.map(entry=><li key={entry.id} className="flex items-center justify-between gap-4 py-4"><div><p className="font-medium text-foreground-heading">{entry.reason === "Verified farm-produce purchase" ? "Purchase reward" : entry.reason}</p><p className="mt-1 text-xs text-foreground-muted">{new Date(entry.effectiveAt).toLocaleString("en-IN")} · {formatPaise(Math.abs(entry.eligibleAmountMinor))}</p></div><p className={`text-lg font-bold ${entry.coinAmount>=0?"text-status-success":"text-status-danger"}`}>{entry.coinAmount>=0?"+":""}{entry.coinAmount}</p></li>)}</ul>}</section>
     <section className={`${cardCls} mt-4`} aria-labelledby="receipts-title">
       <div className="mb-4 flex items-center gap-2"><Download className="h-6 w-6 text-primary"/><h2 id="receipts-title" className="text-xl font-semibold">My e-receipts</h2></div>
-      {receipts.length===0?<EmptyState title="No e-receipts yet" description="Receipts linked with your buyer code will appear here."/>:<>
+      {receipts.length===0?<KomoEmptyState action="shopping" title="No e-receipts yet" description="Receipts linked with your buyer code will appear here."/>:<>
         <div className="relative">
           {receiptsLoading ? <div className="absolute inset-0 z-10 grid place-items-center rounded-xl bg-white/75"><Loader2 className="h-6 w-6 animate-spin text-primary" aria-label="Loading receipts"/></div> : null}
           <ul className="max-h-[32rem] divide-y divide-border overflow-y-auto pr-1">{receipts.map(receipt=><li key={receipt.id} className="flex flex-col justify-between gap-3 py-4 sm:flex-row sm:items-center"><div><p className="font-semibold text-foreground-heading">{receipt.storeName}</p><p className="text-sm text-foreground-muted">{receipt.receiptNo} · {new Date(receipt.purchasedAt).toLocaleString("en-IN")}</p><p className="mt-1 text-sm font-medium">{formatPaise(receipt.totalMinor)} · {receipt.coinsEarned} coin{receipt.coinsEarned===1?"":"s"}</p></div><Link href={`/buyer/receipts/${receipt.id}`} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-border px-4 font-semibold text-primary"><Eye className="h-4 w-4"/>View & download</Link></li>)}</ul>

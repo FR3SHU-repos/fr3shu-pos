@@ -21,5 +21,5 @@ the access token and looks up organization membership in PostgreSQL. UI domain
 interfaces are under `shared/interfaces/domain`; they are not database models.
 
 Checks: `npm run test`, `npm run typecheck`, `npm run lint`, `npm run build`.
-See [project context](../cross-platform-assets/project-context.md) for endpoint
+See [project context](../cross-platform-assets/project/project-context.md) for endpoint
 consumers, table relationships, units, policies and pending rollout verification.

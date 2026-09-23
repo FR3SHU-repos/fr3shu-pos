@@ -9,8 +9,8 @@ import { Divider, GoogleButton } from "@/shared/components/auth/parts";
 import type { AuthIntent } from "@/shared/lib/auth/intent";
 import { reconcileIdentity } from "@/shared/lib/auth/gin";
 import { normalizeIndianMobile } from "@/shared/lib/auth/phone";
-import { identityApi } from "@/shared/lib/api";
 import { authCallbackRedirect, rememberAuthIntent } from "@/shared/lib/auth/providers";
+import { KomoMessage } from "@/shared/components/mascot";
 
 export function RegisterForm({ intent }: { intent: AuthIntent }) {
   const router = useRouter();
@@ -39,21 +39,25 @@ export function RegisterForm({ intent }: { intent: AuthIntent }) {
     if (intent === "seller") sessionStorage.setItem("komola:seller-draft", JSON.stringify({ fullName: form.fullName.trim(), sellerType: form.sellerType }));
     if (data.session && intent === "buyer" && buyerPhone) {
       await reconcileIdentity(data.session.access_token);
-      const profile = await identityApi.updateProfile(form.fullName.trim(), true, buyerPhone);
       setBusy(false);
-      if (!profile.success) return setError(profile.status === 409 ? "This mobile number is already linked to another KOMOLA account." : profile.message);
-      router.replace("/buyer");
+      router.replace("/buyer/setup");
       return;
     }
     setBusy(false);
     router.replace(data.session ? "/seller/onboarding" : "/auth/check-email");
   }
   return <main className="flex min-h-screen items-center justify-center bg-surface p-4"><form onSubmit={submit} className={`${cardCls} w-full max-w-md space-y-3`}>
+    <KomoMessage
+      action={intent === "buyer" ? "happy" : "produce"}
+      title={intent === "buyer" ? "Let’s make your purchases count." : "Let’s get your business ready."}
+      description={intent === "buyer" ? "Komo will help keep your rewards and receipts together." : "Komo will guide you through setting up your KOMOLA POS."}
+      compact
+    />
     <div><h1 className="text-xl font-semibold capitalize">Create your {intent} account</h1><p className="mt-1 text-sm text-foreground-muted">Register for the {intent === "buyer" ? "rewards and receipts" : "point-of-sale"} portal.</p><Link href="/register" className="mt-2 inline-block text-xs font-medium text-primary hover:underline">Choose a different account type</Link></div>
     <GoogleButton onClick={google} loading={googleBusy} />
     <Divider />
     <input aria-label="Full name" className={inputCls} placeholder="Full name" value={form.fullName} onChange={e=>setForm({...form,fullName:e.target.value})} required />
-    {intent === "buyer" && <div><label className="mb-1.5 block text-sm font-semibold" htmlFor="register-phone">Mobile number <span className="text-primary">*</span></label><div className="flex"><span className="flex items-center rounded-l-xl border border-r-0 border-border bg-surface-card px-4 text-sm font-semibold" aria-hidden="true">+91</span><input id="register-phone" className={`${inputCls} mt-0 rounded-l-none`} type="tel" inputMode="numeric" autoComplete="tel-national" placeholder="98765 43210" maxLength={10} pattern="[6-9][0-9]{9}" value={form.phone} onChange={e=>setForm({...form,phone:e.target.value.replace(/\D/g, "").slice(0, 10)})} required /></div><p className="mt-1.5 text-xs text-foreground-muted">Stored as contact information. This number is not used to sign in and is not yet verified.</p></div>}
+    {intent === "buyer" && <div><label className="mb-1.5 block text-sm font-semibold" htmlFor="register-phone">Mobile number <span className="text-primary">*</span></label><input id="register-phone" className={inputCls} type="tel" inputMode="numeric" autoComplete="tel-national" placeholder="98765 43210" maxLength={10} pattern="[6-9][0-9]{9}" value={form.phone} onChange={e=>setForm({...form,phone:e.target.value.replace(/\D/g, "").slice(0, 10)})} required /><p className="mt-1.5 text-xs text-foreground-muted">Stored as contact information. This number is not used to sign in and is not yet verified.</p></div>}
     <input aria-label="Email" className={inputCls} type="email" placeholder="Email" value={form.email} onChange={e=>setForm({...form,email:e.target.value})} required />
     <input aria-label="Password" className={inputCls} type="password" placeholder="Password" value={form.password} onChange={e=>setForm({...form,password:e.target.value})} required />
     <input aria-label="Confirm password" className={inputCls} type="password" placeholder="Confirm password" value={form.confirm} onChange={e=>setForm({...form,confirm:e.target.value})} required />

@@ -153,7 +153,7 @@ progressive disclosure. No photo, no "available quantity" on the same form
 
 **Stock.** `inventory/lots` is read-only. There is no "Add stock" / "Reduce
 stock" action at all — the backend `receiving`/`adjustment` APIs are not
-implemented (per `cross-platform-assets/project-context.md`). Language is
+implemented (per `cross-platform-assets/project/project-context.md`). Language is
 "Inventory & lots", "balances", "movements".
 
 **Buyer experience.** Nothing exists. No public receipt/invoice view, no invoice
@@ -903,7 +903,7 @@ backend `go build/vet/test`), and touches only `komola-pos` unless noted.
 - Run the brief's 10 task tests (§12) with representative data; record metrics.
 - Full a11y pass (axe + manual SR); Telugu human review sign-off.
 - Lighthouse PWA/installable/offline; low-end device check (throttled).
-- Update `cross-platform-assets/project-context.md` and this doc's status.
+- Update `cross-platform-assets/project/project-context.md` and this doc's status.
 
 ### Files expected to change (indicative, per phase — not exhaustive)
 
@@ -972,7 +972,7 @@ duplicated sales); seller can correctly state their sync status when asked
    unreconciled drawer are risky; recommend **online-only returns** in this
    phase. *Owner: product.*
 5. **Stock in/out has no backend** — `receiving`/`adjustment` APIs are not
-   implemented (`cross-platform-assets/project-context.md`). Phase 5b is blocked
+   implemented (`cross-platform-assets/project/project-context.md`). Phase 5b is blocked
    on a backend migration + endpoints; without it, "Available now" at product
    creation may also be unsupported. *Owner: backend.*
 6. **Oversell while offline** is possible (no lock offline). Mitigation: soft

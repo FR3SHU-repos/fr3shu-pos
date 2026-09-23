@@ -12,7 +12,7 @@
 
 import { request, type ApiResult } from "./client";
 
-export type SellerOrgType = "Farmer" | "FPO" | "Retailer" | "Brand";
+export type SellerOrgType = "Farmer" | "FPO" | "Retailer" | "Brand" | "Rewardor";
 export type SellerOrgStatus = "Pending" | "Approved" | "Rejected" | "Suspended";
 export type OnboardingState = "provisioning" | "linked" | "complete";
 export type MembershipRole = "SellerOwner" | "Manager" | "Cashier" | "InventoryManager";
