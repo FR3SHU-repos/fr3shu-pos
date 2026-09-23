@@ -95,7 +95,7 @@ export default function BuyerDashboardPage() {
       </div>
     </section>
     <section aria-label="Komola Coin balance">
-      <div className={cardCls}><div className="flex items-center gap-2 text-primary"><Coins className="h-6 w-6"/><p className="font-semibold">Komola Coins</p></div><p className="mt-3 text-5xl font-bold text-foreground-heading">{summary?.availableCoins.toLocaleString("en-IN") ?? 0}</p><p className="mt-2 text-sm text-foreground-muted">{summary?.eligibleRemainderMinor ? `${formatPaise(summary.eligibleRemainderMinor)} carried toward your next coin` : "Every ₹100 of completed purchases earns 1 coin"}</p></div>
+      <div className={cardCls}><div className="flex items-center gap-2 text-primary"><Coins className="h-6 w-6"/><p className="font-semibold">Komola Coins</p></div><p className="mt-3 text-5xl font-bold text-foreground-heading">{summary?.availableCoins.toLocaleString("en-IN") ?? 0}</p><p className="mt-2 text-sm text-foreground-muted">{summary?.eligibleRemainderMinor ? `${formatPaise(summary.eligibleRemainderMinor)} carried toward your next coin` : "Every ₹100 of completed purchases earns 1 coin"}</p>{summary?.reservedCampaignCoins ? <p className="mt-3 rounded-lg bg-amber-50 px-3 py-2 text-sm font-semibold text-amber-800">{summary.reservedCampaignCoins.toLocaleString("en-IN")} points locked in pending offer claims</p> : null}</div>
     </section>
     <section className="mt-4 grid gap-4 sm:grid-cols-3" aria-label="Purchase totals">
       <div className={cardCls}><p className="text-sm text-foreground-muted">Total spend</p><p className="mt-2 text-2xl font-bold">{formatPaise(summary?.eligibleSpendMinor ?? 0)}</p></div>

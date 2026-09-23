@@ -58,16 +58,32 @@ The first offline POS implementation pass is complete. Future hardening can add 
 Run a real browser QA pass: create an offline sale, refresh while offline, reconnect, confirm it auto-syncs and disappears from the offline panel, then verify it appears as a completed server sale in dashboard/history/register totals.
 
 
-> **⚠️ Partly superseded (2026-09).** Sections 2 (architecture), 3 (roles /
+> **⚠️ Historical sections below.** Sections 2 (architecture), 3 (roles /
 > `pos_token`) and 5–8 describe the earlier embedded-Mongoose "thin vertical
-> slice". This app now has **no database and no local JWT**: `go-api-backend`
-> owns every read/write and authentication is **Supabase Auth** via
-> `@supabase/ssr`. `shared/models/mongodb/*` and the `pos_token` cookie no
-> longer exist. The current architecture, data model and seller-tenancy design
-> are in `go-api-backend/docs/pos-architecture.md`,
-> `go-api-backend/docs/authentication.md` and `go-api-backend/schemas/pos/`. The
-> purpose (§1), organic-trust intent (§4) and deferred-scope list (§9) still
-> read true.
+> slice". They are retained for historical context only. The current app has
+> **no database and no local JWT**: `go-api-backend` owns every read/write and
+> authentication is **Supabase Auth** via `@supabase/ssr`. The shared KOMOLA
+> database also serves buyer rewards and the dedicated Rewardor web app.
+
+## Current architecture and API boundary — 23 September 2026
+
+```text
+POS web / Rewardor web / mobile POS
+              │ typed HTTP clients
+              ▼
+        Go/Gin API :8080
+              │ Supabase PostgreSQL
+              ▼
+ identity · POS · inventory · billing · loyalty · audit · integration
+```
+
+The browser uses the typed clients and the database-free Next.js proxy. It must
+not query Supabase application schemas directly. The Go API currently exposes
+seller POS, buyer rewards/receipts, Rewardor campaign authoring and lifecycle,
+location-filtered buyer campaign discovery, and buyer claim creation. Current
+route and schema documentation is in `go-api-backend/openapi/openapi.yaml` and
+`go-api-backend/docs/api-current.md`; Swagger is served at the backend `/docs`
+route.
 
 ## 1. Purpose
 

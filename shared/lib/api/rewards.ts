@@ -2,6 +2,7 @@ import { request, type ApiResult } from "./client";
 
 export interface RewardSummary {
   availableCoins: number;
+  reservedCampaignCoins: number;
   pendingCoins: number;
   lifetimeEarnedCoins: number;
   lifetimeRedeemedCoins: number;

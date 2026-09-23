@@ -20,6 +20,12 @@ Supabase Auth owns password login, OAuth, password reset and sign-out. Go verifi
 the access token and looks up organization membership in PostgreSQL. UI domain
 interfaces are under `shared/interfaces/domain`; they are not database models.
 
+The buyer experience also consumes the shared Rewardor campaign APIs: buyers
+see published campaigns for their registered platform location and can create
+eligible claims. Campaign authoring remains in the separate `komola-rewardor`
+web app; POS remains responsible for seller checkout and future claim
+redemption.
+
 Checks: `npm run test`, `npm run typecheck`, `npm run lint`, `npm run build`.
 See [project context](../cross-platform-assets/project/project-context.md) for endpoint
 consumers, table relationships, units, policies and pending rollout verification.
