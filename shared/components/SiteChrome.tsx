@@ -50,7 +50,7 @@ export function SiteHeader() {
   }
 
   return (
-    <header className="no-print sticky top-0 z-50 border-b border-border bg-surface-card/95 backdrop-blur">
+    <header className="no-print sticky top-0 z-50 border-b border-border/70 bg-surface backdrop-blur">
       <div className="mx-auto flex min-h-16 w-full max-w-7xl items-center justify-between gap-3 px-4 sm:px-6">
         <Link
           href="/"
@@ -64,7 +64,7 @@ export function SiteHeader() {
             className="h-9 w-9 shrink-0 rounded-lg object-contain"
           />
           <span className="truncate text-sm font-semibold text-foreground-heading sm:text-base">
-            KOMOLA <span className="hidden sm:inline">POS</span>
+            KOMOLA
           </span>
         </Link>
 
@@ -111,7 +111,7 @@ export function SiteHeader() {
             <>
               <Link
                 href={accountHref}
-                className="hidden min-h-10 max-w-40 items-center truncate rounded-lg bg-surface px-3 py-2.5 text-sm font-semibold text-foreground-heading sm:inline-flex"
+                className="hidden min-h-10 max-w-40 items-center truncate rounded-lg bg-surface-card px-3 py-2.5 text-sm font-semibold text-foreground-heading sm:inline-flex"
                 title={user.name || user.email}
               >
                 <CircleUserRound className="mr-1.5 h-4 w-4 shrink-0" aria-hidden="true" />
@@ -153,4 +153,4 @@ export function SiteFooter() {
 }
 
 const navLinkClass =
-  "inline-flex min-h-10 items-center gap-1.5 rounded-lg px-2 py-2.5 text-xs font-medium text-foreground-body transition hover:bg-surface hover:text-foreground-heading sm:px-3 sm:text-sm";
+  "inline-flex min-h-10 items-center gap-1.5 rounded-lg px-2 py-2.5 text-xs font-medium text-foreground-body transition hover:bg-surface-card hover:text-foreground-heading sm:px-3 sm:text-sm";
