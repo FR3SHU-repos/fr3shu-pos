@@ -23,6 +23,14 @@ function isAuthLandingPath(pathname: string): boolean {
   return pathname === "/buyer/setup" || pathname === "/seller/onboarding" || pathname === "/dashboard";
 }
 
+function isTransientAuthError(error: { name?: string; message?: string } | null): boolean {
+  return Boolean(error && (error.name === "AuthRetryableFetchError" || /network|fetch|timeout/i.test(error.message ?? "")));
+}
+
+function hasSupabaseSessionCookie(request: NextRequest): boolean {
+  return request.cookies.getAll().some(({ name }) => name.startsWith("sb-") && name.includes("-auth-token"));
+}
+
 /** Refresh the Supabase session; gate everything except the public auth pages. */
 export async function updateSession(request: NextRequest): Promise<NextResponse> {
   let response = NextResponse.next({ request });
@@ -36,6 +44,16 @@ export async function updateSession(request: NextRequest): Promise<NextResponse>
   // Avoid an extra Supabase network round trip before each request.
   if (pathname === "/" || PUBLIC_PREFIXES.some((p) => pathname.startsWith(p)) || pathname.startsWith("/api/")) {
     return response;
+  }
+
+  // A fresh OAuth callback has no auth cookie yet. Redirect directly to the
+  // exchange route instead of making a redundant Supabase request first.
+  if (isAuthLandingPath(pathname) && authCode && /^[0-9a-f-]{36}$/i.test(authCode) && !hasSupabaseSessionCookie(request)) {
+    const callback = redirectTo(request, "/auth/callback");
+    callback.searchParams.set("code", authCode);
+    callback.searchParams.set("next", safe(pathname) ? pathname : "/dashboard");
+    if (isBuyerExperiencePath(pathname)) callback.searchParams.set("as", "buyer");
+    return NextResponse.redirect(callback);
   }
 
   const supabase = createServerClient(URL, KEY, {
@@ -55,7 +73,10 @@ export async function updateSession(request: NextRequest): Promise<NextResponse>
 
   const {
     data: { user },
+    error: authError,
   } = await supabase.auth.getUser();
+
+  if (!user && isTransientAuthError(authError)) return response;
 
   // Supabase can occasionally return an OAuth code to the original landing
   // path instead of the configured callback. Exchange it only when there is

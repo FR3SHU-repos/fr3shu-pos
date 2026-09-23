@@ -42,6 +42,15 @@ export function PosUserProvider({ children }: { children: React.ReactNode }) {
       setLoading(false);
       return;
     }
+    if (result.status === 401) {
+      const { data: { session } } = await createAuthBrowserClient().auth.getSession();
+      // A stale API token or a short Supabase hiccup is not a user logout.
+      // The auth listener will clear the workspace if Supabase really signs out.
+      if (session) {
+        setLoading(false);
+        return;
+      }
+    }
     setProductScope(result.success ? result.data?.user ?? null : null);
     setUser(result.success ? result.data?.user ?? null : null);
     setCapabilities(result.success ? result.data?.capabilities ?? null : null);

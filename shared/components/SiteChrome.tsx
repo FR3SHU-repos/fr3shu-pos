@@ -19,14 +19,22 @@ export function SiteHeader() {
   const loadPaymentSettings = useCallback(() => {
     if (!capabilities?.seller || !user?.orgId) return;
     void sellerOrgsApi.getMyOrganization().then((result) => {
-      if (result.success && result.data) setHasUpiId(Boolean(result.data.organization.upiId));
+      if (result.success && result.data)
+        setHasUpiId(Boolean(result.data.organization.upiId));
     });
   }, [capabilities?.seller, user?.orgId]);
 
   useEffect(() => {
     loadPaymentSettings();
-    window.addEventListener("komola:payment-settings-changed", loadPaymentSettings);
-    return () => window.removeEventListener("komola:payment-settings-changed", loadPaymentSettings);
+    window.addEventListener(
+      "komola:payment-settings-changed",
+      loadPaymentSettings,
+    );
+    return () =>
+      window.removeEventListener(
+        "komola:payment-settings-changed",
+        loadPaymentSettings,
+      );
   }, [loadPaymentSettings]);
 
   async function handleLogout() {
@@ -37,7 +45,11 @@ export function SiteHeader() {
   return (
     <header className="no-print sticky top-0 z-50 border-b border-border bg-surface-card/95 backdrop-blur">
       <div className="mx-auto flex min-h-16 w-full max-w-7xl items-center justify-between gap-3 px-4 sm:px-6">
-        <Link href="/" className="flex min-w-0 items-center gap-2" aria-label="KOMOLA home">
+        <Link
+          href="/"
+          className="flex min-w-0 items-center gap-2"
+          aria-label="KOMOLA home"
+        >
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src="/komola-logo.png"
@@ -49,7 +61,10 @@ export function SiteHeader() {
           </span>
         </Link>
 
-        <nav aria-label="Primary navigation" className="flex items-center gap-1 sm:gap-2">
+        <nav
+          aria-label="Primary navigation"
+          className="flex items-center gap-1 sm:gap-2"
+        >
           {capabilities?.buyer ? (
             <>
               <Link href="/buyer" className={navLinkClass}>
@@ -57,6 +72,9 @@ export function SiteHeader() {
               </Link>
               <Link href="/buyer/campaigns" className={navLinkClass}>
                 Offers
+              </Link>
+              <Link href="/buyer/wallet" className={navLinkClass}>
+                Wallet
               </Link>
             </>
           ) : null}

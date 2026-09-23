@@ -91,6 +91,21 @@ async function supabaseBearer(): Promise<string | null> {
   }
 }
 
+async function refreshSupabaseBearer(): Promise<string | null> {
+  if (typeof window === "undefined") return null;
+  try {
+    const { createAuthBrowserClient } = await import(
+      "@/shared/lib/supabase/auth-client"
+    );
+    const {
+      data: { session },
+    } = await createAuthBrowserClient().auth.refreshSession();
+    return session?.access_token ?? null;
+  } catch {
+    return null;
+  }
+}
+
 async function requestAt<T>(base: string, path: string, opts: RequestOptions = {}): Promise<ApiResult<T>> {
   const { method = "GET", body, query, signal, headers, idempotencyKey } = opts;
 
@@ -114,18 +129,25 @@ async function requestAt<T>(base: string, path: string, opts: RequestOptions = {
   }
 
   const requestPromise = (async () => { try {
-    const res = await fetch(target, {
+    const requestWithBearer = (token: string | null) => fetch(target, {
       method,
       credentials: "include",
       headers: {
         ...(body !== undefined ? { "Content-Type": "application/json" } : {}),
         ...(idempotencyKey ? { "Idempotency-Key": idempotencyKey } : {}),
-        ...(bearer ? { Authorization: `Bearer ${bearer}` } : {}),
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
         ...headers,
       },
       body: body !== undefined ? JSON.stringify(body) : undefined,
       signal,
     });
+    let res = await requestWithBearer(bearer);
+    if (res.status === 401) {
+      const refreshedBearer = await refreshSupabaseBearer();
+      if (refreshedBearer && refreshedBearer !== bearer) {
+        res = await requestWithBearer(refreshedBearer);
+      }
+    }
     return normalize<T>(res);
   } catch (err) {
     return {
