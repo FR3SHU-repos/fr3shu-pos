@@ -5,12 +5,61 @@ import { SiteFooter, SiteHeader } from "@/shared/components/SiteChrome";
 import { Toaster } from "react-hot-toast";
 import { ServiceWorkerRegistration } from "@/shared/components/ServiceWorkerRegistration";
 
+const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://komola.in";
+
 export const metadata: Metadata = {
-  title: process.env.NEXT_PUBLIC_APP_NAME ?? "KOMOLA POS",
-  description: "KOMOLA point-of-sale platform for sellers and buyers.",
+  metadataBase: new URL(siteUrl),
+  title: {
+    default: "KOMOLA | Agri-tech POS and rewards platform",
+    template: "%s | KOMOLA",
+  },
+  description:
+    "KOMOLA is an agri-tech platform for agricultural sellers and buyers: sell agri products, issue digital receipts, earn rewards, and build better purchase intelligence.",
+  keywords: [
+    "agri-tech",
+    "agri tech startup",
+    "agriculture technology",
+    "agri rewards",
+    "agri purchase rewards",
+    "agricultural products marketplace",
+    "agri POS",
+    "farm produce sales",
+    "agri market intelligence",
+    "agriculture market intelligence",
+  ],
+  alternates: { canonical: "/" },
+  openGraph: {
+    type: "website",
+    url: "/",
+    siteName: "KOMOLA",
+    title: "KOMOLA | Agri-tech POS and rewards platform",
+    description:
+      "A rewards-based agri purchase platform connecting agricultural sellers and buyers through POS, digital receipts, and Komola Coins.",
+    locale: "en_IN",
+    images: [
+      {
+        url: "/komola-logo.png",
+        width: 1100,
+        height: 1094,
+        alt: "KOMOLA agri-tech rewards platform",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary",
+    title: "KOMOLA | Agri-tech POS and rewards platform",
+    description:
+      "Agri-tech tools for sellers and rewards for buyers of agricultural products.",
+    images: ["/komola-logo.png"],
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: { index: true, follow: true },
+  },
   manifest: "/manifest.webmanifest",
-  applicationName: "KOMOLA POS",
-  appleWebApp: { capable: true, title: "KOMOLA POS", statusBarStyle: "default" },
+  applicationName: "KOMOLA",
+  appleWebApp: { capable: true, title: "KOMOLA", statusBarStyle: "default" },
   icons: {
     icon: [{ url: "/favicon.ico?v=komola-20260909", type: "image/x-icon", sizes: "64x64" }],
     shortcut: "/favicon.ico?v=komola-20260909",

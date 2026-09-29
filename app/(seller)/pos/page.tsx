@@ -117,13 +117,30 @@ export default function PosPage() {
     // Do not block the POS shell indefinitely on a slow/unavailable backend.
     // The last locally saved register context is enough to render the screen;
     // catalogue hydration and server refresh can complete independently.
+    const registerRemote = registersApi.overview();
+    const catalogueRemote = productsApi.list({ limit: 12, status: "active" });
     const result = await Promise.race([
-      Promise.all([
-        registersApi.overview(),
-        productsApi.list({ limit: 12, status: "active" }),
-      ]),
+      registerRemote,
       new Promise<null>((resolve) => window.setTimeout(() => resolve(null), 1500)),
     ]);
+    const applyRegister = async (ov: Awaited<typeof registerRemote>) => {
+      if (ov.success && ov.data) {
+        setSession(ov.data.currentSession);
+        if (offlineScope && ov.data.currentSession) {
+          const saved = await saveOfflineSessionContext(offlineScope, ov.data.currentSession);
+          if (saved) setOfflineSessionSavedAt(Date.now());
+        }
+      } else if (offlineScope) {
+        const saved = await readOfflineSessionContext(offlineScope);
+        if (saved) {
+          setSession(saved.session);
+          setOfflineSessionSavedAt(saved.savedAt);
+        }
+      }
+    };
+    const applyCatalogue = (pl: Awaited<typeof catalogueRemote>) => {
+      if (pl.success && pl.data) setCatalog(pl.data.items);
+    };
     if (!result) {
       if (offlineScope) {
         const saved = await readOfflineSessionContext(offlineScope);
@@ -134,23 +151,18 @@ export default function PosPage() {
       }
       await refreshPendingOfflineCount();
       setLoading(false);
+      void registerRemote.then(applyRegister).catch(() => {
+        // The local session remains usable when the late refresh fails.
+      });
+      void catalogueRemote.then(applyCatalogue).catch(() => {
+        // The local session/catalogue remain usable when the late refresh fails.
+      });
       return;
     }
-    const [ov, pl] = result;
-    if (ov.success && ov.data) {
-      setSession(ov.data.currentSession);
-      if (offlineScope && ov.data.currentSession) {
-        const saved = await saveOfflineSessionContext(offlineScope, ov.data.currentSession);
-        if (saved) setOfflineSessionSavedAt(Date.now());
-      }
-    } else if (offlineScope) {
-      const saved = await readOfflineSessionContext(offlineScope);
-      if (saved) {
-        setSession(saved.session);
-        setOfflineSessionSavedAt(saved.savedAt);
-      }
-    }
-    if (pl.success && pl.data) setCatalog(pl.data.items);
+    await applyRegister(result);
+    void catalogueRemote.then(applyCatalogue).catch(() => {
+      // Products can be loaded again through search when the catalogue refresh fails.
+    });
     await refreshPendingOfflineCount();
     setLoading(false);
   }, [offlineScope, refreshPendingOfflineCount]);
@@ -457,6 +469,7 @@ export default function PosPage() {
     setSubmitting(true);
     const res = await salesApi.create({
       idempotencyKey: idemRef.current,
+      registerId: session?.registerId,
       items: lines.map((l) => ({
         productId: l.product._id,
         qty: l.qty,

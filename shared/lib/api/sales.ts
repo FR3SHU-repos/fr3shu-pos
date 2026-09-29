@@ -41,6 +41,7 @@ export interface LegacyPayment {
 
 export interface CreateSaleBody {
   idempotencyKey: string;
+  registerId?: string;
   sessionId?: string;
   items: Array<{
     productId: string;
@@ -106,7 +107,7 @@ async function resolveOpenRegisterId(): Promise<string | null> {
 export const create = async (
   body: CreateSaleBody,
 ): Promise<ApiResult<{ sale: SaleDTO; reused: boolean }>> => {
-  const registerId = await resolveOpenRegisterId();
+  const registerId = body.registerId ?? await resolveOpenRegisterId();
   if (!registerId) {
     return {
       success: false,

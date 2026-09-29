@@ -25,9 +25,9 @@ export function Landing({ signedIn }: { signedIn: boolean }) {
   const content = isSeller
     ? {
         eyebrow: "KOMOLA FOR AGRI SELLERS",
-        title: "Make every sale feel like a win.",
+        title: "The agri-tech POS that turns purchases into rewards.",
         description:
-          "A friendly POS for weighing, selling, and rewarding the people who choose your products.",
+          "Sell agricultural products by weight or piece, issue clear digital receipts, and reward the people who choose your products.",
         action: "produce" as const,
         primaryLabel: signedIn ? "Open seller dashboard" : "Get started as a seller",
         primaryHref: signedIn ? "/dashboard" : "/register/seller",
@@ -37,9 +37,9 @@ export function Landing({ signedIn }: { signedIn: boolean }) {
       }
     : {
         eyebrow: "KOMOLA FOR AGRI BUYERS",
-        title: "Good purchases deserve a little extra.",
+        title: "Buy agri products. Earn rewards.",
         description:
-          "Keep your receipts, collect points, and discover rewards from the agri sellers around you.",
+          "Keep your purchase receipts, collect Komola Coins, and discover rewards from agricultural sellers around you.",
         action: "reward" as const,
         primaryLabel: signedIn ? "Open buyer wallet" : "Get started as a buyer",
         primaryHref: signedIn ? "/buyer/wallet" : "/register/buyer",
@@ -128,6 +128,76 @@ export function Landing({ signedIn }: { signedIn: boolean }) {
           <Step number="03" icon={<Gift className="h-5 w-5" aria-hidden="true" />} title="Get rewarded" text="Earn points and discover offers made for your area." />
         </div>
       </section>
+
+      <section
+        aria-labelledby="agri-tech-title"
+        className="border-y border-border bg-surface-card"
+      >
+        <div className="mx-auto w-full max-w-6xl px-4 py-12 sm:px-6 lg:px-8 lg:py-16">
+          <div className="max-w-3xl">
+            <p className="text-sm font-bold uppercase tracking-[0.18em] text-primary">
+              Built for the agri economy
+            </p>
+            <h2
+              id="agri-tech-title"
+              className="mt-2 text-2xl font-black text-foreground-heading sm:text-3xl"
+            >
+              Agri-tech that connects every purchase to a better relationship.
+            </h2>
+            <p className="mt-4 leading-relaxed text-foreground-body">
+              KOMOLA is a rewards-based platform for agricultural purchases. It
+              gives agri sellers a simple point of sale and gives buyers a
+              wallet for receipts, points, and local offers. Over time,
+              permissioned purchase data can help sellers understand what
+              customers buy, where demand is growing, and how agricultural
+              markets are changing.
+            </p>
+          </div>
+          <div className="mt-8 grid gap-4 md:grid-cols-3">
+            <SeoCard
+              title="Agri-tech POS"
+              text="Fast checkout for farm produce and other agricultural products, sold by weight or piece."
+            />
+            <SeoCard
+              title="Rewards for agri purchases"
+              text="Turn eligible purchases into Komola Coins, digital receipts, and useful offers for buyers."
+            />
+            <SeoCard
+              title="Agricultural market intelligence"
+              text="Build a clearer picture of product demand, purchase timing, and locations for better decisions."
+            />
+          </div>
+        </div>
+      </section>
+
+      <section
+        aria-labelledby="faq-title"
+        className="mx-auto w-full max-w-6xl px-4 py-12 sm:px-6 lg:px-8 lg:py-16"
+      >
+        <p className="text-sm font-bold uppercase tracking-[0.18em] text-primary">
+          Frequently asked questions
+        </p>
+        <h2
+          id="faq-title"
+          className="mt-2 text-2xl font-black text-foreground-heading sm:text-3xl"
+        >
+          A practical agri-tech platform for everyday purchases.
+        </h2>
+        <div className="mt-6 grid gap-4 md:grid-cols-3">
+          <Faq
+            question="What is KOMOLA?"
+            answer="KOMOLA is an agri-tech POS and rewards platform that connects agricultural sellers with buyers through purchases, digital receipts, and points."
+          />
+          <Faq
+            question="How do buyers earn agri rewards?"
+            answer="Buyers show their KOMOLA buyer code when purchasing from a participating agri seller. Eligible purchases appear in their wallet and can earn Komola Coins."
+          />
+          <Faq
+            question="What is agri market intelligence?"
+            answer="It is the analysis of purchase patterns such as products, timing, quantities, and locations. KOMOLA is designed to make that future insight more useful for agricultural businesses."
+          />
+        </div>
+      </section>
     </main>
   );
 }
@@ -151,5 +221,29 @@ function Step({ number, icon, title, text }: { number: string; icon: React.React
       <h3 className="mt-5 text-lg font-bold text-foreground-heading">{title}</h3>
       <p className="mt-1 text-sm leading-relaxed text-foreground-muted">{text}</p>
     </div>
+  );
+}
+
+function SeoCard({ title, text }: { title: string; text: string }) {
+  return (
+    <article className="rounded-2xl border border-border bg-surface p-5">
+      <h3 className="text-lg font-bold text-foreground-heading">{title}</h3>
+      <p className="mt-2 text-sm leading-relaxed text-foreground-muted">
+        {text}
+      </p>
+    </article>
+  );
+}
+
+function Faq({ question, answer }: { question: string; answer: string }) {
+  return (
+    <details className="rounded-2xl border border-border bg-surface-card p-5">
+      <summary className="cursor-pointer font-bold text-foreground-heading">
+        {question}
+      </summary>
+      <p className="mt-3 text-sm leading-relaxed text-foreground-muted">
+        {answer}
+      </p>
+    </details>
   );
 }
