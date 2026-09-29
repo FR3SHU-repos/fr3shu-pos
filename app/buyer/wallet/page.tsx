@@ -7,8 +7,10 @@ import {
   Coins,
   Gift,
   LockKeyhole,
+  Share2,
   WalletCards,
 } from "lucide-react";
+import toast from "react-hot-toast";
 import { campaignsApi, rewardsApi } from "@/shared/lib/api";
 import type {
   BuyerRewardClaim,
@@ -16,6 +18,7 @@ import type {
 } from "@/shared/lib/api/campaigns";
 import type { RewardSummary } from "@/shared/lib/api/rewards";
 import { cardCls, Skeleton } from "@/shared/components/ui";
+import { copyText } from "@/shared/lib/clipboard";
 
 export default function BuyerWalletPage() {
   const [summary, setSummary] = useState<RewardSummary | null>(null);
@@ -208,6 +211,34 @@ function ClaimRow({ claim }: { claim: BuyerRewardClaim }) {
       : claim.fulfillmentMethod === "home_delivery"
         ? `Home delivery · ${formatAddress(claim.deliveryAddress)}`
         : `Collect in store · ${claim.pickupStoreName ?? "Store"} · ${claim.pickupStorePhone ?? ""}`;
+
+  async function shareVerificationDetails() {
+    const text = [
+      "KOMOLA reward verification",
+      `Reward: ${claim.campaign.title}`,
+      `Claim code: ${claim.claimCode}`,
+      `Buyer mobile: ${claim.buyerPhone || "Not available"}`,
+    ].join("\n");
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: `${claim.campaign.title} reward claim`,
+          text,
+        });
+        return;
+      } catch (error) {
+        if (error instanceof DOMException && error.name === "AbortError") {
+          return;
+        }
+      }
+    }
+    if (await copyText(text)) {
+      toast.success("Verification details copied");
+    } else {
+      toast.error("Could not share verification details");
+    }
+  }
+
   return (
     <li className="py-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
@@ -232,7 +263,18 @@ function ClaimRow({ claim }: { claim: BuyerRewardClaim }) {
           Claim code:{" "}
           <span className="font-mono text-primary">{claim.claimCode}</span>
         </p>
+        <p className="mt-1 text-foreground-muted">
+          Buyer mobile: {claim.buyerPhone || "Not available"}
+        </p>
         <p className="mt-1 text-foreground-muted">{fulfilment}</p>
+        <button
+          type="button"
+          onClick={() => void shareVerificationDetails()}
+          className="mt-3 inline-flex items-center gap-2 rounded-lg border border-border bg-surface-card px-3 py-2 text-xs font-bold text-foreground-heading hover:border-primary hover:text-primary"
+        >
+          <Share2 className="h-4 w-4" />
+          Share verification details
+        </button>
       </div>
     </li>
   );

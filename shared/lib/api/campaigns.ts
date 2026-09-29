@@ -26,6 +26,7 @@ export type BuyerCampaign = {
   locationCode: string;
   locationName: string;
   providerName: string;
+  providerPhone: string;
   approvalMode: BuyerApprovalMode;
   deliveryOptions: BuyerFulfillmentMethod[];
   pickupStoreName: string | null;
@@ -64,6 +65,7 @@ export type BuyerRewardClaim = {
   redeemedAt: string | null;
   points: number;
   fulfillmentMethod: BuyerFulfillmentMethod;
+  buyerPhone: string;
   deliveryAddress: Record<string, string>;
   pickupStoreName: string | null;
   pickupStorePhone: string | null;
@@ -75,6 +77,7 @@ export type BuyerRewardClaim = {
     description: string;
     imageUrl: string;
     providerName: string;
+    providerPhone: string;
     locationName: string;
     approvalMode: BuyerApprovalMode;
   };

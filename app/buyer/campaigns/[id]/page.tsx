@@ -3,7 +3,16 @@
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
-import { ArrowLeft, CheckCircle2, Gift, MapPin, Timer } from "lucide-react";
+import {
+  ArrowLeft,
+  CheckCircle2,
+  Gift,
+  MapPin,
+  Phone,
+  Share2,
+  Timer,
+} from "lucide-react";
+import toast from "react-hot-toast";
 import { campaignsApi } from "@/shared/lib/api";
 import type {
   BuyerCampaign,
@@ -11,6 +20,7 @@ import type {
   BuyerFulfillmentMethod,
 } from "@/shared/lib/api/campaigns";
 import { cardCls, Skeleton } from "@/shared/components/ui";
+import { copyText } from "@/shared/lib/clipboard";
 
 export default function BuyerCampaignDetailPage() {
   const params = useParams<{ id: string }>();
@@ -43,6 +53,34 @@ export default function BuyerCampaignDetailPage() {
     }
     setClaim(result.data);
     setCampaign(result.data.campaign);
+  }
+
+  async function shareVerificationDetails() {
+    if (!campaign || !claim) return;
+    const text = [
+      "KOMOLA reward verification",
+      `Reward: ${campaign.title}`,
+      `Claim code: ${claim.claimCode}`,
+      `Buyer mobile: ${claim.buyerPhone || "Not available"}`,
+    ].join("\n");
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: `${campaign.title} reward claim`,
+          text,
+        });
+        return;
+      } catch (error) {
+        if (error instanceof DOMException && error.name === "AbortError") {
+          return;
+        }
+      }
+    }
+    if (await copyText(text)) {
+      toast.success("Verification details copied");
+    } else {
+      toast.error("Could not share verification details");
+    }
   }
 
   if (loading)
@@ -127,6 +165,12 @@ export default function BuyerCampaignDetailPage() {
               Offered by{" "}
               <span className="text-primary">{campaign.providerName}</span>
             </p>
+            {campaign.providerPhone ? (
+              <p className="mt-2 inline-flex items-center gap-1.5 text-sm font-semibold text-foreground-muted">
+                <Phone className="h-4 w-4 text-primary" />
+                Contact: {campaign.providerPhone}
+              </p>
+            ) : null}
             <div className="mt-5 flex flex-wrap gap-x-5 gap-y-2 text-sm font-semibold text-foreground-muted">
               <span className="inline-flex items-center gap-1.5">
                 <MapPin className="h-4 w-4 text-primary" />
@@ -177,6 +221,17 @@ export default function BuyerCampaignDetailPage() {
                 <p className="mt-4 rounded-xl bg-white px-4 py-3 font-mono text-2xl font-bold tracking-wider text-primary">
                   {claim.claimCode}
                 </p>
+                <p className="mt-3 text-sm text-foreground-muted">
+                  Buyer mobile: {claim.buyerPhone || "Not available"}
+                </p>
+                <button
+                  type="button"
+                  onClick={() => void shareVerificationDetails()}
+                  className="mt-3 inline-flex items-center gap-2 rounded-lg border border-border bg-white px-3 py-2 text-xs font-bold text-foreground-heading hover:border-primary hover:text-primary"
+                >
+                  <Share2 className="h-4 w-4" />
+                  Share verification details
+                </button>
                 <p className="mt-3 text-sm text-foreground-muted">
                   {claim.fulfillmentMethod === "home_delivery"
                     ? `Delivery to ${formatAddress(claim.deliveryAddress)}`
