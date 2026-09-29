@@ -22,12 +22,14 @@ export default function DashboardPage() {
 
   useEffect(() => {
     let alive = true;
+    if (!user) return () => { alive = false; };
+
     const load = async () => {
-      const scope: OfflineScope | null = user ? { userId: user.id, orgId: user.orgId, locationId: user.locationId } : null;
+      const scope: OfflineScope = { userId: user.id, orgId: user.orgId, locationId: user.locationId };
       const [ov, sl, local] = await Promise.all([
         registersApi.overview(),
         salesApi.list({ limit: 5 }),
-        scope ? listOfflineSales(scope) : Promise.resolve([]),
+        listOfflineSales(scope),
       ]);
       if (!alive) return;
       if (ov.success && ov.data) setSession(ov.data.currentSession);

@@ -36,7 +36,7 @@ const NAV = [
 ];
 
 export default function SellerShell({ children }: { children: React.ReactNode }) {
-  const { user, organization, loading, logout } = usePosUser();
+  const { user, capabilities, organization, loading, logout } = usePosUser();
   const router = useRouter();
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -46,14 +46,24 @@ export default function SellerShell({ children }: { children: React.ReactNode })
   }, [loading, user, router]);
 
   useEffect(() => {
-    if (loading || !user || !organization) return;
+    if (loading || !user) return;
+    if (!organization) {
+      if (capabilities?.buyer && !capabilities.seller) {
+        if (pathname !== "/buyer") router.replace("/buyer");
+      } else if (user.role === "Admin") {
+        if (pathname !== "/admin/seller-applications") router.replace("/admin/seller-applications");
+      } else if (pathname !== "/seller/onboarding") {
+        router.replace("/seller/onboarding");
+      }
+      return;
+    }
     // Approved sellers may navigate to every seller workspace route. The
     // dashboard is only the default landing page; it must not be enforced on
     // POS, history, products, stock, settings, or register-session routes.
     if (organization.approvalStatus === "Approved") return;
     const destination = sellerDestination(organization.approvalStatus);
     if (destination && destination !== pathname) router.replace(destination);
-  }, [loading, organization, pathname, router, user]);
+  }, [capabilities, loading, organization, pathname, router, user]);
 
   useEffect(() => {
     setMobileOpen(false);

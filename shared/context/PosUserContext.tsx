@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useCallback, useContext, useEffect, useState } from "react";
+import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
 import { authApi, bootstrapApi } from "@/shared/lib/api";
 import type { SessionUser } from "@/shared/lib/api/auth";
 import type { Capabilities } from "@/shared/lib/api/identity";
@@ -34,28 +34,49 @@ export function PosUserProvider({ children }: { children: React.ReactNode }) {
   const [capabilities, setCapabilities] = useState<Capabilities | null>(null);
   const [organization, setOrganization] = useState<MyOrganization | null>(null);
   const [loading, setLoading] = useState(true);
+  const userRef = useRef<SessionUser | null>(null);
+  const refreshInFlight = useRef<Promise<void> | null>(null);
+
+  useEffect(() => {
+    userRef.current = user;
+  }, [user]);
 
   const refresh = useCallback(async () => {
-    const result = await bootstrapApi.load();
-    // A connection loss must not evict an already open seller workspace.
-    if (result.status === 0 || result.status >= 500) {
-      setLoading(false);
-      return;
-    }
-    if (result.status === 401) {
-      const { data: { session } } = await createAuthBrowserClient().auth.getSession();
-      // A stale API token or a short Supabase hiccup is not a user logout.
-      // The auth listener will clear the workspace if Supabase really signs out.
-      if (session) {
+    if (refreshInFlight.current) return refreshInFlight.current;
+
+    const request = (async () => {
+      const result = await bootstrapApi.load();
+      // A connection loss must not evict an already open seller workspace.
+      if (result.status === 0 || result.status >= 500) {
         setLoading(false);
         return;
       }
+
+      if (result.status === 401) {
+        const { data: { session } } = await createAuthBrowserClient().auth.getSession();
+        // A stale API token or a short Supabase hiccup is not a user logout.
+        // The auth listener will clear the workspace if Supabase really signs out.
+        if (session) {
+          setLoading(false);
+          return;
+        }
+      }
+
+      const nextUser = result.success ? result.data?.user ?? null : null;
+      userRef.current = nextUser;
+      setProductScope(nextUser);
+      setUser(nextUser);
+      setCapabilities(result.success ? result.data?.capabilities ?? null : null);
+      setOrganization(result.success ? result.data?.organization ?? null : null);
+      setLoading(false);
+    })();
+
+    refreshInFlight.current = request;
+    try {
+      await request;
+    } finally {
+      if (refreshInFlight.current === request) refreshInFlight.current = null;
     }
-    setProductScope(result.success ? result.data?.user ?? null : null);
-    setUser(result.success ? result.data?.user ?? null : null);
-    setCapabilities(result.success ? result.data?.capabilities ?? null : null);
-    setOrganization(result.success ? result.data?.organization ?? null : null);
-    setLoading(false);
   }, []);
 
   const logout = useCallback(async () => {
@@ -81,7 +102,13 @@ export function PosUserProvider({ children }: { children: React.ReactNode }) {
         setLoading(false);
         return;
       }
-      if (event === "SIGNED_IN" || event === "TOKEN_REFRESHED" || event === "USER_UPDATED") {
+      // The initial refresh already handles a new OAuth session. Only retry
+      // SIGNED_IN when that refresh did not establish a user; otherwise this
+      // event would issue a duplicate bootstrap request immediately after login.
+      if (event === "SIGNED_IN" && !userRef.current) {
+        void refresh();
+      }
+      if (event === "USER_UPDATED") {
         void refresh();
       }
     });

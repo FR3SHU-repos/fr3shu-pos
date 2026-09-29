@@ -28,16 +28,16 @@ export function RegisterForm({ intent }: { intent: AuthIntent }) {
   async function submit(e: React.FormEvent) {
     e.preventDefault(); setError("");
     if (form.fullName.trim().length < 2) return setError("Enter your full name.");
-    const buyerPhone = intent === "buyer" ? normalizeIndianMobile(form.phone) : undefined;
-    if (intent === "buyer" && !buyerPhone) return setError("Enter a valid 10-digit Indian mobile number.");
+    const phoneE164 = normalizeIndianMobile(form.phone);
+    if (!phoneE164) return setError("Enter a valid 10-digit Indian mobile number.");
     if (form.password.length < 8) return setError("Password must be at least 8 characters.");
     if (form.password !== form.confirm) return setError("Passwords do not match.");
     setBusy(true);
     rememberAuthIntent(intent);
-    const { data, error } = await createAuthBrowserClient().auth.signUp({ email: form.email.trim().toLowerCase(), password: form.password, options: { emailRedirectTo: authCallbackRedirect(window.location.origin), data: { display_name: form.fullName.trim(), account_type: intent, ...(buyerPhone ? { buyer_phone_e164: buyerPhone } : {}) } } });
+    const { data, error } = await createAuthBrowserClient().auth.signUp({ email: form.email.trim().toLowerCase(), password: form.password, options: { emailRedirectTo: authCallbackRedirect(window.location.origin), data: { display_name: form.fullName.trim(), account_type: intent, phone_e164: phoneE164, ...(intent === "buyer" ? { buyer_phone_e164: phoneE164 } : {}) } } });
     if (error) { setBusy(false); return setError("Registration could not be completed. Please try again."); }
-    if (intent === "seller") sessionStorage.setItem("komola:seller-draft", JSON.stringify({ fullName: form.fullName.trim(), sellerType: form.sellerType }));
-    if (data.session && intent === "buyer" && buyerPhone) {
+    if (intent === "seller") sessionStorage.setItem("komola:seller-draft", JSON.stringify({ fullName: form.fullName.trim(), phone: phoneE164, sellerType: form.sellerType }));
+    if (data.session && intent === "buyer") {
       await reconcileIdentity(data.session.access_token);
       setBusy(false);
       router.replace("/buyer/setup");
@@ -57,7 +57,7 @@ export function RegisterForm({ intent }: { intent: AuthIntent }) {
     <GoogleButton onClick={google} loading={googleBusy} />
     <Divider />
     <input aria-label="Full name" className={inputCls} placeholder="Full name" value={form.fullName} onChange={e=>setForm({...form,fullName:e.target.value})} required />
-    {intent === "buyer" && <div><label className="mb-1.5 block text-sm font-semibold" htmlFor="register-phone">Mobile number <span className="text-primary">*</span></label><input id="register-phone" className={inputCls} type="tel" inputMode="numeric" autoComplete="tel-national" placeholder="98765 43210" maxLength={10} pattern="[6-9][0-9]{9}" value={form.phone} onChange={e=>setForm({...form,phone:e.target.value.replace(/\D/g, "").slice(0, 10)})} required /><p className="mt-1.5 text-xs text-foreground-muted">Stored as contact information. This number is not used to sign in and is not yet verified.</p></div>}
+    <div><label className="mb-1.5 block text-sm font-semibold" htmlFor="register-phone">Mobile number <span className="text-primary">*</span></label><input id="register-phone" className={inputCls} type="tel" inputMode="numeric" autoComplete="tel-national" placeholder="98765 43210" maxLength={10} pattern="[6-9][0-9]{9}" value={form.phone} onChange={e=>setForm({...form,phone:e.target.value.replace(/\D/g, "").slice(0, 10)})} required /><p className="mt-1.5 text-xs text-foreground-muted">Required for contacting you. No phone OTP is required right now.</p></div>
     <input aria-label="Email" className={inputCls} type="email" placeholder="Email" value={form.email} onChange={e=>setForm({...form,email:e.target.value})} required />
     <input aria-label="Password" className={inputCls} type="password" placeholder="Password" value={form.password} onChange={e=>setForm({...form,password:e.target.value})} required />
     <input aria-label="Confirm password" className={inputCls} type="password" placeholder="Confirm password" value={form.confirm} onChange={e=>setForm({...form,confirm:e.target.value})} required />

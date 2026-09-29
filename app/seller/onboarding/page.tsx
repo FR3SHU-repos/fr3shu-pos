@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { registerSeller, type SellerOrgType } from "@/shared/lib/api/sellerOrgs";
+import { identityApi } from "@/shared/lib/api";
 import { newUuid } from "@/shared/lib/uuid";
 import { normalizeIndianMobile } from "@/shared/lib/auth/phone";
 import { cardCls, inputCls, primaryBtnCls } from "@/shared/components/ui";
@@ -34,7 +35,7 @@ export default function SellerOnboarding() {
     legalName: "",
     sellerType: (draft.sellerType || "Farmer") as SellerOrgType,
     contactName: draft.fullName || "",
-    phone: "",
+    phone: draft.phone?.replace(/^\+91/, "") || "",
     line1: "",
     line2: "",
     city: "",
@@ -43,6 +44,17 @@ export default function SellerOnboarding() {
   });
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    void identityApi.profile().then((result) => {
+      if (!result.success || !result.data) return;
+      const existingPhone = result.data.contacts.find((contact) => contact.type === "phone" && contact.primary)
+        ?? result.data.contacts.find((contact) => contact.type === "phone");
+      if (existingPhone) {
+        setForm((current) => current.phone ? current : { ...current, phone: existingPhone.value.replace(/^\+91/, "") });
+      }
+    });
+  }, []);
 
   function update(key: keyof SellerForm, value: string) {
     setForm((current) => ({ ...current, [key]: value }));

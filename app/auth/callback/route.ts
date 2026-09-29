@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseServerClient } from "@/shared/lib/supabase/server";
-import { ADMIN_HOME, isPlatformAdmin } from "@/shared/lib/auth/routing";
-import { serverGoApiBase } from "@/shared/lib/api/server-base";
-import { authIntent, destinationForCapabilities } from "@/shared/lib/auth/intent";
+import { authIntent } from "@/shared/lib/auth/intent";
 import { requestOrigin } from "@/shared/lib/http/request-origin";
 
 export async function GET(request: NextRequest) {
@@ -33,61 +31,15 @@ export async function GET(request: NextRequest) {
     if (!user) return NextResponse.redirect(`${origin}/login?error=oauth_denied`);
   }
 
-  let destination = next;
-  try {
-    const {
-      data: { session },
-    } = await supabase.auth.getSession();
-    const metadataIntent = typeof session?.user.user_metadata?.account_type === "string"
-      ? session.user.user_metadata.account_type
-      : undefined;
-    const intent = authIntent(requestedIntent ?? metadataIntent ?? (next.startsWith("/buyer") ? "buyer" : "seller"));
-    const headers = {
-      "Content-Type": "application/json",
-      ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
-    };
-    const apiBase = serverGoApiBase();
-    const reconciled = await fetch(`${apiBase}/api/v1/auth/reconcile`, {
-      method: "POST",
-      headers,
-      body: "{}",
-      cache: "no-store",
-    });
-    if (!reconciled.ok) return NextResponse.redirect(`${origin}/login?error=reconcile_failed`);
-    // These reads are independent after reconciliation. Running them together
-    // shortens the first post-Google navigation, which is especially
-    // important in Safari where a slow callback can surface as a page-load
-    // failure even though the auth cookies were already stored.
-    const bootstrapResponse = intent === "seller"
-      ? await fetch(`${apiBase}/api/v1/pos/bootstrap`, { headers, cache: "no-store" })
-      : null;
-    const [capabilitiesResponse, me] = intent === "seller"
-      ? [null, null]
-      : await Promise.all([
-          fetch(`${apiBase}/api/v1/me/capabilities`, { headers, cache: "no-store" }),
-          fetch(`${apiBase}/api/v1/pos/auth/me`, { headers, cache: "no-store" }),
-        ]);
-    if (intent === "seller" && !bootstrapResponse?.ok) return NextResponse.redirect(`${origin}/login?error=reconcile_failed`);
-    if (intent !== "seller" && (!capabilitiesResponse?.ok || !me?.ok)) return NextResponse.redirect(`${origin}/login?error=reconcile_failed`);
-    const bootstrapBody = bootstrapResponse ? await bootstrapResponse.json() : null;
-    const capabilitiesBody = bootstrapBody ?? await capabilitiesResponse!.json();
-    const capabilities = capabilitiesBody?.data?.capabilities ?? capabilitiesBody?.data ?? { buyer: false, seller: false };
-
-    // A registered category takes priority over the category selected during
-    // login. Only identities with no category enter an onboarding flow.
-    destination = destinationForCapabilities(intent, capabilities);
-    if (destination === "/buyer/setup") {
-      return NextResponse.redirect(`${origin}/buyer/setup`);
-    }
-    if (destination === "/buyer") return NextResponse.redirect(`${origin}/buyer`);
-
-    const profile = bootstrapBody?.data?.user ?? await me!.json();
-    if (isPlatformAdmin(profile?.data)) {
-      destination = ADMIN_HOME;
-    }
-  } catch {
-    return NextResponse.redirect(`${origin}/login?error=reconcile_failed`);
-  }
-
+  // The authenticated API middleware reconciles the Supabase identity on the
+  // first protected request. Do not wait for reconciliation, bootstrap, and
+  // role queries here: the dashboard loads bootstrap once on the client and
+  // can render its shell while those data requests complete.
+  const { data: { session } } = await supabase.auth.getSession();
+  const metadataIntent = typeof session?.user.user_metadata?.account_type === "string"
+    ? session.user.user_metadata.account_type
+    : undefined;
+  const intent = authIntent(requestedIntent ?? metadataIntent ?? (next.startsWith("/buyer") ? "buyer" : "seller"));
+  const destination = intent === "buyer" && next === "/dashboard" ? "/buyer" : next;
   return NextResponse.redirect(`${origin}${destination}`);
 }

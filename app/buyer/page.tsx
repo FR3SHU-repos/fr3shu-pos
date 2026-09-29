@@ -7,12 +7,13 @@ import type { DiscoveryCode, PersonProfile } from "@/shared/lib/api/identity";
 import type { RewardLedgerEntry, RewardSummary } from "@/shared/lib/api/rewards";
 import { cardCls, Skeleton } from "@/shared/components/ui";
 import { formatPaise } from "@/shared/lib/money";
-import { Check, ChevronLeft, ChevronRight, Coins, Copy, Download, Eye, Loader2, ReceiptText, Share2 } from "lucide-react";
+import { ArrowRight, Check, ChevronLeft, ChevronRight, Coins, Copy, Download, Eye, Loader2, ReceiptText, Share2 } from "lucide-react";
 import Link from "next/link";
 import toast from "react-hot-toast";
 import { BuyerCodeQr } from "@/shared/components/buyer/BuyerCodeQr";
 import { copyText } from "@/shared/lib/clipboard";
 import { KomoEmptyState, KomoMessage } from "@/shared/components/mascot";
+import { buyerProfileReady, missingBuyerDetails } from "@/shared/lib/buyer/profile";
 
 const PAGE_SIZE = 5;
 
@@ -34,8 +35,23 @@ export default function BuyerDashboardPage() {
   const [copied, setCopied] = useState(false);
 
   useEffect(() => {
-    void Promise.all([identityApi.profile(), identityApi.discoveryCode(), rewardsApi.summary(), rewardsApi.ledger(undefined, PAGE_SIZE), receiptsApi.list(PAGE_SIZE)]).then(([person, discovery, rewards, history, purchases]) => {
-      if (person.success) setProfile(person.data); else setError(person.message);
+    void identityApi.profile().then(async (person) => {
+      if (!person.success || !person.data) {
+        setError(person.message);
+        setLoading(false);
+        return;
+      }
+      setProfile(person.data);
+      if (!buyerProfileReady(person.data)) {
+        setLoading(false);
+        return;
+      }
+      const [discovery, rewards, history, purchases] = await Promise.all([
+        identityApi.discoveryCode(),
+        rewardsApi.summary(),
+        rewardsApi.ledger(undefined, PAGE_SIZE),
+        receiptsApi.list(PAGE_SIZE),
+      ]);
       if (discovery.success) setCode(discovery.data);
       if (rewards.success) setSummary(rewards.data); else setError(rewards.message);
       if (history.success) {
@@ -105,24 +121,19 @@ export default function BuyerDashboardPage() {
 
   if (loading) return <main className="mx-auto min-h-screen max-w-4xl space-y-4 bg-surface p-4 sm:p-8"><Skeleton className="h-12 w-72"/><Skeleton className="h-40 w-full"/><Skeleton className="h-72 w-full"/></main>;
 
-  const buyerPhone = profile?.contacts.find((contact) => contact.type === "phone" && contact.primary)
-    ?? profile?.contacts.find((contact) => contact.type === "phone");
+  const profileReady = buyerProfileReady(profile);
+  const missingDetails = missingBuyerDetails(profile);
 
   return <main className="mx-auto min-h-screen max-w-4xl bg-surface p-4 sm:p-8">
     <header className="mb-6"><p className="font-semibold text-primary">KOMOLA Buyer</p><h1 className="text-3xl font-bold">{profile?.displayName ? `Hello, ${profile.displayName}` : "Your rewards"}</h1><p className="mt-1 text-foreground-muted">Rewards and status from purchases completed by KOMOLA sellers.</p></header>
     <KomoMessage action="wave" title="Let’s make every purchase count." description="Show your buyer code at a KOMOLA seller to collect receipts and rewards." compact />
-    <Link href="/buyer/campaigns" className={`${cardCls} mt-4 flex items-center justify-between gap-4 transition hover:shadow-md`}><div><p className="font-semibold text-primary">Rewards and offers</p><h2 className="mt-1 text-xl font-bold text-foreground-heading">Apply for location-based campaigns</h2><p className="mt-1 text-sm text-foreground-muted">See KOMOLA offers available in your area and apply for them.</p></div><span className="shrink-0 rounded-lg bg-primary px-4 py-2 font-semibold text-primary-foreground">View offers</span></Link>
+    {!profileReady ? <section className={`${cardCls} mt-4 border-primary/30 bg-primary/5`} aria-labelledby="complete-profile-title"><div><p className="font-semibold text-primary">Buyer account setup</p><h2 id="complete-profile-title" className="mt-1 text-xl font-bold text-foreground-heading">Add your details to unlock your buyer account</h2><p className="mt-1 text-sm text-foreground-muted">Enter {missingDetails.join(", ")} to get your buyer code, view local offers, and receive purchase rewards.</p></div><Link href="/buyer/setup" className="mt-4 inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2 font-semibold text-primary-foreground sm:mt-5">Enter buyer details <ArrowRight className="h-4 w-4"/></Link></section> : null}
+    <Link href={profileReady ? "/buyer/campaigns" : "/buyer/setup"} className={`${cardCls} mt-4 flex items-center justify-between gap-4 transition hover:shadow-md`}><div><p className="font-semibold text-primary">Rewards and offers</p><h2 className="mt-1 text-xl font-bold text-foreground-heading">{profileReady ? "Apply for location-based campaigns" : "Complete your profile to view offers"}</h2><p className="mt-1 text-sm text-foreground-muted">{profileReady ? "See KOMOLA offers available in your area and apply for them." : "Add your buyer location so KOMOLA can show the right offers for you."}</p></div><span className="inline-flex shrink-0 items-center gap-2 rounded-lg bg-primary px-4 py-2 font-semibold text-primary-foreground">{profileReady ? "View offers" : "Enter details"} <ArrowRight className="h-4 w-4"/></span></Link>
     {error && <p role="alert" className="mb-4 rounded-lg bg-red-50 p-4 text-red-700">{error}</p>}
     <section className={`${cardCls} mb-4 text-center`} aria-labelledby="buyer-code-title">
       <h2 id="buyer-code-title" className="text-xl font-semibold">My buyer code</h2>
       <p className="mt-1 text-foreground-muted">Show this code or QR to a KOMOLA seller so your purchase and rewards reach your account.</p>
-      {!buyerPhone ? <p className="mx-auto mt-3 max-w-lg rounded-lg bg-amber-50 p-3 text-sm text-amber-800">Add your mobile number so sellers can fetch it with this code and send purchase messages. <Link href="/buyer/setup" className="font-semibold underline">Add mobile number</Link></p> : null}
-      <p className="my-5 break-all font-mono text-3xl font-bold tracking-widest">{code?.code ?? "Unavailable"}</p>
-      <div className="grid gap-3 sm:grid-cols-3">
-        <button type="button" disabled={!code} onClick={copyCode} className="flex min-h-12 items-center justify-center gap-2 rounded-xl border font-semibold disabled:opacity-50">{copied ? <Check className="h-5 w-5"/> : <Copy className="h-5 w-5"/>}{copied ? "Copied" : "Copy code"}</button>
-        {code ? <BuyerCodeQr code={code.code} /> : <button type="button" disabled className="min-h-12 rounded-xl border font-semibold opacity-50">Show QR</button>}
-        <button type="button" disabled={!code} onClick={shareCode} className="flex min-h-12 items-center justify-center gap-2 rounded-xl bg-primary font-semibold text-primary-foreground disabled:opacity-50"><Share2 className="h-5 w-5"/>Share</button>
-      </div>
+      {!profileReady ? <div className="mx-auto mt-5 max-w-lg rounded-lg bg-amber-50 p-4 text-sm text-amber-800">Your buyer code will appear after you enter your phone number, location, and address. <Link href="/buyer/setup" className="font-semibold underline">Enter buyer details</Link></div> : <><p className="my-5 break-all font-mono text-3xl font-bold tracking-widest">{code?.code ?? "Unavailable"}</p><div className="grid gap-3 sm:grid-cols-3"><button type="button" disabled={!code} onClick={copyCode} className="flex min-h-12 items-center justify-center gap-2 rounded-xl border font-semibold disabled:opacity-50">{copied ? <Check className="h-5 w-5"/> : <Copy className="h-5 w-5"/>}{copied ? "Copied" : "Copy code"}</button>{code ? <BuyerCodeQr code={code.code} /> : <button type="button" disabled className="min-h-12 rounded-xl border font-semibold opacity-50">Show QR</button>}<button type="button" disabled={!code} onClick={shareCode} className="flex min-h-12 items-center justify-center gap-2 rounded-xl bg-primary font-semibold text-primary-foreground disabled:opacity-50"><Share2 className="h-5 w-5"/>Share</button></div></>}
     </section>
     <section aria-label="Komola Coin balance">
       <div className={cardCls}><div className="flex items-center gap-2 text-primary"><Coins className="h-6 w-6"/><p className="font-semibold">Komola Coins</p></div><p className="mt-3 text-5xl font-bold text-foreground-heading">{summary?.availableCoins.toLocaleString("en-IN") ?? 0}</p><p className="mt-2 text-sm text-foreground-muted">{summary?.eligibleRemainderMinor ? `${formatPaise(summary.eligibleRemainderMinor)} carried toward your next coin` : "Every ₹100 of completed purchases earns 1 coin"}</p>{summary?.reservedCampaignCoins ? <p className="mt-3 rounded-lg bg-amber-50 px-3 py-2 text-sm font-semibold text-amber-800">{summary.reservedCampaignCoins.toLocaleString("en-IN")} points locked in pending offer claims</p> : null}</div>
