@@ -34,7 +34,7 @@ export default function SellerApplicationsPage() {
             <h1 className="text-xl font-semibold text-foreground-heading">Seller access</h1>
             <p className="text-sm text-foreground-muted">Platform administrator dashboard</p>
           </div>
-          <button className="text-sm font-medium text-primary" onClick={signOut}>Sign out</button>
+          <div className="flex items-center gap-4 text-sm"><a className="font-semibold text-primary hover:underline" href="/admin/privacy-requests">Privacy requests</a><button className="font-medium text-primary" onClick={signOut}>Sign out</button></div>
         </header>
         {loading ? <SkeletonRows rows={4} /> : error ? (
           <section className={cardCls}><p className="text-sm text-red-700">{error}</p></section>
