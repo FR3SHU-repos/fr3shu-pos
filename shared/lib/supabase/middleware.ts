@@ -3,7 +3,16 @@ import { createServerClient } from "@supabase/ssr";
 import { isBuyerExperiencePath } from "@/shared/lib/auth/intent";
 import { requestOrigin } from "@/shared/lib/http/request-origin";
 
-const URL = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
+function validSupabaseUrl(value: string | undefined): string {
+  try {
+    const parsed = new globalThis.URL((value ?? "").trim());
+    return parsed.protocol === "http:" || parsed.protocol === "https:" ? parsed.origin : "";
+  } catch {
+    return "";
+  }
+}
+
+const URL = validSupabaseUrl(process.env.NEXT_PUBLIC_SUPABASE_URL);
 const KEY =
   process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ??
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ??
