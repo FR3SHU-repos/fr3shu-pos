@@ -74,11 +74,26 @@ export default function PrivacyRequestsPage() {
     await load();
   }
 
+  async function downloadExport() {
+    setError("");
+    setMessage("");
+    const result = await identityApi.privacyExport();
+    if (!result.success || !result.data) return setError(result.message);
+    const blob = new Blob([JSON.stringify(result.data, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = "komola-privacy-export.json";
+    anchor.click();
+    URL.revokeObjectURL(url);
+    setMessage("Your privacy export is ready.");
+  }
+
   return <main className="min-h-screen bg-surface px-4 py-10 sm:px-8">
     <div className="mx-auto max-w-3xl space-y-6">
       <Link href="/privacy" className="text-sm font-semibold text-primary hover:underline">← Back to privacy notice</Link>
       <section className={`${cardCls} space-y-5`}>
-        <div><p className="text-sm font-semibold text-primary">KOMOLA privacy centre</p><h1 className="mt-1 text-3xl font-black text-foreground-heading">Manage your privacy choices</h1><p className="mt-2 text-sm leading-6 text-foreground-muted">Optional choices can be changed at any time. Your service, receipt and reward access do not depend on marketing or market-intelligence consent.</p></div>
+        <div className="flex flex-wrap items-start justify-between gap-4"><div><p className="text-sm font-semibold text-primary">KOMOLA privacy centre</p><h1 className="mt-1 text-3xl font-black text-foreground-heading">Manage your privacy choices</h1><p className="mt-2 text-sm leading-6 text-foreground-muted">Optional choices can be changed at any time. Your service, receipt and reward access do not depend on marketing or market-intelligence consent.</p></div><button type="button" className="min-h-11 rounded-xl border border-border px-4 py-2 text-sm font-bold text-foreground-heading" onClick={() => void downloadExport()}>Download my data</button></div>
         <fieldset className="space-y-3 rounded-xl border border-border p-4"><legend className="px-1 text-sm font-bold">Optional processing</legend>
           <label className="flex items-start gap-3 text-sm text-foreground-muted"><input type="checkbox" className="mt-1 h-4 w-4 accent-primary" checked={consents.market_intelligence} onChange={(event) => void updateConsent("market_intelligence", event.target.checked)} /><span><strong className="text-foreground-heading">Agricultural market insights</strong><br />Use pseudonymised purchase and location patterns to improve KOMOLA and understand product demand.</span></label>
           <label className="flex items-start gap-3 text-sm text-foreground-muted"><input type="checkbox" className="mt-1 h-4 w-4 accent-primary" checked={consents.marketing} onChange={(event) => void updateConsent("marketing", event.target.checked)} /><span><strong className="text-foreground-heading">Marketing messages</strong><br />Receive optional KOMOLA updates and offers.</span></label>
@@ -94,7 +109,7 @@ export default function PrivacyRequestsPage() {
           <button type="submit" className={`${primaryBtnCls} min-h-11`} disabled={busy}>{busy ? "Submitting…" : "Submit request"}</button>
         </form>
       </section>
-      <section className={`${cardCls}`}><h2 className="text-xl font-black text-foreground-heading">Your requests</h2>{requests.length === 0 ? <p className="mt-3 text-sm text-foreground-muted">No privacy requests submitted yet.</p> : <div className="mt-4 divide-y divide-border">{requests.map((request) => <article key={request.id} className="py-4 first:pt-0"><div className="flex flex-wrap items-center justify-between gap-2"><p className="font-bold text-foreground-heading">{requestTypes.find((item) => item.value === request.requestType)?.label ?? request.requestType}</p><span className="rounded-full bg-primary/10 px-3 py-1 text-xs font-bold text-primary">{statusLabel[request.status] ?? request.status}</span></div><p className="mt-1 text-sm text-foreground-muted">{request.details}</p><p className="mt-2 text-xs text-foreground-muted">Submitted {new Date(request.createdAt).toLocaleString()}</p>{request.responseNote ? <p className="mt-2 rounded-lg bg-surface p-3 text-sm text-foreground-muted">{request.responseNote}</p> : null}</article>)}</div>}</section>
+      <section className={`${cardCls}`}><h2 className="text-xl font-black text-foreground-heading">Your requests</h2>{requests.length === 0 ? <p className="mt-3 text-sm text-foreground-muted">No privacy requests submitted yet.</p> : <div className="mt-4 divide-y divide-border">{requests.map((request) => <article key={request.id} className="py-4 first:pt-0"><div className="flex flex-wrap items-center justify-between gap-2"><p className="font-bold text-foreground-heading">{requestTypes.find((item) => item.value === request.requestType)?.label ?? request.requestType}</p><span className="rounded-full bg-primary/10 px-3 py-1 text-xs font-bold text-primary">{statusLabel[request.status] ?? request.status}</span></div><p className="mt-1 text-sm text-foreground-muted">{request.details}</p><p className="mt-2 text-xs text-foreground-muted">Submitted {new Date(request.createdAt).toLocaleString()}{request.dueAt ? ` · Target response ${new Date(request.dueAt).toLocaleDateString()}` : ""}</p>{request.responseNote ? <p className="mt-2 rounded-lg bg-surface p-3 text-sm text-foreground-muted">{request.responseNote}</p> : null}</article>)}</div>}</section>
     </div>
   </main>;
 }

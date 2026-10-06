@@ -30,7 +30,7 @@ export function listAdminPrivacyRequests(status = "", page = 1): Promise<ApiResu
 
 export function updateAdminPrivacyRequest(
   id: string,
-  body: { status?: Exclude<PrivacyOpsStatus, "submitted">; identityVerified?: boolean; responseNote?: string },
+  body: { status?: Exclude<PrivacyOpsStatus, "submitted">; identityVerified?: boolean; responseNote?: string; resolutionAction?: "export_ready" | "correction_recorded" | "anonymize_identity" | "grievance_responded" | "nomination_recorded" },
 ): Promise<ApiResult<{ id: string; requestType: PrivacyRequestType; status: PrivacyOpsStatus }>> {
   return request(`admin/privacy/requests/${encodeURIComponent(id)}`, { method: "PATCH", body });
 }

@@ -62,6 +62,7 @@ export interface PrivacyRequest {
   details: string;
   status: PrivacyRequestStatus;
   createdAt: string;
+  dueAt?: string;
   resolvedAt?: string | null;
   responseNote?: string | null;
 }
@@ -82,3 +83,4 @@ export const recordPrivacyConsent = (purposeCode: PrivacyPurpose, granted: boole
 export const privacyRequests = (): Promise<ApiResult<{ items: PrivacyRequest[] }>> => request("me/privacy/requests");
 export const submitPrivacyRequest = (requestType: PrivacyRequestType, details: string): Promise<ApiResult<PrivacyRequest>> =>
   request("me/privacy/requests", { method: "POST", body: { requestType, details } });
+export const privacyExport = (): Promise<ApiResult<Record<string, unknown>>> => request("me/privacy/export");
