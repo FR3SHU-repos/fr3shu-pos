@@ -146,7 +146,7 @@ export function SiteFooter() {
     <footer className="no-print border-t border-border bg-surface-card">
       <div className="mx-auto flex w-full max-w-7xl flex-col items-center justify-between gap-1 px-4 py-5 text-center text-xs text-foreground-muted sm:flex-row sm:px-6 sm:text-left">
         <span>© {new Date().getFullYear()} KOMOLA</span>
-        <span className="flex items-center gap-3"><span>Visakhapatnam, India</span><Link href="/privacy" className="font-semibold text-primary hover:underline">Privacy</Link></span>
+        <span className="flex items-center gap-3"><span>Visakhapatnam, India</span><Link href="/privacy" className="font-semibold text-primary hover:underline">Privacy</Link><Link href="/privacy/requests" className="font-semibold text-primary hover:underline">Privacy requests</Link></span>
       </div>
     </footer>
   );

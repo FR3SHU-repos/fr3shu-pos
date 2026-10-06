@@ -54,6 +54,17 @@ export interface PrivacyConsent {
   noticeVersion: string;
   occurredAt?: string;
 }
+export type PrivacyRequestType = "access" | "correction" | "erasure" | "nomination" | "grievance";
+export type PrivacyRequestStatus = "submitted" | "in_review" | "completed" | "rejected";
+export interface PrivacyRequest {
+  id: string;
+  requestType: PrivacyRequestType;
+  details: string;
+  status: PrivacyRequestStatus;
+  createdAt: string;
+  resolvedAt?: string | null;
+  responseNote?: string | null;
+}
 
 export const profile = (): Promise<ApiResult<PersonProfile>> => request("me/profile");
 export const capabilities = (accessToken?: string): Promise<ApiResult<Capabilities>> =>
@@ -66,5 +77,8 @@ export const locations = (): Promise<ApiResult<{ items: PlatformLocation[] }>> =
 export const discoveryCode = (): Promise<ApiResult<DiscoveryCode>> => request("me/discovery-code");
 export const rotateDiscoveryCode = (): Promise<ApiResult<DiscoveryCode>> => request("me/discovery-code/rotate", { method: "POST" });
 export const privacyConsents = (): Promise<ApiResult<{ items: PrivacyConsent[] }>> => request("me/privacy/consents");
-export const recordPrivacyConsent = (purposeCode: PrivacyPurpose, granted: boolean, noticeVersion = "2026-10-06", source = "web"): Promise<ApiResult<PrivacyConsent>> =>
+export const recordPrivacyConsent = (purposeCode: PrivacyPurpose, granted: boolean, noticeVersion = "1.0.0", source = "web"): Promise<ApiResult<PrivacyConsent>> =>
   request("me/privacy/consents", { method: "POST", body: { purposeCode, action: granted ? "granted" : "withdrawn", noticeVersion, source } });
+export const privacyRequests = (): Promise<ApiResult<{ items: PrivacyRequest[] }>> => request("me/privacy/requests");
+export const submitPrivacyRequest = (requestType: PrivacyRequestType, details: string): Promise<ApiResult<PrivacyRequest>> =>
+  request("me/privacy/requests", { method: "POST", body: { requestType, details } });

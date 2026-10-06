@@ -11,7 +11,7 @@ const sections = [
   ["Who may receive it", "Information may be shared with the seller or rewardor responsible for a sale or reward claim, and with service providers that help us operate authentication, hosting, storage, analytics, communications or payments. We limit access to what is needed for the stated purpose."],
   ["Your choices and rights", "You can update profile information and may request information about processing, correction, completion, updating, erasure where retention is not required, consent withdrawal, nomination and grievance redressal. Withdrawal does not undo processing that was lawful before withdrawal or records that must be retained for settlement, fraud prevention, accounting or another legal purpose."],
   ["Retention and security", "We retain information only for the account, receipt, reward, claim, support, security or analytics purpose for which it is needed, subject to legal retention requirements. KOMOLA uses authenticated API access and access controls; no online system can guarantee absolute security. Offline POS devices may temporarily store sale and customer details until synchronization or device cleanup."],
-  ["Children", "KOMOLA is intended for adults unless a specific experience says otherwise. Do not provide a child’s personal data without the required parent or lawful-guardian process."],
+  ["Children", "KOMOLA is currently designed and marketed for adult users and does not intentionally offer child accounts or child-targeted experiences. If that scope changes, KOMOLA will review the applicable child-data safeguards before enabling it."],
 ];
 
 export default function PrivacyPage() {
@@ -20,12 +20,13 @@ export default function PrivacyPage() {
     <article className="mt-6 rounded-2xl border border-border bg-surface-card p-6 shadow-sm sm:p-10">
       <p className="text-sm font-semibold text-primary">KOMOLA privacy notice</p>
       <h1 className="mt-2 text-3xl font-black text-foreground-heading">Your data, explained clearly</h1>
-      <p className="mt-3 text-sm text-foreground-muted">Version 2026-10-06 · Last updated 6 October 2026</p>
+      <p className="mt-3 text-sm text-foreground-muted">Version 1.0.0 · Last updated 6 October 2026</p>
       <p className="mt-6 leading-7 text-foreground-muted">This notice explains the main personal data KOMOLA processes across its buyer rewards and seller POS experiences. Specific screens may provide additional details when information is collected.</p>
       <div className="mt-8 space-y-7">{sections.map(([title, body]) => <section key={title}><h2 className="text-lg font-black text-foreground-heading">{title}</h2><p className="mt-2 leading-7 text-foreground-muted">{body}</p></section>)}</div>
       <section className="mt-8 rounded-xl bg-surface p-5">
         <h2 className="text-lg font-black text-foreground-heading">Questions or privacy requests</h2>
-        <p className="mt-2 leading-7 text-foreground-muted">Contact the KOMOLA team through the support channel shown in your account or seller workspace. Include the account email or buyer code, the request you are making, and enough information for us to verify the request. We will publish the responsible privacy contact and request workflow as the service expands.</p>
+        <p className="mt-2 leading-7 text-foreground-muted">Signed-in users can submit and track an access, correction, erasure, nomination or grievance request through the privacy request centre.</p>
+        <div className="mt-4 flex flex-wrap gap-4"><Link href="/privacy/requests" className="font-bold text-primary hover:underline">Open privacy request centre →</Link><a href="mailto:varma.v.business@gmail.com" className="font-bold text-primary hover:underline">Email privacy contact</a></div>
       </section>
       <p className="mt-8 text-xs leading-6 text-foreground-muted">This notice is designed to support KOMOLA’s implementation of India’s Digital Personal Data Protection framework. It is not a substitute for legal advice and may be updated as the product, providers and applicable requirements change.</p>
     </article>
