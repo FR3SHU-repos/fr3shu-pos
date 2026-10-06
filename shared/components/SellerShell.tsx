@@ -143,9 +143,7 @@ export default function SellerShell({ children }: { children: React.ReactNode })
 function Brand() {
   return (
     <Link href="/dashboard" className="flex items-center gap-2">
-      <span className="grid h-8 w-8 place-items-center rounded-lg bg-primary text-primary-foreground">
-        <span className="text-sm font-bold">F3</span>
-      </span>
+      <img src="/komola-logo.png" alt="KOMOLA" className="h-8 w-8 rounded-lg object-cover" />
       <span className="text-sm font-semibold text-foreground-heading">KOMOLA POS</span>
     </Link>
   );

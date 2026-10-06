@@ -17,8 +17,10 @@ export function RegisterForm({ intent }: { intent: AuthIntent }) {
   const [form, setForm] = useState({ fullName: "", phone: "", email: "", password: "", confirm: "", sellerType: "Farmer" as SellerOrgType });
   const [error, setError] = useState(""); const [busy, setBusy] = useState(false);
   const [googleBusy, setGoogleBusy] = useState(false);
+  const [privacyAcknowledged, setPrivacyAcknowledged] = useState(false);
   async function google() {
     if (googleBusy) return;
+    if (!privacyAcknowledged) { setError("Please review and acknowledge the privacy notice before continuing."); return; }
     setGoogleBusy(true); setError("");
     rememberAuthIntent(intent);
     const redirectTo = authCallbackRedirect(window.location.origin, { intent });
@@ -28,6 +30,7 @@ export function RegisterForm({ intent }: { intent: AuthIntent }) {
   async function submit(e: React.FormEvent) {
     e.preventDefault(); setError("");
     if (form.fullName.trim().length < 2) return setError("Enter your full name.");
+    if (!privacyAcknowledged) return setError("Please review and acknowledge the privacy notice before creating your account.");
     const phoneE164 = normalizeIndianMobile(form.phone);
     if (!phoneE164) return setError("Enter a valid 10-digit Indian mobile number.");
     if (form.password.length < 8) return setError("Password must be at least 8 characters.");
@@ -54,6 +57,7 @@ export function RegisterForm({ intent }: { intent: AuthIntent }) {
       compact
     />
     <div><h1 className="text-xl font-semibold capitalize">Create your {intent} account</h1><p className="mt-1 text-sm text-foreground-muted">Register for the {intent === "buyer" ? "rewards and receipts" : "point-of-sale"} portal.</p><Link href="/register" className="mt-2 inline-block text-xs font-medium text-primary hover:underline">Choose a different account type</Link></div>
+    <label className="flex items-start gap-3 rounded-lg bg-surface p-3 text-xs leading-5 text-foreground-muted"><input type="checkbox" className="mt-1 h-4 w-4 accent-primary" checked={privacyAcknowledged} onChange={(event) => setPrivacyAcknowledged(event.target.checked)} /><span>I have read the <Link href="/privacy" target="_blank" className="font-semibold text-primary underline">KOMOLA privacy notice</Link> and understand the account, security, receipt and rewards processing needed for this portal. <span className="text-primary">*</span></span></label>
     <GoogleButton onClick={google} loading={googleBusy} />
     <Divider />
     <input aria-label="Full name" className={inputCls} placeholder="Full name" value={form.fullName} onChange={e=>setForm({...form,fullName:e.target.value})} required />

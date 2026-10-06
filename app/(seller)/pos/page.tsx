@@ -637,7 +637,7 @@ export default function PosPage() {
   return (
     <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_390px]">
       {/* Left: search + results */}
-      <div className="space-y-5">
+      <div className="order-2 space-y-5 lg:order-none">
         <div className="flex items-end justify-between gap-3">
           <div>
             <p className="text-xs font-semibold uppercase tracking-wider text-primary">Checkout</p>
@@ -733,7 +733,7 @@ export default function PosPage() {
       </div>
 
       {/* Right: cart */}
-      <div className={cx(cardCls, "flex h-fit flex-col border-primary/20 bg-white p-5 shadow-md lg:sticky lg:top-6")}>
+      <div className={cx(cardCls, "order-1 flex h-fit flex-col border-primary/20 bg-white p-5 shadow-md lg:order-none lg:sticky lg:top-6")}>
         <div className="mb-4 flex items-center justify-between border-b border-border pb-4">
           <div>
             <h2 className="text-lg font-bold text-foreground-heading">{t("pos.cart")}</h2>

@@ -17,6 +17,8 @@ export default function BuyerSetupPage() {
   const [postalCode, setPostalCode] = useState("");
   const [locationCode, setLocationCode] = useState("visakhapatnam");
   const [locations, setLocations] = useState<Array<{ code: string; name: string }>>([]);
+  const [coreServiceConsent, setCoreServiceConsent] = useState(false);
+  const [marketIntelligenceConsent, setMarketIntelligenceConsent] = useState(false);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
 
@@ -57,11 +59,22 @@ export default function BuyerSetupPage() {
       setError("Enter your complete Indian address and 6-digit PIN code.");
       return;
     }
+    if (!coreServiceConsent) {
+      setError("Please review the privacy notice and agree to the processing needed for your buyer account.");
+      return;
+    }
     setBusy(true);
     const result = await identityApi.updateProfile(name.trim(), true, phoneE164, locationCode, { line1: line1.trim(), line2: line2.trim(), city: city.trim(), state: state.trim(), postalCode: postalCode.trim(), country: "India" });
-    setBusy(false);
     if (!result.success) {
+      setBusy(false);
       setError(result.status === 409 ? "This mobile number is already linked to another KOMOLA account." : result.message);
+      return;
+    }
+    const coreConsent = await identityApi.recordPrivacyConsent("core_service", true);
+    const intelligenceConsent = await identityApi.recordPrivacyConsent("market_intelligence", marketIntelligenceConsent);
+    setBusy(false);
+    if (!coreConsent.success || !intelligenceConsent.success) {
+      setError("Your profile was saved, but we could not record your privacy choices. Please try again.");
       return;
     }
     router.replace("/buyer");
@@ -96,6 +109,17 @@ export default function BuyerSetupPage() {
         <div><label className="block text-sm font-semibold" htmlFor="buyer-line2">Address line 2 <span className="text-xs font-normal text-foreground-muted">(optional)</span></label><input id="buyer-line2" className={inputCls} value={line2} onChange={(event) => setLine2(event.target.value)} autoComplete="address-line2" /></div>
         <div className="grid gap-4 sm:grid-cols-2"><div><label className="block text-sm font-semibold" htmlFor="buyer-city">City <span className="text-primary">*</span></label><input id="buyer-city" className={inputCls} value={city} onChange={(event) => setCity(event.target.value)} autoComplete="address-level2" required /></div><div><label className="block text-sm font-semibold" htmlFor="buyer-state">State <span className="text-primary">*</span></label><input id="buyer-state" className={inputCls} value={state} onChange={(event) => setState(event.target.value)} autoComplete="address-level1" required /></div></div>
         <div><label className="block text-sm font-semibold" htmlFor="buyer-postal-code">PIN code <span className="text-primary">*</span></label><input id="buyer-postal-code" className={inputCls} value={postalCode} onChange={(event) => setPostalCode(event.target.value.replace(/\D/g, "").slice(0, 6))} inputMode="numeric" autoComplete="postal-code" maxLength={6} required /></div>
+      </fieldset>
+      <fieldset className="space-y-3 rounded-xl border border-border bg-surface p-4">
+        <legend className="px-1 text-sm font-semibold">Privacy choices</legend>
+        <label className="flex items-start gap-3 text-sm text-foreground-muted">
+          <input type="checkbox" className="mt-1 h-4 w-4 accent-primary" checked={coreServiceConsent} onChange={(event) => setCoreServiceConsent(event.target.checked)} required />
+          <span>I agree that KOMOLA may use my name, mobile number, location, and address to create my buyer account, connect purchases, issue receipts and rewards, show location-based offers, and fulfill reward claims. <a href="/privacy" target="_blank" rel="noreferrer" className="font-semibold text-primary underline">Read the privacy notice</a>. <span className="text-primary">*</span></span>
+        </label>
+        <label className="flex items-start gap-3 text-sm text-foreground-muted">
+          <input type="checkbox" className="mt-1 h-4 w-4 accent-primary" checked={marketIntelligenceConsent} onChange={(event) => setMarketIntelligenceConsent(event.target.checked)} />
+          <span>I allow KOMOLA to use pseudonymised purchase and location patterns to build aggregated agricultural market insights and improve the service. This is optional and can be withdrawn later.</span>
+        </label>
       </fieldset>
       {error && <p role="alert" className="rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}</p>}
       <button className={`${primaryBtnCls} min-h-12 w-full`} disabled={busy}>{busy ? "Saving…" : "Save and continue"}</button>
