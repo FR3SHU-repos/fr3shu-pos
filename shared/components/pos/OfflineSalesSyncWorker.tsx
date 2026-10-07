@@ -5,6 +5,7 @@ import toast from "react-hot-toast";
 import { usePosUser } from "@/shared/context/PosUserContext";
 import { salesApi } from "@/shared/lib/api";
 import { cleanupOfflineSales, type OfflineScope } from "@/shared/lib/offline/sales";
+import { cleanupExpiredHeldCarts } from "@/shared/lib/offline/held-carts";
 
 const SYNC_INTERVAL_MS = 30_000;
 const LAST_SYNC_KEY_PREFIX = "komola:offline-sales:last-sync:";
@@ -62,6 +63,7 @@ export function OfflineSalesSyncWorker() {
 
   useEffect(() => {
     if (!scope) return;
+    void Promise.all([cleanupOfflineSales(scope), cleanupExpiredHeldCarts(scope)]);
     void Promise.resolve().then(() => sync(true));
     const onOnline = () => void sync(true);
     const onOfflineSaleChanged = () => void sync(true);

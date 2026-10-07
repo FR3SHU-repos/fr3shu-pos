@@ -85,3 +85,22 @@ export async function loadHeldCarts(scope: OfflineScope): Promise<HeldCart[]> {
   }
   return legacy;
 }
+
+export async function cleanupExpiredHeldCarts(scope: OfflineScope, olderThanMs = 24 * 60 * 60 * 1000): Promise<boolean> {
+  if (typeof indexedDB === "undefined") return false;
+  const db = await openOfflineDatabase();
+  try {
+    const transaction = db.transaction(STORE, "readwrite");
+    const store = transaction.objectStore(STORE);
+    const record = await requestResult<HeldCartRecord | undefined>(store.get(offlineScopeKey(scope)));
+    if (record && Date.now() - new Date(record.updatedAt).getTime() > olderThanMs) {
+      store.delete(offlineScopeKey(scope));
+      await transactionDone(transaction);
+      return true;
+    }
+    await transactionDone(transaction);
+    return false;
+  } finally {
+    db.close();
+  }
+}

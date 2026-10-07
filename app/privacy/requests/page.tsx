@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { identityApi } from "@/shared/lib/api";
-import type { PrivacyRequest, PrivacyRequestType } from "@/shared/lib/api/identity";
+import type { PrivacyNotification, PrivacyRequest, PrivacyRequestType } from "@/shared/lib/api/identity";
 import { cardCls, inputCls, primaryBtnCls } from "@/shared/components/ui";
 
 const requestTypes: Array<{ value: PrivacyRequestType; label: string }> = [
@@ -24,6 +24,7 @@ const statusLabel: Record<string, string> = {
 export default function PrivacyRequestsPage() {
   const [consents, setConsents] = useState({ market_intelligence: false, marketing: false });
   const [requests, setRequests] = useState<PrivacyRequest[]>([]);
+  const [notifications, setNotifications] = useState<PrivacyNotification[]>([]);
   const [requestType, setRequestType] = useState<PrivacyRequestType>("access");
   const [details, setDetails] = useState("");
   const [message, setMessage] = useState("");
@@ -40,7 +41,10 @@ export default function PrivacyRequestsPage() {
       }
       setConsents(next);
     }
-    if (requestResult.success) setRequests(requestResult.data?.items ?? []);
+    if (requestResult.success) {
+      setRequests(requestResult.data?.items ?? []);
+      setNotifications(requestResult.data?.notifications ?? []);
+    }
     else if (requestResult.status === 401) setError("Please sign in to manage privacy choices and requests.");
   }
 
@@ -109,6 +113,7 @@ export default function PrivacyRequestsPage() {
           <button type="submit" className={`${primaryBtnCls} min-h-11`} disabled={busy}>{busy ? "Submitting…" : "Submit request"}</button>
         </form>
       </section>
+      {notifications.length > 0 ? <section className={`${cardCls}`}><h2 className="text-xl font-black text-foreground-heading">Privacy updates</h2><div className="mt-4 space-y-3">{notifications.map((notification) => <article key={notification.id} className="rounded-xl bg-surface p-4"><p className="font-bold text-foreground-heading">{notification.title}</p><p className="mt-1 text-sm text-foreground-muted">{notification.message}</p><p className="mt-2 text-xs text-foreground-muted">{new Date(notification.createdAt).toLocaleString()}</p></article>)}</div></section> : null}
       <section className={`${cardCls}`}><h2 className="text-xl font-black text-foreground-heading">Your requests</h2>{requests.length === 0 ? <p className="mt-3 text-sm text-foreground-muted">No privacy requests submitted yet.</p> : <div className="mt-4 divide-y divide-border">{requests.map((request) => <article key={request.id} className="py-4 first:pt-0"><div className="flex flex-wrap items-center justify-between gap-2"><p className="font-bold text-foreground-heading">{requestTypes.find((item) => item.value === request.requestType)?.label ?? request.requestType}</p><span className="rounded-full bg-primary/10 px-3 py-1 text-xs font-bold text-primary">{statusLabel[request.status] ?? request.status}</span></div><p className="mt-1 text-sm text-foreground-muted">{request.details}</p><p className="mt-2 text-xs text-foreground-muted">Submitted {new Date(request.createdAt).toLocaleString()}{request.dueAt ? ` · Target response ${new Date(request.dueAt).toLocaleDateString()}` : ""}</p>{request.responseNote ? <p className="mt-2 rounded-lg bg-surface p-3 text-sm text-foreground-muted">{request.responseNote}</p> : null}</article>)}</div>}</section>
     </div>
   </main>;

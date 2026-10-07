@@ -66,6 +66,15 @@ export interface PrivacyRequest {
   resolvedAt?: string | null;
   responseNote?: string | null;
 }
+export interface PrivacyNotification {
+  id: string;
+  privacyRequestId?: string;
+  kind: string;
+  title: string;
+  message: string;
+  createdAt: string;
+  readAt?: string | null;
+}
 
 export const profile = (): Promise<ApiResult<PersonProfile>> => request("me/profile");
 export const capabilities = (accessToken?: string): Promise<ApiResult<Capabilities>> =>
@@ -80,7 +89,7 @@ export const rotateDiscoveryCode = (): Promise<ApiResult<DiscoveryCode>> => requ
 export const privacyConsents = (): Promise<ApiResult<{ items: PrivacyConsent[] }>> => request("me/privacy/consents");
 export const recordPrivacyConsent = (purposeCode: PrivacyPurpose, granted: boolean, noticeVersion = "1.0.0", source = "web"): Promise<ApiResult<PrivacyConsent>> =>
   request("me/privacy/consents", { method: "POST", body: { purposeCode, action: granted ? "granted" : "withdrawn", noticeVersion, source } });
-export const privacyRequests = (): Promise<ApiResult<{ items: PrivacyRequest[] }>> => request("me/privacy/requests");
+export const privacyRequests = (): Promise<ApiResult<{ items: PrivacyRequest[]; notifications?: PrivacyNotification[] }>> => request("me/privacy/requests");
 export const submitPrivacyRequest = (requestType: PrivacyRequestType, details: string): Promise<ApiResult<PrivacyRequest>> =>
   request("me/privacy/requests", { method: "POST", body: { requestType, details } });
 export const privacyExport = (): Promise<ApiResult<Record<string, unknown>>> => request("me/privacy/export");
