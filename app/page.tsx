@@ -1,4 +1,7 @@
-import { createSupabaseServerClient } from "@/shared/lib/supabase/server";
+import {
+  createSupabaseServerClient,
+  supabaseAuthConfigured,
+} from "@/shared/lib/supabase/server";
 import { Landing } from "@/shared/components/landing/Landing";
 
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://komola.in";
@@ -6,10 +9,14 @@ const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://komola.in";
 // Public landing page. Auth-based redirects for the app itself live in
 // `middleware.ts`; `/` is intentionally allowed through so anyone can see this.
 export default async function Home() {
-  const supabase = await createSupabaseServerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  let user = null;
+  if (supabaseAuthConfigured) {
+    const supabase = await createSupabaseServerClient();
+    const {
+      data: { user: authenticatedUser },
+    } = await supabase.auth.getUser();
+    user = authenticatedUser;
+  }
   const structuredData = [
     {
       "@context": "https://schema.org",
