@@ -38,10 +38,10 @@ export function Komo({
         height={config.pixels}
         sizes={config.sizes}
         priority={priority}
+        fetchPriority={priority ? "high" : "auto"}
         aria-hidden={decorative || undefined}
         className="h-full w-full object-contain"
       />
     </span>
   );
 }
-

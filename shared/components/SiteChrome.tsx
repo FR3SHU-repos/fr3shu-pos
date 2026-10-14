@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import {
   CircleUserRound,
   Gift,
@@ -57,10 +58,12 @@ export function SiteHeader() {
           className="flex min-w-0 items-center gap-2"
           aria-label="KOMOLA home"
         >
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
+          <Image
             src="/komola-logo.png"
             alt=""
+            width={36}
+            height={36}
+            sizes="36px"
             className="h-9 w-9 shrink-0 rounded-lg object-contain"
           />
           <span className="truncate text-sm font-semibold text-foreground-heading sm:text-base">

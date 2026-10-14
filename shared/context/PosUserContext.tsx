@@ -45,6 +45,18 @@ export function PosUserProvider({ children }: { children: React.ReactNode }) {
     if (refreshInFlight.current) return refreshInFlight.current;
 
     const request = (async () => {
+      const {
+        data: { session },
+      } = await createAuthBrowserClient().auth.getSession();
+      if (!session) {
+        setProductScope(null);
+        setUser(null);
+        setCapabilities(null);
+        setOrganization(null);
+        setLoading(false);
+        return;
+      }
+
       const result = await bootstrapApi.load();
       // A connection loss must not evict an already open seller workspace.
       if (result.status === 0 || result.status >= 500) {
