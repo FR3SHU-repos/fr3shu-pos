@@ -1,8 +1,10 @@
-const CACHE_NAME = "komola-pos-shell-v2";
+const CACHE_NAME = "komola-pos-shell-v3";
 const APP_SHELL = [
   "/offline",
   "/manifest.webmanifest",
-  "/komola-logo.png",
+  "/icons/icon-192.png",
+  "/icons/icon-512.png",
+  "/icons/apple-touch-icon.png",
   "/favicon.ico?v=komola-20260909",
 ];
 
@@ -27,17 +29,31 @@ self.addEventListener("fetch", (event) => {
   if (request.method !== "GET") return;
   const url = new URL(request.url);
   if (url.origin !== self.location.origin) return;
-  if (url.pathname.startsWith("/api/") || url.pathname.startsWith("/auth/") || url.pathname.startsWith("/login") || url.pathname.startsWith("/register")) return;
+  // Never cache API responses, authentication flows, account routes, or
+  // personalized POS HTML. A shared device must not replay one seller's page
+  // to another seller after logout or account switching.
+  if (
+    url.pathname.startsWith("/api/") ||
+    url.pathname.startsWith("/auth/") ||
+    url.pathname.startsWith("/login") ||
+    url.pathname.startsWith("/register") ||
+    url.pathname.startsWith("/dashboard") ||
+    url.pathname.startsWith("/pos") ||
+    url.pathname.startsWith("/products") ||
+    url.pathname.startsWith("/stock") ||
+    url.pathname.startsWith("/settings") ||
+    url.pathname.startsWith("/register-sessions") ||
+    url.pathname.startsWith("/buyer") ||
+    url.pathname.startsWith("/admin") ||
+    url.pathname.startsWith("/seller")
+  ) {
+    if (request.mode !== "navigate") return;
+  }
 
   if (request.mode === "navigate") {
     event.respondWith(
       fetch(request)
-        .then((response) => {
-          const copy = response.clone();
-          if (response.ok) caches.open(CACHE_NAME).then((cache) => cache.put(request, copy));
-          return response;
-        })
-        .catch(() => caches.match(request).then((cached) => cached || caches.match("/pos") || caches.match("/offline"))),
+        .catch(() => caches.match("/offline")),
     );
     return;
   }
@@ -51,21 +67,4 @@ self.addEventListener("fetch", (event) => {
       })),
     );
   }
-});
-
-self.addEventListener("message", (event) => {
-  const data = event.data || {};
-  if (data.type !== "CACHE_URLS" || !Array.isArray(data.urls)) return;
-  event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) =>
-      Promise.allSettled(
-        data.urls.map((url) =>
-          fetch(url, { credentials: "include" }).then((response) => {
-            if (response.ok) return cache.put(url, response);
-            return undefined;
-          }),
-        ),
-      ),
-    ),
-  );
 });

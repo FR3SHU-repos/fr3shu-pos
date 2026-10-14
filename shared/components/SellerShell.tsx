@@ -24,6 +24,8 @@ import { Skeleton } from "@/shared/components/ui";
 import { OfflineCatalogue } from "@/shared/components/products/OfflineCatalogue";
 import { OfflineSalesPanel } from "@/shared/components/pos/OfflineSalesPanel";
 import { OfflineSalesSyncWorker } from "@/shared/components/pos/OfflineSalesSyncWorker";
+import { PwaInstallPrompt } from "@/shared/components/PwaInstallPrompt";
+import { PwaStatusBar } from "@/shared/components/PwaStatusBar";
 
 const NAV = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
@@ -128,6 +130,8 @@ export default function SellerShell({ children }: { children: React.ReactNode })
           {user ? <OfflineSalesSyncWorker key={`sales-sync:${user.id}:${user.orgId}:${user.locationId}`} /> : null}
           {user ? <OfflineCatalogue key={`catalogue:${user.id}:${user.orgId}:${user.locationId}`} /> : null}
           {user ? <OfflineSalesPanel key={`sales:${user.id}:${user.orgId}:${user.locationId}`} /> : null}
+          {user ? <PwaInstallPrompt /> : null}
+          {user ? <PwaStatusBar /> : null}
           {children}
         </main>
       </div>

@@ -63,7 +63,7 @@ export const metadata: Metadata = {
   icons: {
     icon: [{ url: "/favicon.ico?v=komola-20260909", type: "image/x-icon", sizes: "64x64" }],
     shortcut: "/favicon.ico?v=komola-20260909",
-    apple: "/komola-logo.png",
+    apple: [{ url: "/icons/apple-touch-icon.png", sizes: "180x180", type: "image/png" }],
   },
 };
 
