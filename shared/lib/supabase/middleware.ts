@@ -20,7 +20,15 @@ const KEY =
   "";
 
 const PUBLIC_PREFIXES = ["/login", "/register", "/auth/"];
-const PUBLIC_EXACT_PATHS = ["/sitemap.xml", "/robots.txt", "/manifest.webmanifest"];
+const PUBLIC_EXACT_PATHS = [
+  "/sitemap.xml",
+  "/robots.txt",
+  "/manifest.webmanifest",
+  "/llms.txt",
+  "/ai-catalog.json",
+  "/.well-known/ai-catalog.json",
+  "/.well-known/ard.json",
+];
 
 function safe(path: string): boolean {
   return path.startsWith("/") && !path.startsWith("//") && !path.includes("://");

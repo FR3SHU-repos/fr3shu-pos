@@ -79,6 +79,11 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
+      <head>
+        <link rel="alternate" type="text/markdown" href="/llms.txt" />
+        <link rel="ai-catalog" href="/.well-known/ai-catalog.json" />
+        <link rel="ard" href="/.well-known/ard.json" />
+      </head>
       <body className="antialiased">
         <PosUserProvider>
           <ServiceWorkerRegistration />

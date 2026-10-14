@@ -1,0 +1,10 @@
+# KOMOLA
+
+> KOMOLA is an agri-tech platform connecting agricultural sellers and buyers through POS, digital receipts, purchase rewards, and market intelligence.
+
+## Public pages
+
+- [KOMOLA home](https://komola.in/): Overview of the KOMOLA agri-tech platform.
+- [Privacy](https://komola.in/privacy): Privacy information for KOMOLA users.
+- [Privacy requests](https://komola.in/privacy/requests): Submit or manage a privacy request.
+- [Sign in](https://komola.in/login): Sign in to the KOMOLA platform.

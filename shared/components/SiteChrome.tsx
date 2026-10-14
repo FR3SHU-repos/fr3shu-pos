@@ -59,7 +59,7 @@ export function SiteHeader() {
           aria-label="KOMOLA home"
         >
           <Image
-            src="/komola-logo.png"
+            src="/icons/apple-touch-icon.png"
             alt=""
             width={36}
             height={36}

@@ -1,0 +1,9 @@
+{
+  "specVersion": "1.0",
+  "host": {
+    "displayName": "KOMOLA",
+    "documentationUrl": "https://komola.in/llms.txt",
+    "logoUrl": "https://komola.in/icons/apple-touch-icon.png"
+  },
+  "entries": []
+}
