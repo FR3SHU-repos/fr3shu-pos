@@ -703,9 +703,20 @@ export default function PosPage() {
             </button>
           ))}
           {results.length === 0 ? (
-            <p className="col-span-full py-6 text-center text-sm text-foreground-muted">
-              {t("pos.empty_cart")}
-            </p>
+            query.trim() ? (
+              <p className="col-span-full py-6 text-center text-sm text-foreground-muted">
+                No products match your search.
+              </p>
+            ) : (
+              <div className="col-span-full flex flex-col items-center rounded-2xl border border-dashed border-border bg-surface-card px-5 py-8 text-center">
+                <p className="text-base font-semibold text-foreground-heading">No products added yet</p>
+                <p className="mt-1 max-w-sm text-sm text-foreground-muted">Enter your product details to start selling from this register.</p>
+                <Link href="/products/new" className={`${primaryBtnCls} mt-4`}>
+                  <Plus className="h-4 w-4" />
+                  Enter product details
+                </Link>
+              </div>
+            )
           ) : null}
         </div>
 
