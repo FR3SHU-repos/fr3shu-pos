@@ -469,7 +469,9 @@ export default function PosPage() {
     setSubmitting(true);
     const res = await salesApi.create({
       idempotencyKey: idemRef.current,
-      registerId: session?.registerId,
+      // The displayed session may come from the offline cache after a reset or
+      // while the register endpoint is unavailable. Online checkout resolves
+      // the current server-side open register instead of reusing that stale ID.
       items: lines.map((l) => ({
         productId: l.product._id,
         qty: l.qty,
