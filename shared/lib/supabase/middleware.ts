@@ -20,6 +20,7 @@ const KEY =
   "";
 
 const PUBLIC_PREFIXES = ["/login", "/register", "/auth/"];
+const PUBLIC_EXACT_PATHS = ["/sitemap.xml", "/robots.txt", "/manifest.webmanifest"];
 
 function safe(path: string): boolean {
   return path.startsWith("/") && !path.startsWith("//") && !path.includes("://");
@@ -52,7 +53,12 @@ export async function updateSession(request: NextRequest): Promise<NextResponse>
   // These routes do not use the middleware's verified user. API requests
   // carry their bearer token to Go, and auth routes manage their own session.
   // Avoid an extra Supabase network round trip before each request.
-  if (pathname === "/" || PUBLIC_PREFIXES.some((p) => pathname.startsWith(p)) || pathname.startsWith("/api/")) {
+  if (
+    pathname === "/" ||
+    PUBLIC_EXACT_PATHS.includes(pathname) ||
+    PUBLIC_PREFIXES.some((p) => pathname.startsWith(p)) ||
+    pathname.startsWith("/api/")
+  ) {
     return response;
   }
 

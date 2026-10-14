@@ -15,7 +15,16 @@ beforeEach(() => {
 });
 
 describe("session middleware network boundary", () => {
-  it.each(["/", "/login/seller", "/register/buyer", "/auth/callback?code=test", "/api/v1/pos/products"])(
+  it.each([
+    "/",
+    "/login/seller",
+    "/register/buyer",
+    "/auth/callback?code=test",
+    "/api/v1/pos/products",
+    "/sitemap.xml",
+    "/robots.txt",
+    "/manifest.webmanifest",
+  ])(
     "does not contact Supabase before serving %s", async (path) => {
       const { updateSession } = await import("@/shared/lib/supabase/middleware");
       const response = await updateSession(new NextRequest(`https://example.com${path}`));
