@@ -57,6 +57,9 @@ export const metadata: Metadata = {
     follow: true,
     googleBot: { index: true, follow: true },
   },
+  verification: {
+    google: "ZODLmPsDAx7lNmsI1kDqCbd2KQWJWBZQ61PIZoQNPSM",
+  },
   manifest: "/manifest.webmanifest",
   applicationName: "KOMOLA",
   appleWebApp: { capable: true, title: "KOMOLA", statusBarStyle: "default" },
