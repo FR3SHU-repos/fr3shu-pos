@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { registerSeller, type SellerOrgType } from "@/shared/lib/api/sellerOrgs";
+import { registerSeller, sellerDestination, type SellerOrgType } from "@/shared/lib/api/sellerOrgs";
 import { identityApi } from "@/shared/lib/api";
 import type { PlatformLocation } from "@/shared/lib/api/identity";
 import { newUuid } from "@/shared/lib/uuid";
@@ -10,6 +10,7 @@ import { normalizeIndianMobile } from "@/shared/lib/auth/phone";
 import { cardCls, inputCls, primaryBtnCls } from "@/shared/components/ui";
 import { createAuthBrowserClient } from "@/shared/lib/supabase/auth-client";
 import { KomoMessage } from "@/shared/components/mascot";
+import { usePosUser } from "@/shared/context/PosUserContext";
 
 type SellerForm = {
   displayName: string;
@@ -28,6 +29,7 @@ const OPTIONAL_FIELDS: Array<keyof SellerForm> = ["legalName", "line2"];
 
 export default function SellerOnboarding() {
   const router = useRouter();
+  const { refresh } = usePosUser();
   const draft = typeof window !== "undefined"
     ? JSON.parse(sessionStorage.getItem("komola:seller-draft") || "{}")
     : {};
@@ -48,6 +50,11 @@ export default function SellerOnboarding() {
   const [locationsLoading, setLocationsLoading] = useState(true);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const errorRef = useRef<HTMLParagraphElement>(null);
+
+  useEffect(() => {
+    if (error) errorRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+  }, [error]);
 
   useEffect(() => {
     void identityApi.profile().then((result) => {
@@ -82,7 +89,34 @@ export default function SellerOnboarding() {
 
   async function submit(event: React.FormEvent) {
     event.preventDefault();
+    if (busy) return;
     setError("");
+
+    const displayName = form.displayName.trim();
+    const contactName = form.contactName.trim();
+    const addressLine = form.line1.trim();
+    const state = form.state.trim();
+    const postalCode = form.postalCode.trim();
+    if (!displayName) {
+      setError("Enter your business name.");
+      return;
+    }
+    if (!contactName) {
+      setError("Enter the contact person's name.");
+      return;
+    }
+    if (!addressLine) {
+      setError("Enter your business address.");
+      return;
+    }
+    if (!state) {
+      setError("Enter your state.");
+      return;
+    }
+    if (!/^\d{6}$/.test(postalCode)) {
+      setError("Enter a valid 6-digit PIN code.");
+      return;
+    }
     const phoneE164 = normalizeIndianMobile(form.phone);
     if (!phoneE164) {
       setError("Enter a valid 10-digit Indian mobile number.");
@@ -95,42 +129,54 @@ export default function SellerOnboarding() {
     }
 
     setBusy(true);
-    const {
-      data: { session },
-    } = await createAuthBrowserClient().auth.getSession();
-    const accessToken = session?.access_token;
-    if (!accessToken) {
+    try {
+      const auth = createAuthBrowserClient().auth;
+      let { data: { session } } = await auth.getSession();
+      // The server callback writes the OAuth cookie before the browser client
+      // has always hydrated its local session, especially in Safari. Refresh
+      // once before telling the user to sign in again.
+      if (!session) {
+        ({ data: { session } } = await auth.refreshSession());
+      }
+      const accessToken = session?.access_token;
+      if (!accessToken) {
+        setError("Your login session is not ready. Please sign in again and retry.");
+        return;
+      }
+      const address = {
+        line1: addressLine,
+        line2: form.line2.trim(),
+        city: form.city.trim(),
+        state,
+        postalCode,
+        country: "India",
+      };
+      const result = await registerSeller({
+        organization: {
+          legalName: form.legalName.trim() || displayName,
+          displayName,
+          contactName,
+          type: form.sellerType,
+          phoneE164,
+          billingAddress: address,
+        },
+        location: { code: selectedLocation.code, name: selectedLocation.name, timezone: selectedLocation.timezone, phoneE164, address },
+      }, newUuid(), accessToken);
+      if (!result.success) {
+        setError(result.message || "We could not save your seller details. Please try again.");
+        return;
+      }
+      sessionStorage.removeItem("komola:seller-draft");
+      // The provider bootstrapped before the organization existed. Refresh
+      // it now so the next route can render the new seller profile without a
+      // logout/login cycle.
+      await refresh();
+      router.replace(sellerDestination(result.data?.organization?.status));
+    } catch {
+      setError("We could not save your seller details. Please try again.");
+    } finally {
       setBusy(false);
-      setError("Your login session is not ready. Please sign in again and retry.");
-      return;
     }
-    const address = {
-      line1: form.line1.trim(),
-      line2: form.line2.trim(),
-      city: form.city.trim(),
-      state: form.state.trim(),
-      postalCode: form.postalCode.trim(),
-      country: "India",
-    };
-    const displayName = form.displayName.trim();
-    const result = await registerSeller({
-      organization: {
-        legalName: form.legalName.trim() || displayName,
-        displayName,
-        contactName: form.contactName.trim(),
-        type: form.sellerType,
-        phoneE164,
-        billingAddress: address,
-      },
-      location: { code: selectedLocation.code, name: selectedLocation.name, timezone: selectedLocation.timezone, phoneE164, address },
-    }, newUuid(), accessToken);
-    setBusy(false);
-    if (!result.success) {
-      setError(result.message);
-      return;
-    }
-    sessionStorage.removeItem("komola:seller-draft");
-    router.replace("/dashboard");
   }
 
   function field(
@@ -149,7 +195,7 @@ export default function SellerOnboarding() {
   }
 
   return <main className="flex min-h-screen justify-center bg-surface p-4">
-    <form onSubmit={submit} className={`${cardCls} my-6 w-full max-w-xl space-y-5`}>
+    <form noValidate onSubmit={submit} className={`${cardCls} my-6 w-full max-w-xl space-y-5`}>
       <KomoMessage
         action="curious"
         title="Tell us a little about your business."
@@ -206,7 +252,7 @@ export default function SellerOnboarding() {
         {field("postalCode", "PIN code", { inputMode: "numeric", autoComplete: "postal-code", placeholder: "6-digit PIN code", maxLength: 6 })}
       </fieldset>
 
-      {error && <p role="alert" className="rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}</p>}
+      {error && <p ref={errorRef} role="alert" className="rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}</p>}
       <button className={`${primaryBtnCls} min-h-12 w-full`} disabled={busy || locationsLoading || locations.length === 0}>{busy ? "Submitting…" : "Submit seller application"}</button>
     </form>
   </main>;
