@@ -18,7 +18,7 @@ export type BuyerCampaign = {
   startsAt: string | null;
   endsAt: string | null;
   imageUrl: string;
-  status: "published";
+  status: "draft" | "published" | "paused" | "expired" | "archived";
   claims: number;
   claimsRemaining: number;
   buyerClaims: number;
@@ -43,8 +43,11 @@ export type BuyerCampaign = {
 export type BuyerCampaignClaim = {
   id: string;
   claimCode: string;
-  status: "claimed" | "approved" | "redeemed" | "cancelled";
+  status: "claimed" | "approved" | "delivered" | "confirmed" | "redeemed" | "cancelled";
   claimedAt: string;
+  approvedAt: string | null;
+  deliveredAt: string | null;
+  confirmedAt: string | null;
   points: number;
   fulfillmentMethod: BuyerFulfillmentMethod;
   buyerName: string;
@@ -59,10 +62,12 @@ export type BuyerCampaignClaim = {
 export type BuyerRewardClaim = {
   id: string;
   claimCode: string;
-  status: "claimed" | "approved" | "redeemed";
+  status: "claimed" | "approved" | "delivered" | "confirmed" | "redeemed";
   claimedAt: string;
   approvedAt: string | null;
   redeemedAt: string | null;
+  deliveredAt: string | null;
+  confirmedAt: string | null;
   points: number;
   fulfillmentMethod: BuyerFulfillmentMethod;
   buyerPhone: string;
@@ -98,3 +103,10 @@ export const claim = (id: string): Promise<ApiResult<BuyerCampaignClaim>> =>
 
 export const wallet = (): Promise<ApiResult<{ items: BuyerRewardClaim[] }>> =>
   request("buyer/reward-claims");
+
+export const confirmReceipt = (claimId: string): Promise<ApiResult<{ id: string; status: "confirmed"; points: number; confirmedAt: string }>> =>
+  request(`buyer/reward-claims/${encodeURIComponent(claimId)}/confirm`, {
+    method: "POST",
+    body: {},
+    idempotencyKey: crypto.randomUUID(),
+  });
