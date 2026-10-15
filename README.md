@@ -22,8 +22,11 @@ boundary, authentication, offline IndexedDB flow, PWA cache rules, and
 configuration, start with [docs/system-reference.md](docs/system-reference.md)
 and the [documentation index](docs/README.md).
 
-Supabase Auth owns password login, OAuth, password reset and sign-out. Go verifies
-the access token and looks up organization membership in PostgreSQL. UI domain
+Supabase Auth owns password login, OAuth, password reset and sign-out. Login accepts
+either the account email or an Indian mobile number. Email registrations use an
+email identity; phone-only registrations use a Supabase phone identity and still
+use password authentication (SMS OTP is not part of this flow). Go verifies the
+access token and looks up organization membership in PostgreSQL. UI domain
 interfaces are under `shared/interfaces/domain`; they are not database models.
 
 The buyer experience also consumes the shared Rewardor campaign APIs: buyers
