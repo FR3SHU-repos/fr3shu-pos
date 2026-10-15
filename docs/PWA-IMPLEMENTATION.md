@@ -1,6 +1,6 @@
 # KOMOLA POS PWA implementation plan
 
-Updated: 2026-10-14  
+Updated: 2026-10-15
 Owner: KOMOLA POS engineering  
 Status: Plan B implementation complete in code; production device verification remains
 
@@ -24,8 +24,8 @@ POS operation works offline.
 | Navigation/static caching | Implemented with same-origin restrictions | `public/sw.js` |
 | Auth/API protection | Implemented: API, auth, login, and registration paths are not cached | `public/sw.js` |
 | POS data recovery | Partially implemented through IndexedDB/offline POS work | `docs/OFFLINE-STATUS.md` |
-| Install prompt UI | Not implemented | Next planned feature |
-| Dedicated PWA icon set | Incomplete: manifest currently references one large logo | `app/manifest.ts` |
+| Install prompt UI | Implemented for browser prompts and iOS guidance | `shared/components/PwaInstallPrompt.tsx` |
+| Dedicated PWA icon set | Implemented with 192px, 512px, and maskable declarations | `app/manifest.ts`, `public/icons/` |
 | Production device verification | Pending | Release gate below |
 
 ## Product boundary

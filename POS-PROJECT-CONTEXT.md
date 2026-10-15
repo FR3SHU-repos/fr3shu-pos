@@ -1,4 +1,11 @@
-> Proposed offline extension (2026-09-13): [Offline POS proposal](docs/OFFLINE-POS-PROPOSAL.md). This is a phased design, not a statement of implemented billing behavior.
+> **Current implementation reference, reviewed 15 October 2026:** start with
+> [`docs/system-reference.md`](docs/system-reference.md) and
+> [`docs/README.md`](docs/README.md). This file retains the offline tracker and
+> historical design context; it is not the active API or persistence contract.
+>
+> Offline design details: [Offline feature status](docs/OFFLINE-STATUS.md) and
+> [Offline POS proposal](docs/OFFLINE-POS-PROPOSAL.md). The proposal is phased
+> design, not a statement that every offline acceptance gate is complete.
 
 > Startup and reload performance policy: [PERFORMANCE-STARTUP.md](docs/PERFORMANCE-STARTUP.md).
 
@@ -65,7 +72,11 @@ Run a real browser QA pass: create an offline sale, refresh while offline, recon
 > authentication is **Supabase Auth** via `@supabase/ssr`. The shared KOMOLA
 > database also serves buyer rewards and the dedicated Rewardor web app.
 
-## Current architecture and API boundary — 23 September 2026
+## Historical architecture and API boundary — superseded 15 October 2026
+
+The section below preserves the earlier architecture narrative for migration
+context. The current Next.js → proxy → Go API implementation is documented in
+[`docs/system-reference.md`](docs/system-reference.md).
 
 ```text
 POS web / Rewardor web / mobile POS

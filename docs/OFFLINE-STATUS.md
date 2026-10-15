@@ -1,6 +1,6 @@
 # Offline feature status
 
-Verified 2026-09-19 from the frontend, service worker, Go API, OpenAPI
+Verified 2026-10-15 from the frontend, service worker, Go API, OpenAPI
 contract, and offline tests.
 
 ## Implemented now
@@ -24,6 +24,17 @@ contract, and offline tests.
   outcomes.
 - Tests covering offline products, held carts, sales, sync, session summary,
   API client behavior, and related POS calculations.
+- `komola-offline-pos-v1` IndexedDB schema version 2 stores sales, outbox,
+  session context, metadata, and held carts; product snapshots use the separate
+  `komola-offline-products-v1` database. Records are scoped by user,
+  organization, and location.
+- Automatic sync runs on workspace mount, online transitions, local sale
+  changes, and a 30-second interval. Each sync claims at most 10 operations,
+  refreshes products before upload, and uses expiring leases plus bounded
+  backoff/jitter.
+- The seller shell exposes online/offline, server-unavailable, pending-sync,
+  authentication-required, and service-worker-update states. It never caches
+  personalized POS HTML or API/auth responses in the service worker.
 
 ## Pending before calling offline POS production-ready
 
