@@ -20,6 +20,7 @@ import {
   PasswordField,
 } from "@/shared/components/auth/parts";
 import { authCallbackRedirect, rememberAuthIntent } from "@/shared/lib/auth/providers";
+import { normalizeAuthIdentifier } from "@/shared/lib/auth/identifier";
 
 function safeNext(n: string | null): string {
   return n && n.startsWith("/") && !n.startsWith("//") && !n.includes("://")
@@ -34,7 +35,7 @@ export function LoginForm({ intent }: { intent: AuthIntent }) {
   const { setUser } = usePosUser();
   const supabase = createAuthBrowserClient();
 
-  const [email, setEmail] = useState("");
+  const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
   const [googleBusy, setGoogleBusy] = useState(false);
@@ -49,18 +50,17 @@ export function LoginForm({ intent }: { intent: AuthIntent }) {
     e.preventDefault();
     if (busy) return;
     setBusy(true);
-    const normEmail = email.trim().toLowerCase();
-
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email: normEmail,
-      password,
-    });
+    const normalized = normalizeAuthIdentifier(identifier);
+    const credentials = normalized.kind === "phone"
+      ? { phone: normalized.value, password }
+      : { email: normalized.value, password };
+    const { data, error } = await supabase.auth.signInWithPassword(credentials);
     if (error) {
       setBusy(false);
       toast.error(
         /email not confirmed/i.test(error.message)
           ? "Please verify your email first."
-          : "Invalid email or password.",
+          : "Invalid email/mobile number or password.",
       );
       return;
     }
@@ -151,18 +151,19 @@ export function LoginForm({ intent }: { intent: AuthIntent }) {
           <form onSubmit={onSubmit} className="space-y-3">
             <div>
               <label
-                htmlFor="email"
+                htmlFor="identifier"
                 className="mb-1 block text-xs font-medium text-foreground-body"
               >
-                Email
+                Email or mobile number
               </label>
               <input
-                id="email"
-                type="email"
+                id="identifier"
+                type="text"
                 autoComplete="username"
                 required
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                value={identifier}
+                onChange={(e) => setIdentifier(e.target.value)}
+                placeholder="you@example.com or 98765 43210"
                 className={inputCls}
               />
             </div>
