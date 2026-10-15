@@ -1,10 +1,10 @@
 # Product images
 
-Product images are optional. The frontend uploads JPG, PNG, or WebP files up
+**Verified 15 October 2026.** Product images are optional. The frontend uploads JPG, PNG, or WebP files up
 to 5 MB to the Supabase Storage bucket `product-images` and stores the public
 URL on the PostgreSQL product row.
 
-The object path is:
+The browser implementation uses this object path:
 
 ```text
 {category-slug}/{generated-file-id}.{extension}

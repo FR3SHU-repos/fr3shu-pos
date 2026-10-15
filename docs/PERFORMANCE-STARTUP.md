@@ -1,6 +1,6 @@
 # POS startup and reload performance
 
-Updated 2026-09-19. Render the authenticated application shell first:
+Updated 2026-10-15. Render the authenticated application shell first:
 navigation, header, stable layout, buttons, and skeleton content. Profile,
 permissions, register, sales, catalogue, and offline data arrive afterward.
 
@@ -13,12 +13,16 @@ TTFB preferably below 800ms.
 - `SellerShell` renders while `PosUserContext` hydrates the user.
 - Offline workers mount only after authenticated user scope is available.
 - `shared/lib/api/client.ts` deduplicates simultaneous GET requests.
+- The Next proxy uses `cache: "no-store"` and a 25-second upstream timeout;
+  it does not become a shared application-data cache.
 - Go authenticated GET responses use private short-lived cache headers with
   `Vary: Authorization, Cookie`.
 - Catalogue reads cache for 60 seconds; identity reads for 30 seconds;
   register/shift reads for 5 seconds; other reads for 15 seconds.
 - PostgreSQL already has the principal catalogue, register, inventory, and
   movement indexes. Add new indexes only after checking query plans.
+- The service worker caches only same-origin public shell/static assets and the
+  offline fallback; it excludes API, auth, and personalized POS routes.
 
 ## Rules
 
