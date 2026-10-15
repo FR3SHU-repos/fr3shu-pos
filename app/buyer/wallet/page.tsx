@@ -26,6 +26,7 @@ export default function BuyerWalletPage() {
   const [available, setAvailable] = useState<BuyerCampaign[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [confirmingClaim, setConfirmingClaim] = useState<string | null>(null);
 
   useEffect(() => {
     void Promise.all([
@@ -110,7 +111,33 @@ export default function BuyerWalletPage() {
         ) : (
           <ul className="divide-y divide-border">
             {claims.map((claim) => (
-              <ClaimRow key={claim.id} claim={claim} />
+              <ClaimRow
+                key={claim.id}
+                claim={claim}
+                confirming={confirmingClaim === claim.id}
+                onConfirm={async () => {
+                  setConfirmingClaim(claim.id);
+                  const result = await campaignsApi.confirmReceipt(claim.id);
+                  setConfirmingClaim(null);
+                  if (!result.success || !result.data) {
+                    setError(
+                      result.message || "Could not confirm reward receipt.",
+                    );
+                    return;
+                  }
+                  setClaims((current) =>
+                    current.map((item) =>
+                      item.id === claim.id
+                        ? {
+                            ...item,
+                            status: "confirmed",
+                            confirmedAt: result.data!.confirmedAt,
+                          }
+                        : item,
+                    ),
+                  );
+                }}
+              />
             ))}
           </ul>
         )}
@@ -198,13 +225,25 @@ function WalletMetric({
   );
 }
 
-function ClaimRow({ claim }: { claim: BuyerRewardClaim }) {
+function ClaimRow({
+  claim,
+  confirming,
+  onConfirm,
+}: {
+  claim: BuyerRewardClaim;
+  confirming: boolean;
+  onConfirm: () => Promise<void>;
+}) {
   const status =
     claim.status === "claimed"
       ? "Pending approval"
       : claim.status === "approved"
         ? "Ready to redeem"
-        : "Redeemed";
+        : claim.status === "delivered"
+          ? "Reward delivered"
+          : claim.status === "confirmed"
+            ? "Receipt confirmed"
+            : "Redeemed";
   const fulfilment =
     claim.fulfillmentMethod === "online_redemption"
       ? "Online redemption"
@@ -275,6 +314,16 @@ function ClaimRow({ claim }: { claim: BuyerRewardClaim }) {
           <Share2 className="h-4 w-4" />
           Share verification details
         </button>
+        {claim.status === "delivered" ? (
+          <button
+            type="button"
+            onClick={() => void onConfirm()}
+            disabled={confirming}
+            className="mt-3 inline-flex min-h-10 items-center justify-center rounded-lg bg-primary px-3 py-2 text-xs font-bold text-primary-foreground disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {confirming ? "Confirming…" : "Confirm reward received"}
+          </button>
+        ) : null}
       </div>
     </li>
   );

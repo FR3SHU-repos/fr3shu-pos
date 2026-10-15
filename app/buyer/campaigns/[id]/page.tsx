@@ -55,6 +55,34 @@ export default function BuyerCampaignDetailPage() {
     setCampaign(result.data.campaign);
   }
 
+  async function confirmReceipt() {
+    if (!claim || claim.status !== "delivered" || busy) return;
+    setBusy(true);
+    setError("");
+    const result = await campaignsApi.confirmReceipt(claim.id);
+    setBusy(false);
+    if (!result.success || !result.data) {
+      setError(result.message || "Could not confirm reward receipt.");
+      return;
+    }
+    const confirmedAt = result.data.confirmedAt;
+    setClaim({ ...claim, status: "confirmed", confirmedAt });
+    setCampaign((current) =>
+      current
+        ? {
+            ...current,
+            buyerClaim: current.buyerClaim
+              ? {
+                  ...current.buyerClaim,
+                  status: "confirmed",
+                  confirmedAt,
+                }
+              : current.buyerClaim,
+          }
+        : current,
+    );
+  }
+
   async function shareVerificationDetails() {
     if (!campaign || !claim) return;
     const text = [
@@ -155,6 +183,11 @@ export default function BuyerCampaignDetailPage() {
             <p className="text-sm font-bold uppercase tracking-wider text-primary">
               {campaign.campaignType.replace("_", " ")}
             </p>
+            {campaign.status !== "published" ? (
+              <p className="mt-2 inline-flex rounded-full border border-status-success bg-status-success px-3 py-1 text-xs font-bold capitalize text-white">
+                Claimed · {campaign.status}
+              </p>
+            ) : null}
             <h1 className="mt-2 text-3xl font-black text-foreground-heading">
               {campaign.title}
             </h1>
@@ -214,8 +247,12 @@ export default function BuyerCampaignDetailPage() {
                     ? `Your ${claim.points.toLocaleString("en-IN")} points are locked while the Rewardor reviews this claim.`
                     : claim.status === "approved"
                       ? campaign.approvalMode === "automatic"
-                        ? "Approved automatically. Your reward is ready to redeem."
-                        : "Approved by the Rewardor. Your reward is ready to redeem."
+                        ? "Approved automatically. The Rewardor will deliver your reward next."
+                        : "Approved by the Rewardor. They will deliver your reward next."
+                      : claim.status === "delivered"
+                        ? "The Rewardor marked this reward as delivered. Confirm once you have received it."
+                        : claim.status === "confirmed"
+                          ? "You confirmed receiving this reward."
                       : `Your claim is ${claim.status}.`}
                 </p>
                 <p className="mt-4 rounded-xl bg-white px-4 py-3 font-mono text-2xl font-bold tracking-wider text-primary">
@@ -224,6 +261,16 @@ export default function BuyerCampaignDetailPage() {
                 <p className="mt-3 text-sm text-foreground-muted">
                   Buyer mobile: {claim.buyerPhone || "Not available"}
                 </p>
+                {claim.status === "delivered" ? (
+                  <button
+                    type="button"
+                    onClick={() => void confirmReceipt()}
+                    disabled={busy}
+                    className="mt-4 inline-flex min-h-11 items-center justify-center rounded-xl bg-primary px-4 py-2 font-bold text-primary-foreground disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    {busy ? "Confirming…" : "Confirm reward received"}
+                  </button>
+                ) : null}
                 <button
                   type="button"
                   onClick={() => void shareVerificationDetails()}
