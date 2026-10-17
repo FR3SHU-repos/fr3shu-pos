@@ -17,14 +17,12 @@ export function apiBase(value: string | undefined): string {
 }
 
 /**
- * The Go backend base URL. `NEXT_PUBLIC_API_BASE_URL` is preferred;
- * `NEXT_PUBLIC_CATALOGUE_API_BASE_URL` is accepted as the historical name from
- * the incremental catalogue migration. An empty value means "same origin",
- * which reaches the compatibility proxies.
+ * Browser requests intentionally use the same-origin proxy. This keeps the
+ * deployed UI and Go API on one route, forwards the current auth token, and
+ * prevents a stale public API environment variable from sending one feature
+ * to an older backend deployment.
  */
-const GO_BASE = apiBase(
-  process.env.NEXT_PUBLIC_API_URL ?? process.env.NEXT_PUBLIC_API_BASE_URL ?? process.env.NEXT_PUBLIC_CATALOGUE_API_BASE_URL,
-);
+const GO_BASE = "";
 
 export function apiURL(path: string, base = GO_BASE): string {
   const clean = path.replace(/^\/+/, "");
