@@ -109,6 +109,18 @@ export interface MyOrganization {
   organization: SellerOrganization;
   locations: PosLocation[];
   membership: OrganizationMembership | null;
+  buyerReferral: SellerBuyerReferral | null;
+}
+
+export interface SellerBuyerReferral {
+  id: string;
+  buyerName: string;
+  buyerCode: string;
+  status: "pending" | "active" | "blocked";
+  awardedCoins: number;
+  eligibleSalesMinor: number;
+  createdAt: string;
+  activatedAt?: string | null;
 }
 
 export function sellerDestination(status?: SellerOrgStatus): string {

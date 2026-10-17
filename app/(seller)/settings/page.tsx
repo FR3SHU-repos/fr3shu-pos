@@ -4,13 +4,16 @@ import { useEffect, useState } from "react";
 import toast from "react-hot-toast";
 import { QRCodeSVG } from "qrcode.react";
 import { sellerOrgsApi } from "@/shared/lib/api";
+import type { SellerBuyerReferral } from "@/shared/lib/api/sellerOrgs";
 import { cardCls, inputCls, primaryBtnCls, Skeleton } from "@/shared/components/ui";
+import { formatPaise } from "@/shared/lib/money";
 import { buildUpiPaymentUri, isValidUpiId } from "@/shared/lib/upi";
 
 export default function PaymentSettingsPage() {
   const [upiId, setUpiId] = useState("");
   const [payeeName, setPayeeName] = useState("");
   const [referralCode, setReferralCode] = useState("");
+  const [buyerReferral, setBuyerReferral] = useState<SellerBuyerReferral | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
@@ -19,6 +22,7 @@ export default function PaymentSettingsPage() {
       if (result.success && result.data) {
         setUpiId(result.data.organization.upiId ?? "");
         setPayeeName(result.data.organization.upiPayeeName ?? result.data.displayName ?? "");
+        setBuyerReferral(result.data.buyerReferral ?? null);
       }
       setLoading(false);
     });
@@ -52,6 +56,8 @@ export default function PaymentSettingsPage() {
     setSaving(false);
     if (!result.success) return toast.error(result.message || "Could not link the buyer referral.");
     setReferralCode("");
+    const refreshed = await sellerOrgsApi.getMyOrganization();
+    if (refreshed.success && refreshed.data) setBuyerReferral(refreshed.data.buyerReferral ?? null);
     toast.success("Buyer referral linked. Future eligible sales will earn referral coins.");
   }
 
@@ -77,6 +83,22 @@ export default function PaymentSettingsPage() {
       <section className={`${cardCls} mt-6 max-w-2xl`}>
         <h2 className="text-lg font-semibold text-foreground-heading">Buyer referral</h2>
         <p className="mt-1 text-sm text-foreground-muted">If a buyer introduced your business, enter their buyer code. This also works for an existing seller account.</p>
+        {buyerReferral ? (
+          <div className="mt-4 rounded-xl border border-border bg-surface p-4">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wide text-foreground-muted">Linked buyer account</p>
+                <p className="mt-1 text-lg font-semibold text-foreground-heading">{buyerReferral.buyerName}</p>
+                <p className="mt-1 font-mono text-sm text-foreground-muted">{buyerReferral.buyerCode}</p>
+              </div>
+              <span className="rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold capitalize text-primary">{buyerReferral.status}</span>
+            </div>
+            <div className="mt-4 grid gap-3 border-t border-border pt-4 sm:grid-cols-2">
+              <div><p className="text-xs text-foreground-muted">Referral coins earned</p><p className="mt-1 text-lg font-bold text-status-success">{buyerReferral.awardedCoins.toLocaleString("en-IN")}</p></div>
+              <div><p className="text-xs text-foreground-muted">Eligible sales</p><p className="mt-1 text-lg font-bold text-foreground-heading">{formatPaise(buyerReferral.eligibleSalesMinor)}</p></div>
+            </div>
+          </div>
+        ) : null}
         <div className="mt-4 flex flex-col gap-3 sm:flex-row">
           <input className={inputCls} value={referralCode} onChange={(event) => setReferralCode(event.target.value.toUpperCase())} placeholder="BYR-1A2B3C4D5E" maxLength={14} autoComplete="off" />
           <button type="button" className={`${primaryBtnCls} whitespace-nowrap`} onClick={linkReferral} disabled={saving}>{saving ? "Linking…" : "Link buyer code"}</button>
