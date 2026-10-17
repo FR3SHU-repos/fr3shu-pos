@@ -47,6 +47,15 @@ export interface Capabilities {
   availableExperiences: Array<"buyer" | "seller">;
 }
 export interface DiscoveryCode { code: string; url: string }
+export interface BuyerReferral {
+  id: string;
+  sellerName: string;
+  status: "pending" | "active" | "blocked";
+  awardedCoins: number;
+  eligibleSalesMinor: number;
+  createdAt: string;
+  activatedAt?: string | null;
+}
 export type PrivacyPurpose = "core_service" | "market_intelligence" | "marketing";
 export interface PrivacyConsent {
   purposeCode: PrivacyPurpose;
@@ -86,6 +95,7 @@ export const updateProfile = (displayName: string, buyer: boolean, phoneE164: st
 export const locations = (): Promise<ApiResult<{ items: PlatformLocation[] }>> => request("locations");
 export const discoveryCode = (): Promise<ApiResult<DiscoveryCode>> => request("me/discovery-code");
 export const rotateDiscoveryCode = (): Promise<ApiResult<DiscoveryCode>> => request("me/discovery-code/rotate", { method: "POST" });
+export const referrals = (): Promise<ApiResult<{ items: BuyerReferral[] }>> => request("me/referrals");
 export const privacyConsents = (): Promise<ApiResult<{ items: PrivacyConsent[] }>> => request("me/privacy/consents");
 export const recordPrivacyConsent = (purposeCode: PrivacyPurpose, granted: boolean, noticeVersion = "1.0.0", source = "web"): Promise<ApiResult<PrivacyConsent>> =>
   request("me/privacy/consents", { method: "POST", body: { purposeCode, action: granted ? "granted" : "withdrawn", noticeVersion, source } });

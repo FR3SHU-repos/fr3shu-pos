@@ -10,6 +10,7 @@ import { buildUpiPaymentUri, isValidUpiId } from "@/shared/lib/upi";
 export default function PaymentSettingsPage() {
   const [upiId, setUpiId] = useState("");
   const [payeeName, setPayeeName] = useState("");
+  const [referralCode, setReferralCode] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
@@ -40,6 +41,20 @@ export default function PaymentSettingsPage() {
     toast.success("UPI payment settings saved.");
   }
 
+  async function linkReferral() {
+    const code = referralCode.trim().toUpperCase();
+    if (!/^BYR-[A-F0-9]{10}$/.test(code)) {
+      toast.error("Enter a valid buyer code, for example BYR-1A2B3C4D5E.");
+      return;
+    }
+    setSaving(true);
+    const result = await sellerOrgsApi.linkBuyerReferral(code);
+    setSaving(false);
+    if (!result.success) return toast.error(result.message || "Could not link the buyer referral.");
+    setReferralCode("");
+    toast.success("Buyer referral linked. Future eligible sales will earn referral coins.");
+  }
+
   if (loading) return <Skeleton className="h-72 w-full" />;
   return (
     <div className="mx-auto max-w-3xl">
@@ -57,6 +72,14 @@ export default function PaymentSettingsPage() {
         </div>
         <div className="grid min-h-48 min-w-48 place-items-center rounded-xl border border-border bg-white p-4">
           {preview ? <QRCodeSVG value={preview} size={160} title="UPI QR preview" /> : <p className="max-w-40 text-center text-sm text-foreground-muted">Enter a valid UPI ID to preview the QR.</p>}
+        </div>
+      </section>
+      <section className={`${cardCls} mt-6 max-w-2xl`}>
+        <h2 className="text-lg font-semibold text-foreground-heading">Buyer referral</h2>
+        <p className="mt-1 text-sm text-foreground-muted">If a buyer introduced your business, enter their buyer code. This also works for an existing seller account.</p>
+        <div className="mt-4 flex flex-col gap-3 sm:flex-row">
+          <input className={inputCls} value={referralCode} onChange={(event) => setReferralCode(event.target.value.toUpperCase())} placeholder="BYR-1A2B3C4D5E" maxLength={14} autoComplete="off" />
+          <button type="button" className={`${primaryBtnCls} whitespace-nowrap`} onClick={linkReferral} disabled={saving}>{saving ? "Linking…" : "Link buyer code"}</button>
         </div>
       </section>
     </div>

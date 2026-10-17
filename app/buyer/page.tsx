@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { identityApi, receiptsApi, rewardsApi } from "@/shared/lib/api";
 import type { BuyerReceiptSummary } from "@/shared/lib/api/receipts";
-import type { DiscoveryCode, PersonProfile } from "@/shared/lib/api/identity";
+import type { BuyerReferral, DiscoveryCode, PersonProfile } from "@/shared/lib/api/identity";
 import type { RewardLedgerEntry, RewardSummary } from "@/shared/lib/api/rewards";
 import { cardCls, Skeleton } from "@/shared/components/ui";
 import { formatPaise } from "@/shared/lib/money";
@@ -20,6 +20,7 @@ const PAGE_SIZE = 5;
 export default function BuyerDashboardPage() {
   const [profile, setProfile] = useState<PersonProfile | null>(null);
   const [code, setCode] = useState<DiscoveryCode | null>(null);
+  const [referrals, setReferrals] = useState<BuyerReferral[]>([]);
   const [summary, setSummary] = useState<RewardSummary | null>(null);
   const [entries, setEntries] = useState<RewardLedgerEntry[]>([]);
   const [receipts, setReceipts] = useState<BuyerReceiptSummary[]>([]);
@@ -46,13 +47,15 @@ export default function BuyerDashboardPage() {
         setLoading(false);
         return;
       }
-      const [discovery, rewards, history, purchases] = await Promise.all([
+      const [discovery, referralList, rewards, history, purchases] = await Promise.all([
         identityApi.discoveryCode(),
+        identityApi.referrals(),
         rewardsApi.summary(),
         rewardsApi.ledger(undefined, PAGE_SIZE),
         receiptsApi.list(PAGE_SIZE),
       ]);
       if (discovery.success) setCode(discovery.data);
+      if (referralList.success) setReferrals(referralList.data?.items ?? []);
       if (rewards.success) setSummary(rewards.data); else setError(rewards.message);
       if (history.success) {
         setEntries(history.data?.items ?? []);
@@ -134,6 +137,14 @@ export default function BuyerDashboardPage() {
       <h2 id="buyer-code-title" className="text-xl font-semibold">My buyer code</h2>
       <p className="mt-1 text-foreground-muted">Show this code or QR to a KOMOLA seller so your purchase and rewards reach your account.</p>
       {!profileReady ? <div className="mx-auto mt-5 max-w-lg rounded-lg bg-amber-50 p-4 text-sm text-amber-800">Your buyer code will appear after you enter your phone number, location, and address. <Link href="/buyer/setup" className="font-semibold underline">Enter buyer details</Link></div> : <><p className="my-5 break-all font-mono text-3xl font-bold tracking-widest">{code?.code ?? "Unavailable"}</p><div className="grid gap-3 sm:grid-cols-3"><button type="button" disabled={!code} onClick={copyCode} className="flex min-h-12 items-center justify-center gap-2 rounded-xl border font-semibold disabled:opacity-50">{copied ? <Check className="h-5 w-5"/> : <Copy className="h-5 w-5"/>}{copied ? "Copied" : "Copy code"}</button>{code ? <BuyerCodeQr code={code.code} /> : <button type="button" disabled className="min-h-12 rounded-xl border font-semibold opacity-50">Show QR</button>}<button type="button" disabled={!code} onClick={shareCode} className="flex min-h-12 items-center justify-center gap-2 rounded-xl bg-primary font-semibold text-primary-foreground disabled:opacity-50"><Share2 className="h-5 w-5"/>Share</button></div></>}
+    </section>
+    <section className={`${cardCls} mt-4`} aria-labelledby="seller-referrals-title">
+      <div className="flex items-start justify-between gap-4">
+        <div><p className="font-semibold text-primary">Invite a seller</p><h2 id="seller-referrals-title" className="mt-1 text-xl font-semibold">Earn more when businesses join KOMOLA</h2><p className="mt-1 text-sm text-foreground-muted">Share your buyer code with an eligible agricultural seller. You receive 20 coins after their first valid sale and 10 coins for each ₹1,000 of their eligible sales.</p></div>
+        <Coins className="mt-1 hidden h-7 w-7 shrink-0 text-primary sm:block" />
+      </div>
+      {referrals.length > 0 ? <ul className="mt-4 divide-y divide-border rounded-lg border border-border">{referrals.slice(0, 3).map((referral) => <li key={referral.id} className="flex items-center justify-between gap-4 px-3 py-3 text-sm"><div><p className="font-semibold text-foreground-heading">{referral.sellerName}</p><p className="text-xs text-foreground-muted">{referral.status === "active" ? `${referral.awardedCoins} referral coins earned` : referral.status === "pending" ? "Waiting for the seller's first valid sale" : "Referral paused"}</p></div><span className="rounded-full bg-surface px-2.5 py-1 text-xs font-semibold capitalize text-foreground-muted">{referral.status}</span></li>)}</ul> : <p className="mt-3 text-sm text-foreground-muted">No seller has used your buyer code yet.</p>}
+      <Link href="/buyer/referrals" className="mt-4 inline-flex items-center gap-2 text-sm font-semibold text-primary hover:underline">View all seller referrals <ArrowRight className="h-4 w-4" /></Link>
     </section>
     <section aria-label="Komola Coin balance">
       <div className={cardCls}><div className="flex items-center gap-2 text-primary"><Coins className="h-6 w-6"/><p className="font-semibold">Komola Coins</p></div><p className="mt-3 text-5xl font-bold text-foreground-heading">{summary?.availableCoins.toLocaleString("en-IN") ?? 0}</p><p className="mt-2 text-sm text-foreground-muted">{summary?.eligibleRemainderMinor ? `${formatPaise(summary.eligibleRemainderMinor)} carried toward your next coin` : "Every ₹100 of completed purchases earns 1 coin"}</p>{summary?.reservedCampaignCoins ? <p className="mt-3 rounded-lg bg-amber-50 px-3 py-2 text-sm font-semibold text-amber-800">{summary.reservedCampaignCoins.toLocaleString("en-IN")} points locked in pending offer claims</p> : null}</div>

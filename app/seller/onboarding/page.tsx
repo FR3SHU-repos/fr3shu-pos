@@ -18,6 +18,7 @@ type SellerForm = {
   sellerType: SellerOrgType;
   contactName: string;
   phone: string;
+  referralCode: string;
   line1: string;
   line2: string;
   city: string;
@@ -39,6 +40,7 @@ export default function SellerOnboarding() {
     sellerType: (draft.sellerType || "Farmer") as SellerOrgType,
     contactName: draft.fullName || "",
     phone: draft.phone?.replace(/^\+91/, "") || "",
+    referralCode: draft.referralCode || "",
     line1: "",
     line2: "",
     city: "",
@@ -66,7 +68,12 @@ export default function SellerOnboarding() {
       }
     });
     void identityApi.locations().then((result) => {
-      if (!result.success || !result.data?.items?.length) {
+      if (!result.success) {
+        setError(result.status === 401 ? "Your session has expired. Please sign in again." : `We could not load KOMOLA-enabled localities (${result.message || `HTTP ${result.status}`}).`);
+        setLocationsLoading(false);
+        return;
+      }
+      if (!result.data?.items?.length) {
         setError("No KOMOLA localities are enabled right now. Please contact support.");
         setLocationsLoading(false);
         return;
@@ -158,6 +165,7 @@ export default function SellerOnboarding() {
           contactName,
           type: form.sellerType,
           phoneE164,
+          referralCode: form.referralCode.trim().toUpperCase() || undefined,
           billingAddress: address,
         },
         location: { code: selectedLocation.code, name: selectedLocation.name, timezone: selectedLocation.timezone, phoneE164, address },
@@ -227,6 +235,11 @@ export default function SellerOnboarding() {
           <label htmlFor="seller-phone" className="block text-sm font-semibold text-foreground-heading">Mobile number <span className="text-primary">*</span></label>
           <input id="seller-phone" className={inputCls} type="tel" inputMode="numeric" autoComplete="tel-national" placeholder="98765 43210" maxLength={10} pattern="[6-9][0-9]{9}" value={form.phone} onChange={(event) => update("phone", event.target.value.replace(/\D/g, "").slice(0, 10))} required />
           <p className="mt-1.5 text-xs text-foreground-muted">Enter the 10-digit Indian mobile number.</p>
+        </div>
+        <div>
+          <label htmlFor="seller-referral-code" className="block text-sm font-semibold text-foreground-heading">Buyer referral code <span className="font-normal text-foreground-muted">(optional)</span></label>
+          <input id="seller-referral-code" className={inputCls} type="text" autoComplete="off" placeholder="BYR-1A2B3C4D5E" maxLength={14} value={form.referralCode} onChange={(event) => update("referralCode", event.target.value.toUpperCase())} />
+          <p className="mt-1.5 text-xs text-foreground-muted">Enter the KOMOLA buyer code shared by the person who introduced your business.</p>
         </div>
       </fieldset>
 

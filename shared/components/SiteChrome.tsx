@@ -9,6 +9,7 @@ import {
   LogOut,
   Megaphone,
   QrCode,
+  UsersRound,
   WalletCards,
 } from "lucide-react";
 import { usePosUser } from "@/shared/context/PosUserContext";
@@ -88,6 +89,10 @@ export function SiteHeader() {
               <Link href="/buyer/wallet" className={navLinkClass}>
                 <WalletCards className="h-4 w-4" aria-hidden="true" />
                 Wallet
+              </Link>
+              <Link href="/buyer/referrals" className={navLinkClass}>
+                <UsersRound className="h-4 w-4" aria-hidden="true" />
+                Referrals
               </Link>
             </>
           ) : null}
