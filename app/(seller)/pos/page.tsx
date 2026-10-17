@@ -81,6 +81,7 @@ export default function PosPage() {
   const [customerPhone, setCustomerPhone] = useState("");
   const [buyerCode, setBuyerCode] = useState("");
   const [resolvedBuyer, setResolvedBuyer] = useState<ResolvedBuyer | null>(null);
+  const [guestCustomer, setGuestCustomer] = useState(true);
   const [resolvingBuyer, setResolvingBuyer] = useState(false);
   const [marketingConsent, setMarketingConsent] = useState(false);
 
@@ -316,6 +317,7 @@ export default function PosPage() {
     setCustomerPhone("");
     setBuyerCode("");
     setResolvedBuyer(null);
+    setGuestCustomer(true);
     setMarketingConsent(false);
     setCompletedPayment(null);
     setCompletedOffline(false);
@@ -374,8 +376,12 @@ export default function PosPage() {
 
   async function completeSale() {
     if (submitting || lines.length === 0) return;
-    if (!customerName.trim() || (!customerPhone.trim() && !resolvedBuyer)) {
-      toast.error("Enter the customer's details or find them with a buyer code");
+    if (!customerName.trim()) {
+      toast.error("Enter the customer's name");
+      return;
+    }
+    if (!guestCustomer && !resolvedBuyer) {
+      toast.error("Find or scan a valid KOMOLA buyer code, or choose guest customer");
       return;
     }
 
@@ -482,6 +488,7 @@ export default function PosPage() {
       customerName: customerName.trim(),
       customerPhone: customerPhone.trim(),
       buyerCode: resolvedBuyer?.code,
+      walkInCustomer: guestCustomer,
       marketingConsent: marketingConsent || undefined,
     });
     setSubmitting(false);
@@ -523,6 +530,7 @@ export default function PosPage() {
     }
     setBuyerCode(result.data.code);
     setResolvedBuyer(result.data);
+    setGuestCustomer(false);
     setCustomerName(result.data.displayName);
     setCustomerPhone(result.data.phone);
     toast.success("Buyer attached to this sale");
@@ -971,35 +979,71 @@ export default function PosPage() {
 
             <div className="space-y-2 rounded-lg border border-border p-2">
               <p className="text-xs font-medium text-foreground-body">Customer details (required)</p>
-              <div className="flex gap-2">
-                <input
-                  aria-label="Buyer code"
-                  placeholder="Buyer code · BYR-..."
-                  value={buyerCode}
-                  onChange={(e) => {
-                    setBuyerCode(e.target.value.toUpperCase());
-                    setResolvedBuyer(null);
-                  }}
-                  className={inputCls}
-                  autoComplete="off"
-                />
-                <button
-                  type="button"
-                  onClick={findBuyer}
-                  disabled={resolvingBuyer || !buyerCode.trim()}
-                  className={`${ghostBtnCls} shrink-0 px-3`}
-                >
-                  {resolvingBuyer ? <Loader2 className="h-4 w-4 animate-spin" /> : <UserRoundSearch className="h-4 w-4" />}
-                  Find
-                </button>
-                <BuyerQrScanner disabled={resolvingBuyer} onScan={attachScannedBuyer} />
+              <div className="grid gap-2 sm:grid-cols-2" role="radiogroup" aria-label="Customer type">
+                <label className="flex cursor-pointer items-center gap-2 rounded-lg border border-border px-3 py-2 text-xs font-medium">
+                  <input
+                    type="radio"
+                    name="customer-type"
+                    checked={!guestCustomer}
+                    onChange={() => {
+                      setGuestCustomer(false);
+                      setCustomerName("");
+                      setCustomerPhone("");
+                    }}
+                  />
+                  Verified KOMOLA buyer
+                </label>
+                <label className="flex cursor-pointer items-center gap-2 rounded-lg border border-border px-3 py-2 text-xs font-medium">
+                  <input
+                    type="radio"
+                    name="customer-type"
+                    checked={guestCustomer}
+                    onChange={() => {
+                      setGuestCustomer(true);
+                      setBuyerCode("");
+                      setResolvedBuyer(null);
+                      setCustomerName("");
+                      setCustomerPhone("");
+                    }}
+                  />
+                  Guest customer
+                </label>
               </div>
-              {resolvedBuyer ? (
-                <p className="rounded-lg bg-status-success-surface px-3 py-2 text-xs font-medium text-status-success">
-                  {resolvedBuyer.displayName} is attached. Their receipt and rewards will update when the sale is confirmed.
-                </p>
+              {!guestCustomer ? (
+                <>
+                  <div className="flex gap-2">
+                    <input
+                      aria-label="Buyer code"
+                      placeholder="Buyer code · BYR-..."
+                      value={buyerCode}
+                      onChange={(e) => {
+                        setBuyerCode(e.target.value.toUpperCase());
+                        setResolvedBuyer(null);
+                      }}
+                      className={inputCls}
+                      autoComplete="off"
+                    />
+                    <button
+                      type="button"
+                      onClick={findBuyer}
+                      disabled={resolvingBuyer || !buyerCode.trim()}
+                      className={`${ghostBtnCls} shrink-0 px-3`}
+                    >
+                      {resolvingBuyer ? <Loader2 className="h-4 w-4 animate-spin" /> : <UserRoundSearch className="h-4 w-4" />}
+                      Find
+                    </button>
+                    <BuyerQrScanner disabled={resolvingBuyer} onScan={attachScannedBuyer} />
+                  </div>
+                  {resolvedBuyer ? (
+                    <p className="rounded-lg bg-status-success-surface px-3 py-2 text-xs font-medium text-status-success">
+                      {resolvedBuyer.displayName} is attached. Their receipt and rewards will update when the sale is confirmed.
+                    </p>
+                  ) : (
+                    <p className="text-xs text-foreground-muted">Enter or scan a valid KOMOLA buyer code. Names and phone numbers cannot verify an account.</p>
+                  )}
+                </>
               ) : (
-                <p className="text-xs text-foreground-muted">Enter or scan the customer&apos;s KOMOLA buyer code to fill and link their details automatically.</p>
+                <p className="rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-800">Use this for a customer without a KOMOLA account. The sale is recorded, but the entered details will not earn or attach KOMOLA rewards.</p>
               )}
               <input
                 placeholder={t("pos.customer_name")}
@@ -1007,7 +1051,8 @@ export default function PosPage() {
                 onChange={(e) => setCustomerName(e.target.value)}
                 className={inputCls}
                 autoComplete="off"
-                readOnly={Boolean(resolvedBuyer)}
+                readOnly={!guestCustomer || Boolean(resolvedBuyer)}
+                disabled={!guestCustomer && !resolvedBuyer}
               />
               <input
                 placeholder={t("pos.customer_phone")}
@@ -1017,7 +1062,8 @@ export default function PosPage() {
                 inputMode="numeric"
                 maxLength={10}
                 autoComplete="off"
-                readOnly={Boolean(resolvedBuyer)}
+                readOnly={!guestCustomer || Boolean(resolvedBuyer)}
+                disabled={!guestCustomer && !resolvedBuyer}
               />
               <label className="flex items-center gap-2 text-xs text-foreground-muted">
                 <input
@@ -1031,7 +1077,7 @@ export default function PosPage() {
 
             <button
               className={`${primaryBtnCls} w-full`}
-              disabled={submitting || !customerName.trim() || (!customerPhone.trim() && !resolvedBuyer)}
+              disabled={submitting || !customerName.trim() || (!guestCustomer && !resolvedBuyer)}
               onClick={completeSale}
             >
               {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
