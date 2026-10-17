@@ -7,12 +7,13 @@ Copy `.env.example` to `.env.local`, configure `GO_API_BASE_URL` and the public
 Supabase Auth URL/key, then run `npm install` and `npm run dev`. Database URLs,
 passwords, service-role keys and seed credentials must never be configured here.
 
-Browser API calls use the typed clients in `shared/lib/api/`. With no public API
-alias configured they use the database-free `app/api/v1/[...path]/` proxy; the
-public aliases can intentionally point compatible deployments directly at Go.
-The upstream URL is resolved from `GO_API_BASE_URL`, `NEXT_PUBLIC_API_URL`, or the older
-`NEXT_PUBLIC_API_BASE_URL` / `NEXT_PUBLIC_CATALOGUE_API_BASE_URL` aliases.
-Server auth callbacks also call the configured Go server over HTTP.
+Browser API calls use the typed clients in `shared/lib/api/` and always use the
+database-free same-origin `app/api/v1/[...path]/` proxy. This keeps the browser
+on the deployed frontend origin and prevents stale public API aliases from
+pointing individual features at an older backend deployment. The proxy's
+server-side upstream is resolved from `GO_API_BASE_URL`, then the compatible
+server-side aliases. Server auth callbacks also call the configured Go server
+over HTTP.
 
 Startup/reload performance rules and caching strategy are documented in
 [docs/PERFORMANCE-STARTUP.md](docs/PERFORMANCE-STARTUP.md).

@@ -105,10 +105,24 @@ export interface MyOrganization {
   sellerType: SellerOrgType;
   approvalStatus: SellerOrgStatus;
   onboardingComplete: boolean;
+  contactName: string;
+  email: string;
   rejectionReason?: string | null;
   organization: SellerOrganization;
   locations: PosLocation[];
   membership: OrganizationMembership | null;
+  buyerReferral: SellerBuyerReferral | null;
+}
+
+export interface SellerBuyerReferral {
+  id: string;
+  buyerName: string;
+  buyerCode: string;
+  status: "pending" | "active" | "blocked";
+  awardedCoins: number;
+  eligibleSalesMinor: number;
+  createdAt: string;
+  activatedAt?: string | null;
 }
 
 export function sellerDestination(status?: SellerOrgStatus): string {
@@ -153,6 +167,22 @@ export function updatePaymentSettings(body: {
   upiPayeeName: string;
 }): Promise<ApiResult<SellerOrganization>> {
   return request<SellerOrganization>("seller-organizations/me/payment-settings", {
+    method: "PATCH",
+    body,
+  });
+}
+
+export function updateSellerProfile(body: {
+  displayName: string;
+  legalName: string;
+  contactName: string;
+  sellerType: Exclude<SellerOrgType, "Rewardor">;
+  phoneE164: string;
+  gstin?: string;
+  address: SellerAddress;
+  locationCode: string;
+}): Promise<ApiResult<MyOrganization>> {
+  return request<MyOrganization>("seller-organizations/me/profile", {
     method: "PATCH",
     body,
   });

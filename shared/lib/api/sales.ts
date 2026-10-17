@@ -56,6 +56,7 @@ export interface CreateSaleBody {
   customerName?: string;
   customerPhone?: string;
   buyerCode?: string;
+  walkInCustomer?: boolean;
   marketingConsent?: boolean;
   deviceId?: string;
 }
@@ -132,6 +133,7 @@ export const create = async (
     customerName: body.customerName,
     customerPhone: body.customerPhone,
     buyerCode: body.buyerCode,
+    walkInCustomer: body.walkInCustomer ?? false,
     marketingConsent: body.marketingConsent ?? false,
   };
   const res = await goRequest<{ sale: GoSale; reused: boolean }>("sales", {

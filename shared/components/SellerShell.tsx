@@ -34,7 +34,7 @@ const NAV = [
   { href: "/register-sessions", label: "Register sessions", icon: Calculator },
   { href: "/products", label: "Products", icon: Package },
   { href: "/stock", label: "Stock", icon: Boxes },
-  { href: "/settings", label: "Payment settings", icon: Settings },
+  { href: "/settings", label: "Settings", icon: Settings },
 ];
 
 export default function SellerShell({ children }: { children: React.ReactNode }) {
