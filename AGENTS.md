@@ -23,6 +23,9 @@ Before starting work, read:
 5. [`../cross-platform-assets/DPDP_DATA_GOVERNANCE.md`](../cross-platform-assets/DPDP_DATA_GOVERNANCE.md)
    before changing identity, authentication, checkout, rewards, claims,
    analytics, retention, exports, integrations, or account deletion.
+6. [`../cross-platform-assets/KOMOLA_UI_UX_DESIGN_SYSTEM.md`](../cross-platform-assets/KOMOLA_UI_UX_DESIGN_SYSTEM.md)
+   before creating or changing any screen, component, interaction, or visual
+   theme.
 
 ## Architecture and ownership
 
