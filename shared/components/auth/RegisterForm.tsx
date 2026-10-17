@@ -12,6 +12,23 @@ import { normalizeIndianMobile } from "@/shared/lib/auth/phone";
 import { authCallbackRedirect, rememberAuthIntent } from "@/shared/lib/auth/providers";
 import { KomoMessage } from "@/shared/components/mascot";
 
+function registrationErrorMessage(message: string): string {
+  const error = message.toLowerCase();
+  if (error.includes("already registered") || error.includes("already exists") || error.includes("user already") || error.includes("phone number" ) && error.includes("registered")) {
+    return "This mobile number is already registered. Sign in with your mobile number instead.";
+  }
+  if (error.includes("hook") || (error.includes("phone") && (error.includes("disabled") || error.includes("not enabled"))) || (error.includes("sms") && (error.includes("provider") || error.includes("disabled") || error.includes("not enabled")))) {
+    return "Phone registration is unavailable because phone authentication is disabled or its SMS service is misconfigured. Enable the Supabase Phone provider or use an email address.";
+  }
+  if (error.includes("rate limit") || error.includes("too many") || error.includes("60 seconds")) {
+    return "Too many registration attempts. Please wait a minute and try again.";
+  }
+  if (error.includes("invalid phone")) {
+    return "Enter a valid mobile number and try again.";
+  }
+  return "Registration could not be completed. Please check your details and try again.";
+}
+
 export function RegisterForm({ intent }: { intent: AuthIntent }) {
   const router = useRouter();
   const [form, setForm] = useState({ fullName: "", phone: "", email: "", password: "", confirm: "", sellerType: "Farmer" as SellerOrgType });
@@ -47,12 +64,18 @@ export function RegisterForm({ intent }: { intent: AuthIntent }) {
         ? { email, password: form.password, options: { ...options, emailRedirectTo: authCallbackRedirect(window.location.origin) } }
         : { phone: phoneE164, password: form.password, options },
     );
-    if (error) { setBusy(false); return setError("Registration could not be completed. Please try again."); }
-    if (!data.session && !email) {
+    if (error) {
+      if (process.env.NODE_ENV !== "production") console.warn("KOMOLA registration failed:", error.message);
       setBusy(false);
-      return setError("Phone-only sign-in requires phone/password authentication to be enabled. Please contact support or register with an email address.");
+      return setError(registrationErrorMessage(error.message));
     }
     if (intent === "seller") sessionStorage.setItem("komola:seller-draft", JSON.stringify({ fullName: form.fullName.trim(), phone: phoneE164, sellerType: form.sellerType }));
+    if (!data.session && !email) {
+      sessionStorage.setItem("komola:pending-phone-signup", JSON.stringify({ intent, phone: phoneE164 }));
+      setBusy(false);
+      router.replace("/auth/check-phone");
+      return;
+    }
     if (data.session && intent === "buyer") {
       await reconcileIdentity(data.session.access_token);
       setBusy(false);
@@ -75,7 +98,7 @@ export function RegisterForm({ intent }: { intent: AuthIntent }) {
     <GoogleButton onClick={google} loading={googleBusy} />
     <Divider />
     <input aria-label="Full name" className={inputCls} placeholder="Full name" value={form.fullName} onChange={e=>setForm({...form,fullName:e.target.value})} required />
-    <div><label className="mb-1.5 block text-sm font-semibold" htmlFor="register-phone">Mobile number <span className="text-primary">*</span></label><input id="register-phone" className={inputCls} type="tel" inputMode="numeric" autoComplete="tel-national" placeholder="98765 43210" maxLength={10} pattern="[6-9][0-9]{9}" value={form.phone} onChange={e=>setForm({...form,phone:e.target.value.replace(/\D/g, "").slice(0, 10)})} required /><p className="mt-1.5 text-xs text-foreground-muted">Required for contacting you. No phone OTP is required right now.</p></div>
+    <div><label className="mb-1.5 block text-sm font-semibold" htmlFor="register-phone">Mobile number <span className="text-primary">*</span></label><input id="register-phone" className={inputCls} type="tel" inputMode="numeric" autoComplete="tel-national" placeholder="98765 43210" maxLength={10} pattern="[6-9][0-9]{9}" value={form.phone} onChange={e=>setForm({...form,phone:e.target.value.replace(/\D/g, "").slice(0, 10)})} required /><p className="mt-1.5 text-xs text-foreground-muted">Required for contacting you. Use this number with your password to sign in.</p></div>
     <input aria-label="Email (optional)" className={inputCls} type="email" placeholder="Email (optional)" value={form.email} onChange={e=>setForm({...form,email:e.target.value})} />
     <input aria-label="Password" className={inputCls} type="password" placeholder="Password" value={form.password} onChange={e=>setForm({...form,password:e.target.value})} required />
     <input aria-label="Confirm password" className={inputCls} type="password" placeholder="Confirm password" value={form.confirm} onChange={e=>setForm({...form,confirm:e.target.value})} required />

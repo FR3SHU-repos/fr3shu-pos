@@ -94,7 +94,7 @@ export default function BuyerSetupPage() {
       <div>
         <label className="block text-sm font-semibold" htmlFor="buyer-phone">Mobile number <span className="text-primary">*</span></label>
         <input id="buyer-phone" className={inputCls} type="tel" inputMode="numeric" autoComplete="tel-national" placeholder="98765 43210" maxLength={10} pattern="[6-9][0-9]{9}" value={phone} onChange={(event) => setPhone(event.target.value.replace(/\D/g, "").slice(0, 10))} required />
-        <p className="mt-1.5 text-xs text-foreground-muted">Enter 10 digits. No phone OTP is required right now; this number is used for seller contact and rewards.</p>
+        <p className="mt-1.5 text-xs text-foreground-muted">Enter 10 digits. This number is used for seller contact, sign-in, and rewards.</p>
       </div>
       <div>
         <label className="block text-sm font-semibold" htmlFor="buyer-location">Location <span className="text-primary">*</span></label>

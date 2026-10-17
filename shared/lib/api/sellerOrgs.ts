@@ -76,6 +76,7 @@ export interface RegisterSellerBody {
     contactName: string;
     type: SellerOrgType;
     phoneE164: string;
+    referralCode?: string;
     gstin?: string;
     billingAddress?: SellerAddress;
   };
@@ -154,6 +155,13 @@ export function updatePaymentSettings(body: {
   return request<SellerOrganization>("seller-organizations/me/payment-settings", {
     method: "PATCH",
     body,
+  });
+}
+
+export function linkBuyerReferral(referralCode: string): Promise<ApiResult<null>> {
+  return request<null>("seller-organizations/me/referral", {
+    method: "POST",
+    body: { referralCode: referralCode.trim().toUpperCase() },
   });
 }
 
