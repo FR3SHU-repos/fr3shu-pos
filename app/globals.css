@@ -1,8 +1,8 @@
 @import "tailwindcss";
 
 :root {
-  --background: #f8faf5;
-  --foreground: #1c1917;
+  --background: #eef0f2;
+  --foreground: #171717;
   --font-sans: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   --font-mono: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
 }
@@ -20,28 +20,28 @@
   --color-primary-hover: #b83218;
   --color-primary-foreground: #ffffff;
 
-  /* Secondary — leaf green accent: badges, chips, highlights */
-  --color-secondary: #5a9f3a;
-  --color-secondary-subtle: #dcefd4;
-  --color-secondary-foreground: #b83218;
+  /* Secondary — restrained neutral accent; status colors carry meaning. */
+  --color-secondary: #6b7280;
+  --color-secondary-subtle: #f5f6f7;
+  --color-secondary-foreground: #374151;
 
   /* Tertiary — stone neutral: subtle UI elements */
   --color-tertiary: #d6d3d1;
   --color-tertiary-foreground: #78716c;
 
   /* Surfaces */
-  --color-surface: #fff4ef;
+  --color-surface: #f5f6f7;
   --color-surface-card: #ffffff;
 
   /* Text scale */
-  --color-foreground-heading: #b83218;
-  --color-foreground-body: #44403c;
-  --color-foreground-muted: #78716c;
-  --color-brand: #e94727;
+  --color-foreground-heading: #171717;
+  --color-foreground-body: #374151;
+  --color-foreground-muted: #6b7280;
+  --color-brand: #ff5733;
 
   /* Borders */
-  --color-border: #f4c8bb;
-  --color-border-focus: #ff9a80;
+  --color-border: #dde2e5;
+  --color-border-focus: #ff9b80;
 
   /* Status tokens */
   --color-status-warning: #b45309;

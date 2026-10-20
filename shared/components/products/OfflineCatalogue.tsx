@@ -9,7 +9,7 @@ import { formatBaseQuantity } from "@/shared/lib/units";
 import { inputCls } from "@/shared/components/ui";
 
 /** Stays mounted in the seller shell: offline browsing needs no route request. */
-export function OfflineCatalogue() {
+export function OfflineCatalogue({ compact = false }: { compact?: boolean }) {
   const { user } = usePosUser();
   const [offline, setOffline] = useState(false);
   const [snapshot, setSnapshot] = useState<ProductSnapshot | null>(null);
@@ -65,12 +65,15 @@ export function OfflineCatalogue() {
   }, [user, revision]); // scope changes must discard the previous view
 
   const results = snapshot ? searchProducts(snapshot.items, { q: query, limit: 100 }).items : [];
-  return <section className="mb-4 rounded-xl border border-border bg-surface-card p-3 text-sm">
+  return <section className={`${compact ? "mb-5 rounded-2xl bg-surface-muted p-3" : "mb-4 rounded-xl bg-surface-card p-3"} border border-border text-sm`}>
     <div className="flex flex-wrap items-center justify-between gap-2">
-      <p role="status">{offline ? "Offline" : "Online"} · {busy ? "Saving products for offline use…" : snapshot ? `${snapshot.items.length} products saved · ${new Date(snapshot.savedAt).toLocaleString()} · ${snapshot.snapshotVersion}` : "No offline catalogue saved yet"}</p>
-      <div className="flex gap-3">
-        <button type="button" className="font-semibold text-primary" onClick={() => setOpen(!open)} aria-expanded={open}>{open ? "Hide saved products" : "Browse saved products"}</button>
-        <button type="button" disabled={offline || busy} className="font-semibold text-primary disabled:opacity-50" onClick={() => setRevision(v => v + 1)}>Sync products</button>
+      <div>
+        <p className="font-semibold text-foreground-heading">Saved catalogue</p>
+        <p role="status" className="text-xs text-foreground-muted">{offline ? "Offline" : "Online"} · {busy ? "Saving products for offline use…" : snapshot ? `${snapshot.items.length} products saved · ${new Date(snapshot.savedAt).toLocaleString()} · ${snapshot.snapshotVersion}` : "No offline catalogue saved yet"}</p>
+      </div>
+      <div className="flex flex-wrap gap-2">
+        <button type="button" className="min-h-11 rounded-full border border-border bg-surface-card px-4 py-2 text-xs font-semibold text-foreground-body hover:bg-white" onClick={() => setOpen(!open)} aria-expanded={open}>{open ? "Hide saved products" : "Browse saved products"}</button>
+        <button type="button" disabled={offline || busy} className="min-h-11 rounded-full bg-primary px-4 py-2 text-xs font-semibold text-primary-foreground hover:bg-primary-hover disabled:opacity-50" onClick={() => setRevision(v => v + 1)}>Sync products</button>
       </div>
     </div>
     {error && <p role="status" className="mt-2">{error}</p>}

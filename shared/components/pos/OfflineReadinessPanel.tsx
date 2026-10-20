@@ -114,18 +114,19 @@ export function OfflineReadinessPanel() {
     }
   };
 
-  const needsSetupPin = !readiness || readiness.localUnlockRequired !== true || !localUnlockConfigured;
+  const needsSetupPin = pilot.enabled && (!readiness || readiness.localUnlockRequired !== true || !localUnlockConfigured);
 
   return (
-    <section className="mb-4 rounded-xl border border-border bg-surface-card p-3 text-sm" aria-label="Offline readiness">
+    <section className="rounded-2xl border border-border bg-surface-card p-4 text-sm" aria-label="Offline readiness">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <p className="font-semibold text-foreground-heading">Offline readiness</p>
+          <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-primary">Device operations</p>
+          <p className="mt-1 font-semibold text-foreground-heading">Offline readiness</p>
           <p className="text-foreground-muted">
-            {readiness && !expired ? `Prepared until ${new Date(readiness.expiresAt).toLocaleString()}.` : "Prepare this device and register online before accepting offline cash sales."}
+            {!pilot.enabled ? "Offline checkout is not enabled for this terminal." : readiness && !expired ? `Prepared until ${new Date(readiness.expiresAt).toLocaleString()}.` : "Prepare this device and register online before accepting offline cash sales."}
           </p>
         </div>
-        <button type="button" disabled={busy || !pilot.enabled || typeof navigator !== "undefined" && !navigator.onLine} onClick={() => void prepare()} className="rounded-lg bg-primary px-3 py-2 font-semibold text-primary-foreground disabled:opacity-50">
+        <button type="button" disabled={busy || !pilot.enabled || typeof navigator !== "undefined" && !navigator.onLine} onClick={() => void prepare()} className="min-h-11 rounded-full bg-primary px-4 py-2 font-semibold text-primary-foreground disabled:opacity-50">
           {busy ? "Preparing…" : readiness && !expired ? "Prepare again" : "Prepare offline mode"}
         </button>
       </div>
@@ -139,16 +140,16 @@ export function OfflineReadinessPanel() {
           </label>
           <p className="text-xs text-foreground-muted sm:col-span-2">This PIN is stored only as a salted verifier on this browser. It is required after the browser restarts before offline checkout can continue.</p>
         </div>
-      ) : readiness && !localUnlocked ? (
+      ) : pilot.enabled && readiness && !localUnlocked ? (
         <div className="mt-3 flex flex-wrap items-end gap-2 rounded-lg bg-surface p-3">
           <label className="text-xs font-semibold text-foreground-body">Unlock offline register
             <input value={unlockPin} onChange={(event) => setUnlockPin(event.target.value.replace(/\D/g, "").slice(0, 6))} inputMode="numeric" autoComplete="current-password" type="password" maxLength={6} placeholder="6 digits" className="mt-1 block w-40 rounded-lg border border-border bg-surface-card px-3 py-2 text-sm" />
           </label>
-          <button type="button" disabled={busy || unlockPin.length !== 6} onClick={() => void unlock()} className="rounded-lg border border-border bg-surface-card px-3 py-2 text-xs font-semibold text-foreground-body disabled:opacity-50">Unlock</button>
+          <button type="button" disabled={busy || unlockPin.length !== 6} onClick={() => void unlock()} className="min-h-11 rounded-full border border-border bg-surface-card px-4 py-2 text-xs font-semibold text-foreground-body disabled:opacity-50">Unlock</button>
         </div>
       ) : null}
       <p className="mt-2 text-xs text-foreground-muted">Pilot: {pilot.enabled ? "enabled" : "disabled"}. Storage: {storage?.status ?? "checking"}{storage?.persisted ? " · persistent" : ""}. Offline checkout remains cash-only and expires with the server grant.</p>
-      {!pilot.enabled ? <p className="mt-2 rounded-lg bg-surface px-3 py-2 text-xs" role="status">{pilot.reason}</p> : null}
+      {!pilot.enabled ? <p className="mt-3 rounded-xl bg-surface-muted px-3 py-3 text-xs text-foreground-body" role="status">{pilot.reason ?? "Offline preparation will become available when this pilot is enabled."}</p> : null}
       {message ? <p className="mt-2 rounded-lg bg-surface px-3 py-2 text-xs" role="status">{message}</p> : null}
     </section>
   );

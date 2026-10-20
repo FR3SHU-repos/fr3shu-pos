@@ -101,7 +101,11 @@ export default function RegisterSessionsPage() {
 
   return (
     <div className="mx-auto max-w-3xl space-y-6">
-      <h1 className="text-xl font-semibold text-foreground-heading">Register sessions</h1>
+      <header className="space-y-2">
+        <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-primary">Cash control</p>
+        <h1 className="text-3xl font-black tracking-[-0.04em] text-foreground">Register</h1>
+        <p className="max-w-xl text-sm text-foreground-muted">Open or close the register for this location and keep offline cash sales visible in the drawer total.</p>
+      </header>
 
       {current ? (
         <section className={cardCls}>

@@ -651,8 +651,8 @@ export default function PosPage() {
       <div className="order-2 space-y-5 lg:order-none">
         <div className="flex items-end justify-between gap-3">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-wider text-primary">Checkout</p>
-            <h1 className="mt-1 text-2xl font-bold text-foreground-heading">{t("pos.title")}</h1>
+            <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-primary">Fast checkout</p>
+            <h1 className="mt-1 text-3xl font-black tracking-[-0.04em] text-foreground">{t("pos.title")}</h1>
           </div>
           <select
             value={locale}
@@ -799,9 +799,9 @@ export default function PosPage() {
                   <div className="mt-2 flex items-center gap-2">
                     <div className="flex items-center rounded-lg border border-border">
                       <button
-                        className="grid h-9 w-9 place-items-center text-foreground-body"
+                        className="grid h-11 w-11 place-items-center rounded-l-lg text-foreground-body hover:bg-surface"
                         onClick={() => setQty(l.key, l.qty - 1)}
-                        aria-label="decrease"
+                        aria-label={`Decrease ${l.product.name} quantity`}
                       >
                         <Minus className="h-4 w-4" />
                       </button>
@@ -811,12 +811,12 @@ export default function PosPage() {
                         step="0.001"
                         value={l.qty}
                         onChange={(e) => setQty(l.key, Number(e.target.value))}
-                        className="h-9 w-16 border-x border-border text-center text-sm"
+                        className="h-11 w-16 border-x border-border bg-surface-card text-center text-sm"
                       />
                       <button
-                        className="grid h-9 w-9 place-items-center text-foreground-body"
+                        className="grid h-11 w-11 place-items-center rounded-r-lg text-foreground-body hover:bg-surface"
                         onClick={() => setQty(l.key, l.qty + 1)}
-                        aria-label="increase"
+                        aria-label={`Increase ${l.product.name} quantity`}
                         disabled={remainingStockBase(l.product.availableBase, l.qty, l.saleUnit) === 0}
                       >
                         <Plus className="h-4 w-4" />
@@ -825,7 +825,7 @@ export default function PosPage() {
                     <select
                       value={l.saleUnit}
                       onChange={(e) => setUnit(l.key, e.target.value as SaleUnit)}
-                      className="h-9 rounded-lg border border-border bg-surface-card px-2 text-sm"
+                      className="h-11 rounded-lg border border-border bg-surface-card px-2 text-sm"
                     >
                       {compatUnits.map((u) => (
                         <option key={u} value={u}>

@@ -12,7 +12,7 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 Before starting work, read:
 
-1. [`../cross-platform-assets/AGENT_WORKFLOW.md`](../cross-platform-assets/AGENT_WORKFLOW.md).
+1. [`../cross-platform-assets/common/AGENT_WORKFLOW.md`](../cross-platform-assets/common/AGENT_WORKFLOW.md).
 2. [`README.md`](README.md), [`docs/README.md`](docs/README.md), and
    [`docs/system-reference.md`](docs/system-reference.md).
 3. [`GIT_RULES.md`](GIT_RULES.md) before creating commits, tags, or pushes.
@@ -20,10 +20,10 @@ Before starting work, read:
    [`../go-api-backend/docs/api-current.md`](../go-api-backend/docs/api-current.md)
    and [`../go-api-backend/openapi/openapi.yaml`](../go-api-backend/openapi/openapi.yaml)
    when changing API behavior.
-5. [`../cross-platform-assets/DPDP_DATA_GOVERNANCE.md`](../cross-platform-assets/DPDP_DATA_GOVERNANCE.md)
+5. [`../cross-platform-assets/common/DPDP_DATA_GOVERNANCE.md`](../cross-platform-assets/common/DPDP_DATA_GOVERNANCE.md)
    before changing identity, authentication, checkout, rewards, claims,
    analytics, retention, exports, integrations, or account deletion.
-6. [`../cross-platform-assets/KOMOLA_UI_UX_DESIGN_SYSTEM.md`](../cross-platform-assets/KOMOLA_UI_UX_DESIGN_SYSTEM.md)
+6. [`../cross-platform-assets/common/KOMOLA_UI_UX_DESIGN_SYSTEM.md`](../cross-platform-assets/common/KOMOLA_UI_UX_DESIGN_SYSTEM.md)
    before creating or changing any screen, component, interaction, or visual
    theme.
 

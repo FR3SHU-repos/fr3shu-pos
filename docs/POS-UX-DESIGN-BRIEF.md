@@ -257,6 +257,7 @@ brittle, not durable, lost on storage clear.
 ## 4. Simplified information architecture
 
 ```
+
 KOMOLA POS
 │
 ├─ Sell                     ← default after opening a register
@@ -1025,3 +1026,15 @@ duplicated sales); seller can correctly state their sync status when asked
 | Receivable / invoice lifecycle | (not shown) |
 | Organization ID / tenant | (hidden) |
 ```
+
+## 14. 2026-10-20 UI audit implementation notes
+
+The first implementation pass from `cross-platform-assets/common/POS-DESIGN-AUDIT-2026-10-20.md` is now applied in the POS app:
+
+- Seller navigation now uses shorter counter vocabulary: Today, Sell, Sales, Register, Products, Stock, Settings, and Support.
+- The shell follows the Admin visual language more closely: cool-neutral canvas, white surfaces, orange actions, dark active navigation, rounded cards, and larger touch targets.
+- Global offline UI is reduced to a compact saved-catalogue strip. Detailed offline readiness, queued-sales review, and install controls are available from the Dashboard's **Offline tools** section.
+- Offline pilot-disabled states no longer show misleading PIN setup controls or an unlock form.
+- POS quantity controls and register actions use larger touch targets for counter use.
+
+Payment capabilities and offline safeguards were intentionally not changed in this UI pass. Card payment support, the final seller navigation information architecture, and runtime device testing remain separate follow-up work.
