@@ -85,7 +85,7 @@ export default function BuyerSetupPage() {
       <div>
         <p className="font-semibold text-primary">Buyer profile</p>
         <h1 className="mt-1 text-2xl font-semibold">Your details</h1>
-        <p className="mt-2 text-sm text-foreground-muted">Sellers use these details to attach receipts and rewards to your account.</p>
+        <p className="mt-2 text-sm text-foreground-muted">Sellers use these details to attach receipts and rewards to your account. Guest purchases recorded with this mobile number become available after you verify the number through KOMOLA sign-in.</p>
       </div>
       <div>
         <label className="block text-sm font-semibold" htmlFor="buyer-name">Full name <span className="text-primary">*</span></label>
