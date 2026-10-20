@@ -41,14 +41,14 @@ export function OfflineSalesSyncWorker() {
     return { userId: user.id, orgId: user.orgId, locationId: user.locationId };
   }, [user]);
 
-  const sync = useCallback(async (automatic: boolean) => {
+  const sync = useCallback(async (automatic: boolean, forceRetry = false) => {
     if (!scope || syncingRef.current) return;
     if (typeof navigator !== "undefined" && !navigator.onLine) return;
     syncingRef.current = true;
     try {
       const mutations = await syncOfflineMutations();
       if (mutations.synced > 0) await productsApi.refreshOfflineProducts(undefined, { force: true });
-      const result = await salesApi.syncPendingOfflineSales(scope);
+      const result = await salesApi.syncPendingOfflineSales(scope, { forceRetry });
       if (result.synced > 0) await cleanupOfflineSales(scope, 0);
       const detail: OfflineSalesSyncDetail = { ...result, at: new Date().toISOString(), automatic, message: mutations.messages.join(" ") || result.message };
       if (typeof window !== "undefined") {
@@ -69,7 +69,7 @@ export function OfflineSalesSyncWorker() {
     if (!scope) return;
     void Promise.all([cleanupOfflineSales(scope), cleanupExpiredHeldCarts(scope)]);
     void Promise.resolve().then(() => sync(true));
-    const onOnline = () => void sync(true);
+    const onOnline = () => void sync(true, true);
     const onOfflineSaleChanged = () => void sync(true);
     const interval = window.setInterval(() => void sync(true), SYNC_INTERVAL_MS);
     window.addEventListener("online", onOnline);

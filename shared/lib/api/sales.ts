@@ -15,6 +15,7 @@ import {
   claimPendingOfflineSales,
   listOfflineSales,
   requeueBlockedOfflineSalesWithAvailableStock,
+  requeueRetryableOfflineSales,
   markOfflineSaleSyncState,
   offlineSaleToSyncOperation,
   type OfflineScope,
@@ -230,7 +231,7 @@ function retryDelayMs(sale: { syncAttempts?: number }, retryAfterMs?: number): n
   return Math.round(base * (0.875 + Math.random() * 0.25));
 }
 
-export async function syncPendingOfflineSales(scope: OfflineScope): Promise<{
+export async function syncPendingOfflineSales(scope: OfflineScope, options: { forceRetry?: boolean } = {}): Promise<{
   attempted: number;
   synced: number;
   blocked: number;
@@ -240,6 +241,7 @@ export async function syncPendingOfflineSales(scope: OfflineScope): Promise<{
   blockedMessages?: string[];
 }> {
   const empty = { attempted: 0, synced: 0, blocked: 0, authRequired: false, blockedMessages: [] };
+  if (options.forceRetry) await requeueRetryableOfflineSales(scope);
   const localSales = await listOfflineSales(scope);
   const hasLocalSyncWork = localSales.some((sale) => ["pending", "uploading", "retry_wait", "auth_required", "blocked", "needs_review"].includes(sale.syncState));
   if (!hasLocalSyncWork) return empty;
@@ -261,7 +263,12 @@ export async function syncPendingOfflineSales(scope: OfflineScope): Promise<{
     return { attempted: batch.length, synced: 0, blocked: 0, authRequired: true };
   }
   if (res.status === 404) {
-    await Promise.all(batch.map((sale) => incrementOfflineSaleAttempt(scope, sale.operationId, retryDelayMs(sale, res.retryAfterMs))));
+    await Promise.all(batch.map((sale) => incrementOfflineSaleAttempt(
+      scope,
+      sale.operationId,
+      retryDelayMs(sale, res.retryAfterMs),
+      res.message || "The backend sync endpoint is unavailable. The sale will retry automatically.",
+    )));
     return {
       attempted: batch.length,
       synced: 0,
@@ -273,7 +280,12 @@ export async function syncPendingOfflineSales(scope: OfflineScope): Promise<{
     };
   }
   if (!res.success || !res.data) {
-    await Promise.all(batch.map((sale) => incrementOfflineSaleAttempt(scope, sale.operationId, retryDelayMs(sale, res.retryAfterMs))));
+    await Promise.all(batch.map((sale) => incrementOfflineSaleAttempt(
+      scope,
+      sale.operationId,
+      retryDelayMs(sale, res.retryAfterMs),
+      res.message || "Offline sale sync did not complete. The sale will retry automatically.",
+    )));
     return {
       attempted: batch.length,
       synced: 0,

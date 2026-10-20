@@ -113,7 +113,7 @@ export default function SalesHistoryPage() {
                       {s.receiptNo}
                     </Link>
                   )}
-                  {local ? <p className="text-xs text-foreground-muted">{serverReceiptNo ? `Server receipt ${serverReceiptNo}` : "local offline sale"}</p> : null}
+                  {local ? <p className="max-w-xs text-xs text-foreground-muted">{serverReceiptNo ? `Server receipt ${serverReceiptNo}` : offlineSales.find((sale) => sale.operationId === s.idempotencyKey)?.syncMessage ?? "local offline sale"}</p> : null}
                 </div>
                 <span className="text-foreground-muted">
                   {new Date(s.soldAt).toLocaleString("en-IN")}
