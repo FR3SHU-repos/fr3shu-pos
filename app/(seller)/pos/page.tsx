@@ -597,7 +597,7 @@ export default function PosPage() {
             {completed.reward.eligibleRemainderMinor > 0 ? <p className="mt-3 text-xs text-foreground-muted">{formatPaise(completed.reward.eligibleRemainderMinor)} carries toward the next coin.</p> : null}
           </section>
         ) : (
-          <p className="rounded-xl bg-surface-card p-4 text-sm text-foreground-muted">Purchase completed. Rewards will appear when this customer is linked to a KOMOLA buyer account.</p>
+          <p className="rounded-xl bg-surface-card p-4 text-sm text-foreground-muted">Purchase completed. If this customer later creates or signs in to KOMOLA with this verified mobile number, the receipt can appear in their buyer account. Seller-entered details do not verify identity or add rewards at checkout.</p>
         )}
         <ReceiptView
           sale={completed}
