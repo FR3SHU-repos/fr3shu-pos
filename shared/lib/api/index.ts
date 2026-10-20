@@ -5,6 +5,7 @@ export * as suppliersApi from "./suppliers";
 export * as inventoryApi from "./inventory";
 export * as stockApi from "./stock";
 export * as registersApi from "./registers";
+export * as offlineApi from "./offline";
 export * as salesApi from "./sales";
 export * as sellerOrgsApi from "./sellerOrgs";
 export * as identityApi from "./identity";

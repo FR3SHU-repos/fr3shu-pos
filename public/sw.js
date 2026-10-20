@@ -1,4 +1,4 @@
-const CACHE_NAME = "komola-pos-shell-v3";
+const CACHE_NAME = "komola-pos-shell-v4";
 const APP_SHELL = [
   "/offline",
   "/manifest.webmanifest",
@@ -10,10 +10,24 @@ const APP_SHELL = [
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
-    caches.open(CACHE_NAME)
-      .then((cache) => cache.addAll(APP_SHELL))
-      .then(() => self.skipWaiting()),
+    caches.open(CACHE_NAME).then(async (cache) => {
+      // Cache each shell asset independently. A single optional icon failure
+      // must not prevent the new worker from installing.
+      await Promise.all(APP_SHELL.map(async (asset) => {
+        try {
+          const response = await fetch(asset, { cache: "no-store" });
+          if (response.ok) await cache.put(asset, response);
+        } catch {
+          // The currently active worker remains available until this worker
+          // is explicitly activated by the user.
+        }
+      }));
+    }),
   );
+});
+
+self.addEventListener("message", (event) => {
+  if (event.data?.type === "SKIP_WAITING") void self.skipWaiting();
 });
 
 self.addEventListener("activate", (event) => {
@@ -53,7 +67,7 @@ self.addEventListener("fetch", (event) => {
   if (request.mode === "navigate") {
     event.respondWith(
       fetch(request)
-        .catch(() => caches.match("/offline")),
+        .catch(async () => (await caches.match(request)) || (await caches.match("/offline"))),
     );
     return;
   }
@@ -61,8 +75,9 @@ self.addEventListener("fetch", (event) => {
   if (url.pathname.startsWith("/_next/static/") || url.pathname === "/manifest.webmanifest" || url.pathname.endsWith(".png") || url.pathname.endsWith(".ico")) {
     event.respondWith(
       caches.match(request).then((cached) => cached || fetch(request).then((response) => {
+        if (!response.ok) return response;
         const copy = response.clone();
-        caches.open(CACHE_NAME).then((cache) => cache.put(request, copy));
+        void caches.open(CACHE_NAME).then((cache) => cache.put(request, copy));
         return response;
       })),
     );

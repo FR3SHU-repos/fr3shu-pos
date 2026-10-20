@@ -10,6 +10,7 @@ import { ghostBtnCls, Skeleton, StatusBadge } from "@/shared/components/ui";
 import { ReceiptView } from "@/shared/components/pos/ReceiptView";
 import { formatPaise } from "@/shared/lib/money";
 import { buildWhatsAppReceiptUrl } from "@/shared/lib/whatsapp-share";
+import { printReceipt } from "@/shared/lib/offline/receipt-print";
 
 export default function SaleDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
@@ -52,7 +53,7 @@ export default function SaleDetailPage({ params }: { params: Promise<{ id: strin
             <MessageCircle className="h-4 w-4" />
             Share via WhatsApp
           </button>
-          <button className={ghostBtnCls} onClick={() => window.print()}>
+          <button className={ghostBtnCls} onClick={() => printReceipt()}>
             <Printer className="h-4 w-4" />
             Print
           </button>

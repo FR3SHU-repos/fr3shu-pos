@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { identityApi, receiptsApi, rewardsApi } from "@/shared/lib/api";
+import { campaignsApi, identityApi, receiptsApi, rewardsApi } from "@/shared/lib/api";
 import type { BuyerReceiptSummary } from "@/shared/lib/api/receipts";
 import type { BuyerReferral, DiscoveryCode, PersonProfile } from "@/shared/lib/api/identity";
 import type { RewardLedgerEntry, RewardSummary } from "@/shared/lib/api/rewards";
@@ -13,7 +13,11 @@ import toast from "react-hot-toast";
 import { BuyerCodeQr } from "@/shared/components/buyer/BuyerCodeQr";
 import { copyText } from "@/shared/lib/clipboard";
 import { KomoEmptyState, KomoMessage } from "@/shared/components/mascot";
-import { buyerProfileReady, missingBuyerDetails } from "@/shared/lib/buyer/profile";
+import {
+  buyerCampaignsReady,
+  buyerProfileReady,
+  missingBuyerDetails,
+} from "@/shared/lib/buyer/profile";
 
 const PAGE_SIZE = 5;
 
@@ -31,6 +35,7 @@ export default function BuyerDashboardPage() {
   const [receiptPage, setReceiptPage] = useState(1);
   const [receiptPages, setReceiptPages] = useState(1);
   const [receiptsLoading, setReceiptsLoading] = useState(false);
+  const [campaignCount, setCampaignCount] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [copied, setCopied] = useState(false);
@@ -43,6 +48,11 @@ export default function BuyerDashboardPage() {
         return;
       }
       setProfile(person.data);
+      if (buyerCampaignsReady(person.data)) {
+        void campaignsApi.list().then((campaigns) => {
+          if (campaigns.success) setCampaignCount(campaigns.data?.items.length ?? 0);
+        });
+      }
       if (!buyerProfileReady(person.data)) {
         setLoading(false);
         return;
@@ -125,13 +135,14 @@ export default function BuyerDashboardPage() {
   if (loading) return <main className="mx-auto min-h-screen max-w-4xl space-y-4 bg-surface p-4 sm:p-8"><Skeleton className="h-12 w-72"/><Skeleton className="h-40 w-full"/><Skeleton className="h-72 w-full"/></main>;
 
   const profileReady = buyerProfileReady(profile);
+  const campaignsReady = buyerCampaignsReady(profile);
   const missingDetails = missingBuyerDetails(profile);
 
   return <main className="mx-auto min-h-screen max-w-4xl bg-surface p-4 sm:p-8">
     <header className="mb-6"><p className="font-semibold text-primary">KOMOLA Buyer</p><h1 className="text-3xl font-bold">{profile?.displayName ? `Hello, ${profile.displayName}` : "Your rewards"}</h1><p className="mt-1 text-foreground-muted">Rewards and status from purchases completed by KOMOLA sellers.</p></header>
     <KomoMessage action="wave" title="Let’s make every purchase count." description="Show your buyer code at a KOMOLA seller to collect receipts and rewards." compact />
-    {!profileReady ? <section className={`${cardCls} mt-4 border-primary/30 bg-primary/5`} aria-labelledby="complete-profile-title"><div><p className="font-semibold text-primary">Buyer account setup</p><h2 id="complete-profile-title" className="mt-1 text-xl font-bold text-foreground-heading">Add your details to unlock your buyer account</h2><p className="mt-1 text-sm text-foreground-muted">Enter {missingDetails.join(", ")} to get your buyer code, view local offers, and receive purchase rewards.</p></div><Link href="/buyer/setup" className="mt-4 inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2 font-semibold text-primary-foreground sm:mt-5">Enter buyer details <ArrowRight className="h-4 w-4"/></Link></section> : null}
-    <Link href={profileReady ? "/buyer/campaigns" : "/buyer/setup"} className={`${cardCls} mt-4 flex items-center justify-between gap-4 transition hover:shadow-md`}><div><p className="font-semibold text-primary">Rewards and offers</p><h2 className="mt-1 text-xl font-bold text-foreground-heading">{profileReady ? "Apply for location-based campaigns" : "Complete your profile to view offers"}</h2><p className="mt-1 text-sm text-foreground-muted">{profileReady ? "See KOMOLA offers available in your area and apply for them." : "Add your buyer location so KOMOLA can show the right offers for you."}</p></div><span className="inline-flex shrink-0 items-center gap-2 rounded-lg bg-primary px-4 py-2 font-semibold text-primary-foreground">{profileReady ? "View offers" : "Enter details"} <ArrowRight className="h-4 w-4"/></span></Link>
+    {!profileReady ? <section className={`${cardCls} mt-4 border-primary/30 bg-primary/5`} aria-labelledby="complete-profile-title"><div><p className="font-semibold text-primary">Buyer account setup</p><h2 id="complete-profile-title" className="mt-1 text-xl font-bold text-foreground-heading">Add your details to unlock your buyer account</h2><p className="mt-1 text-sm text-foreground-muted">Enter {missingDetails.join(", ")} to get your buyer code and receive purchase rewards.</p></div><Link href="/buyer/setup" className="mt-4 inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2 font-semibold text-primary-foreground sm:mt-5">Enter buyer details <ArrowRight className="h-4 w-4"/></Link></section> : null}
+    <Link href={campaignsReady ? "/buyer/campaigns" : "/buyer/setup"} className={`${cardCls} mt-4 flex items-center justify-between gap-4 transition hover:shadow-md`}><div><p className="font-semibold text-primary">Rewards and offers</p><h2 className="mt-1 text-xl font-bold text-foreground-heading">{campaignsReady ? "Apply for location-based campaigns" : "Complete your profile to view offers"}</h2><p className="mt-1 text-sm text-foreground-muted">{campaignsReady ? "See KOMOLA offers available in your area and apply for them." : "Add your buyer phone and location so KOMOLA can show the right offers for you."}</p></div><span className="inline-flex shrink-0 items-center gap-2 rounded-lg bg-primary px-4 py-2 font-semibold text-primary-foreground">{campaignsReady ? campaignCount === null ? "View offers" : `View ${campaignCount} offer${campaignCount === 1 ? "" : "s"}` : "Enter details"} <ArrowRight className="h-4 w-4"/></span></Link>
     {error && <p role="alert" className="mb-4 rounded-lg bg-red-50 p-4 text-red-700">{error}</p>}
     <section className={`${cardCls} mb-4 text-center`} aria-labelledby="buyer-code-title">
       <h2 id="buyer-code-title" className="text-xl font-semibold">My buyer code</h2>

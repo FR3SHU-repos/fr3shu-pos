@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const mocks = vi.hoisted(() => ({
   request: vi.fn(),
   refreshProducts: vi.fn(),
+  listSales: vi.fn(),
   requeueBlockedWithStock: vi.fn(),
   claimPending: vi.fn(),
   mark: vi.fn(),
@@ -14,6 +15,7 @@ vi.mock("@/shared/lib/api/client", () => ({ goRequest: mocks.request }));
 vi.mock("@/shared/lib/api/products", () => ({ refreshOfflineProducts: mocks.refreshProducts }));
 vi.mock("@/shared/lib/offline/sales", () => ({
   claimPendingOfflineSales: mocks.claimPending,
+  listOfflineSales: mocks.listSales,
   requeueBlockedOfflineSalesWithAvailableStock: mocks.requeueBlockedWithStock,
   markOfflineSaleSyncState: mocks.mark,
   incrementOfflineSaleAttempt: mocks.increment,
@@ -29,6 +31,8 @@ describe("offline sale sync API", () => {
     mocks.request.mockReset();
     mocks.refreshProducts.mockReset();
     mocks.refreshProducts.mockResolvedValue(null);
+    mocks.listSales.mockReset();
+    mocks.listSales.mockResolvedValue([{ syncState: "pending" }]);
     mocks.requeueBlockedWithStock.mockReset();
     mocks.requeueBlockedWithStock.mockResolvedValue(0);
     mocks.claimPending.mockReset();
@@ -59,6 +63,17 @@ describe("offline sale sync API", () => {
       serverReceiptNo: "POS-2026-000009",
     }));
     expect(result).toEqual({ attempted: 1, synced: 1, blocked: 0, authRequired: false, blockedMessages: [] });
+  });
+
+  it("does not download the catalogue when there is no local sync work", async () => {
+    mocks.listSales.mockResolvedValue([]);
+
+    const result = await syncPendingOfflineSales(scope);
+
+    expect(result).toEqual({ attempted: 0, synced: 0, blocked: 0, authRequired: false, blockedMessages: [] });
+    expect(mocks.refreshProducts).not.toHaveBeenCalled();
+    expect(mocks.claimPending).not.toHaveBeenCalled();
+    expect(mocks.request).not.toHaveBeenCalled();
   });
 
   it("pauses local outbox entries when authentication fails", async () => {
@@ -106,6 +121,28 @@ describe("offline sale sync API", () => {
 
     expect(mocks.mark).toHaveBeenCalledWith(scope, "op-1", "blocked", expect.objectContaining({ message: expect.stringContaining("cash") }));
     expect(result).toEqual({ attempted: 1, synced: 0, blocked: 1, authRequired: false, blockedMessages: [expect.stringContaining("cash")] });
+  });
+
+  it("keeps stale catalogue sales in needs-review state", async () => {
+    mocks.claimPending.mockResolvedValue([{ operationId: "op-1" }]);
+    mocks.request.mockResolvedValue({
+      success: true,
+      status: 200,
+      data: { results: [{ operationId: "op-1", outcome: "needs_review", reason: "stale_price" }] },
+    });
+
+    const result = await syncPendingOfflineSales(scope);
+
+    expect(mocks.mark).toHaveBeenCalledWith(scope, "op-1", "needs_review", expect.objectContaining({
+      message: "Review required: one product's price changed after this sale was recorded.",
+    }));
+    expect(result).toEqual({
+      attempted: 1,
+      synced: 0,
+      blocked: 1,
+      authRequired: false,
+      blockedMessages: ["Review required: one product's price changed after this sale was recorded."],
+    });
   });
 
   it("keeps retrying server-side sync failures automatically", async () => {

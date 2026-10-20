@@ -7,6 +7,7 @@ import type { Capabilities } from "@/shared/lib/api/identity";
 import { createAuthBrowserClient } from "@/shared/lib/supabase/auth-client";
 
 import { setProductScope } from "@/shared/lib/offline/products";
+import { lockOfflineScope, setOfflineActiveScope, type OfflineScope } from "@/shared/lib/offline/sales";
 import type { MyOrganization } from "@/shared/lib/api/sellerOrgs";
 
 interface PosUserContextValue {
@@ -49,6 +50,8 @@ export function PosUserProvider({ children }: { children: React.ReactNode }) {
         data: { session },
       } = await createAuthBrowserClient().auth.getSession();
       if (!session) {
+        if (userRef.current) lockOfflineScope(toOfflineScope(userRef.current));
+        setOfflineActiveScope(null);
         setProductScope(null);
         setUser(null);
         setCapabilities(null);
@@ -75,7 +78,11 @@ export function PosUserProvider({ children }: { children: React.ReactNode }) {
       }
 
       const nextUser = result.success ? result.data?.user ?? null : null;
+      if (userRef.current && (!nextUser || offlineScopeKey(userRef.current) !== offlineScopeKey(nextUser))) {
+        lockOfflineScope(toOfflineScope(userRef.current));
+      }
       userRef.current = nextUser;
+      setOfflineActiveScope(nextUser ? toOfflineScope(nextUser) : null);
       setProductScope(nextUser);
       setUser(nextUser);
       setCapabilities(result.success ? result.data?.capabilities ?? null : null);
@@ -92,6 +99,8 @@ export function PosUserProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const logout = useCallback(async () => {
+    if (userRef.current) lockOfflineScope(toOfflineScope(userRef.current));
+    setOfflineActiveScope(null);
     setProductScope(null);
     await authApi.logout();
     setUser(null);
@@ -107,6 +116,8 @@ export function PosUserProvider({ children }: { children: React.ReactNode }) {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((event) => {
       if (event === "SIGNED_OUT") {
+        if (userRef.current) lockOfflineScope(toOfflineScope(userRef.current));
+        setOfflineActiveScope(null);
         setProductScope(null);
         setUser(null);
         setCapabilities(null);
@@ -133,6 +144,14 @@ export function PosUserProvider({ children }: { children: React.ReactNode }) {
       {children}
     </PosUserContext.Provider>
   );
+}
+
+function toOfflineScope(user: Pick<SessionUser, "id" | "orgId" | "locationId">): OfflineScope {
+  return { userId: user.id, orgId: user.orgId, locationId: user.locationId };
+}
+
+function offlineScopeKey(user: Pick<SessionUser, "id" | "orgId" | "locationId">): string {
+  return JSON.stringify([user.id, user.orgId, user.locationId]);
 }
 
 export const usePosUser = () => useContext(PosUserContext);

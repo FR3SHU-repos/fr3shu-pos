@@ -60,7 +60,7 @@ export function PwaStatusBar() {
       {updateReady ? (
         <div className="flex items-center justify-between gap-3 rounded-xl border border-primary/30 bg-primary/5 px-3 py-2 text-xs text-foreground-body" role="status">
           <span>A new KOMOLA POS version is ready.</span>
-          <button type="button" onClick={() => window.location.reload()} className="shrink-0 rounded-lg bg-primary px-3 py-1.5 font-semibold text-primary-foreground hover:bg-primary-hover">
+          <button type="button" onClick={() => window.dispatchEvent(new Event("komola:pwa-activate-update"))} className="shrink-0 rounded-lg bg-primary px-3 py-1.5 font-semibold text-primary-foreground hover:bg-primary-hover">
             Refresh
           </button>
         </div>

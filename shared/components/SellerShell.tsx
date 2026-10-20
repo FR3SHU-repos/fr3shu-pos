@@ -25,6 +25,7 @@ import { Skeleton } from "@/shared/components/ui";
 import { OfflineCatalogue } from "@/shared/components/products/OfflineCatalogue";
 import { OfflineSalesPanel } from "@/shared/components/pos/OfflineSalesPanel";
 import { OfflineSalesSyncWorker } from "@/shared/components/pos/OfflineSalesSyncWorker";
+import { OfflineReadinessPanel } from "@/shared/components/pos/OfflineReadinessPanel";
 import { PwaInstallPrompt } from "@/shared/components/PwaInstallPrompt";
 import { PwaStatusBar } from "@/shared/components/PwaStatusBar";
 
@@ -130,6 +131,7 @@ export default function SellerShell({ children }: { children: React.ReactNode })
 
         <main className="min-w-0 flex-1 p-4 sm:p-6">
           {user ? <OfflineSalesSyncWorker key={`sales-sync:${user.id}:${user.orgId}:${user.locationId}`} /> : null}
+          {user ? <OfflineReadinessPanel key={`readiness:${user.id}:${user.orgId}:${user.locationId}`} /> : null}
           {user ? <OfflineCatalogue key={`catalogue:${user.id}:${user.orgId}:${user.locationId}`} /> : null}
           {user ? <OfflineSalesPanel key={`sales:${user.id}:${user.orgId}:${user.locationId}`} /> : null}
           {user ? <PwaInstallPrompt /> : null}

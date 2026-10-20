@@ -13,11 +13,13 @@ import type { PageMeta } from "@/app/api/v1/utils/responses";
 import {
   incrementOfflineSaleAttempt,
   claimPendingOfflineSales,
+  listOfflineSales,
   requeueBlockedOfflineSalesWithAvailableStock,
   markOfflineSaleSyncState,
   offlineSaleToSyncOperation,
   type OfflineScope,
 } from "@/shared/lib/offline/sales";
+import { jsonByteLength, recordOfflineSyncAttempt } from "@/shared/lib/offline/network-metrics";
 
 export type { SaleDTO };
 export type PaymentRow = PaymentDTO;
@@ -149,9 +151,10 @@ export const create = async (
 
 export interface OfflineSaleSyncResult {
   operationId: string;
-  outcome: "accepted" | "already_accepted" | "retry" | "rejected";
+  outcome: "accepted" | "already_accepted" | "retry" | "needs_review" | "rejected";
   reason?: string;
   sale?: GoSale;
+  inventoryCursor?: string;
 }
 
 function automaticSyncMessage(reason?: string): string {
@@ -168,10 +171,42 @@ function automaticSyncMessage(reason?: string): string {
       return "Automatic check failed: item totals do not match the sale total.";
     case "invalid_occurred_at":
       return "Automatic check failed: sale time is invalid.";
+    case "inventory_cursor_missing":
+      return "Offline catalogue evidence is incomplete. Refresh the catalogue before syncing.";
+    case "inventory_cursor_invalid":
+      return "Offline inventory evidence is invalid. Export the receipt and ask support to review it.";
+    case "offline_lot_evidence_missing":
+      return "Offline lot evidence is missing. Refresh stock before syncing this sale.";
+    case "offline_lot_evidence_invalid":
+      return "Offline lot evidence is invalid. Export the receipt and ask support to review it.";
     case "validation":
       return "Automatic check failed on the server. Check customer, stock, product, and cash details.";
     case "conflict":
       return "Automatic check failed: server stock or register state conflicts with this sale.";
+    case "operation_conflict":
+      return "Review required: this operation ID was already used with different sale details.";
+    case "shift_closed":
+      return "Review required: the register shift is closed. Keep the local receipt and ask a manager to reconcile this sale.";
+    case "catalogue_snapshot_missing":
+      return "Review required: this sale does not contain a trusted catalogue snapshot.";
+    case "catalogue_effective_at_invalid":
+      return "Review required: the saved catalogue timestamp is invalid.";
+    case "unsupported_pricing_policy":
+      return "Review required: this sale was calculated with an unsupported pricing policy.";
+    case "catalogue_item_unavailable":
+      return "Review required: one product is no longer available at this location.";
+    case "catalogue_unit_changed":
+      return "Review required: one product's sale unit changed after this sale was recorded.";
+    case "stale_price":
+      return "Review required: one product's price changed after this sale was recorded.";
+    case "stale_tax":
+      return "Review required: one product's tax rule changed after this sale was recorded.";
+    case "offline_line_arithmetic_mismatch":
+      return "Review required: one offline line total does not match the saved price, quantity, discount, and tax evidence.";
+    case "inventory_conflict":
+      return "Review required: server inventory or lot availability differs from this offline sale.";
+    case "offline_authorization_expired":
+      return "Offline authorization expired or was revoked. Prepare this register online before retrying.";
     case "server_error":
       return "Server could not complete sync. The sale will retry automatically.";
     default:
@@ -196,16 +231,22 @@ export async function syncPendingOfflineSales(scope: OfflineScope): Promise<{
   blockedMessages?: string[];
 }> {
   const empty = { attempted: 0, synced: 0, blocked: 0, authRequired: false, blockedMessages: [] };
+  const localSales = await listOfflineSales(scope);
+  const hasLocalSyncWork = localSales.some((sale) => ["pending", "uploading", "retry_wait", "auth_required", "blocked", "needs_review"].includes(sale.syncState));
+  if (!hasLocalSyncWork) return empty;
   const refreshed = await refreshOfflineProducts();
   if (refreshed) await requeueBlockedOfflineSalesWithAvailableStock(scope, refreshed.items, refreshed.savedAt);
   const pending = await claimPendingOfflineSales(scope, 10);
   if (pending.length === 0) return empty;
   const batch = pending.slice(0, 10);
+  const startedAt = Date.now();
+  const syncPayload = { operations: batch.map(offlineSaleToSyncOperation) };
   const res = await goRequest<{ results: OfflineSaleSyncResult[] }>("sync/sales", {
     method: "POST",
-    body: { operations: batch.map(offlineSaleToSyncOperation) },
+    body: syncPayload,
     idempotencyKey: `offline-sync:${batch.map((sale) => sale.operationId).join(",")}`,
   });
+  recordOfflineSyncAttempt(Date.now() - startedAt, jsonByteLength(syncPayload), !res.success || res.data?.results?.some((result) => result.outcome === "retry") === true);
   if (res.status === 401 || res.status === 403) {
     await Promise.all(batch.map((sale) => markOfflineSaleSyncState(scope, sale.operationId, "auth_required", { message: "Sign in again before syncing this sale." })));
     return { attempted: batch.length, synced: 0, blocked: 0, authRequired: true };
@@ -237,6 +278,7 @@ export async function syncPendingOfflineSales(scope: OfflineScope): Promise<{
   let blocked = 0;
   let authRequired = false;
   const blockedMessages: string[] = [];
+  const accepted: Array<{ operationId: string; message: string; serverSaleId?: string; serverReceiptNo?: string; serverInventoryCursor?: string }> = [];
   for (const result of res.data.results ?? []) {
     if (result.outcome === "accepted" || result.outcome === "already_accepted") {
       if (await markOfflineSaleSyncState(scope, result.operationId, "synced", {
@@ -245,21 +287,42 @@ export async function syncPendingOfflineSales(scope: OfflineScope): Promise<{
           : result.outcome === "already_accepted" ? "Already accepted by the server." : "Synced to the server.",
         serverSaleId: result.sale?.id,
         serverReceiptNo: result.sale?.receiptNo,
+        serverInventoryCursor: result.inventoryCursor,
       })) synced += 1;
+      accepted.push({
+        operationId: result.operationId,
+        message: result.sale?.receiptNo
+          ? `Synced to the server as ${result.sale.receiptNo}.`
+          : result.outcome === "already_accepted" ? "Already accepted by the server." : "Synced to the server.",
+        serverSaleId: result.sale?.id,
+        serverReceiptNo: result.sale?.receiptNo,
+        serverInventoryCursor: result.inventoryCursor,
+      });
     } else if (result.reason === "auth_required") {
       authRequired = true;
       await markOfflineSaleSyncState(scope, result.operationId, "auth_required", { message: "Sign in again before syncing this sale." });
-    } else if (result.outcome === "rejected") {
+    } else if (result.outcome === "rejected" || result.outcome === "needs_review") {
       blocked += 1;
       const message = automaticSyncMessage(result.reason);
       blockedMessages.push(message);
-      await markOfflineSaleSyncState(scope, result.operationId, "blocked", { message });
+      await markOfflineSaleSyncState(scope, result.operationId, result.outcome === "needs_review" ? "needs_review" : "blocked", { message });
     } else {
       const sale = batch.find((item) => item.operationId === result.operationId);
       await incrementOfflineSaleAttempt(scope, result.operationId, retryDelayMs(sale ?? {}, res.retryAfterMs), automaticSyncMessage(result.reason));
     }
   }
-  if (synced > 0) await refreshOfflineProducts();
+  if (accepted.length > 0) {
+    const postSyncCatalogue = await refreshOfflineProducts(undefined, { force: true });
+    if (postSyncCatalogue) {
+      await Promise.all(accepted.map((item) => markOfflineSaleSyncState(scope, item.operationId, "synced", {
+        message: item.message,
+        serverSaleId: item.serverSaleId,
+        serverReceiptNo: item.serverReceiptNo,
+        serverInventoryCursor: item.serverInventoryCursor,
+        inventoryCoveredAt: postSyncCatalogue.effectiveAt,
+      })));
+    }
+  }
   return { attempted: batch.length, synced, blocked, authRequired, blockedMessages };
 }
 

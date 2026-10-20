@@ -144,8 +144,10 @@ export default function BuyerCampaignDetailPage() {
     campaign.buyerClaim && campaign.buyerClaim.status !== "cancelled",
   );
   const hasDeliveryAddress = isCompleteAddress(campaign.buyerProfile?.address);
+  const upcoming = isUpcoming(campaign);
   const canClaim =
     !hasApplied &&
+    !upcoming &&
     campaign.buyerClaimsRemaining > 0 &&
     campaign.claimsRemaining > 0 &&
     (fulfillmentMethod !== "home_delivery" || hasDeliveryAddress);
@@ -213,6 +215,11 @@ export default function BuyerCampaignDetailPage() {
                 <span className="inline-flex items-center gap-1.5">
                   <Timer className="h-4 w-4 text-primary" />
                   Ends {formatDate(campaign.endsAt)}
+                </span>
+              ) : null}
+              {upcoming && campaign.startsAt ? (
+                <span className="inline-flex items-center gap-1.5 text-primary">
+                  Starts {formatDate(campaign.startsAt)}
                 </span>
               ) : null}
             </div>
@@ -293,12 +300,12 @@ export default function BuyerCampaignDetailPage() {
           <section className={`${cardCls} space-y-5`}>
             <div>
               <h2 className="text-xl font-bold text-foreground-heading">
-                Apply for this offer
+                {upcoming ? "Upcoming offer" : "Apply for this offer"}
               </h2>
               <p className="mt-1 text-sm text-foreground-muted">
-                The Rewardor has selected{" "}
-                <strong>{fulfillmentLabel(fulfillmentMethod)}</strong> for this
-                offer.
+                {upcoming && campaign.startsAt
+                  ? `This offer opens on ${formatDate(campaign.startsAt)}. You can apply after it starts.`
+                  : <>The Rewardor has selected <strong>{fulfillmentLabel(fulfillmentMethod)}</strong> for this offer.</>}
               </p>
               {fulfillmentMethod === "home_delivery" && !hasDeliveryAddress ? (
                 <p className="mt-2 text-sm font-semibold text-red-700">
@@ -337,6 +344,8 @@ export default function BuyerCampaignDetailPage() {
                 ? "Applying…"
                 : hasApplied
                   ? "Already applied"
+                  : upcoming && campaign.startsAt
+                    ? `Starts ${formatDate(campaign.startsAt)}`
                   : campaign.buyerClaimsRemaining <= 0
                     ? "Claim limit reached"
                     : fulfillmentMethod === "home_delivery" &&
@@ -351,6 +360,10 @@ export default function BuyerCampaignDetailPage() {
       </article>
     </main>
   );
+}
+
+function isUpcoming(campaign: BuyerCampaign) {
+  return campaign.status === "published" && Boolean(campaign.startsAt) && new Date(campaign.startsAt!).getTime() > Date.now();
 }
 
 function Metric({ label, value }: { label: string; value: string }) {

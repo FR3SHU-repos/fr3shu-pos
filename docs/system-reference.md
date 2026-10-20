@@ -136,6 +136,14 @@ sale, and tender types. Money remains integer paise in transport; display
 converts it to rupees. Quantities are converted between sale units and backend
 base units by `shared/lib/units.ts`.
 
+Buyer campaign discovery requires an active buyer profile with a phone number
+and enabled platform location. A complete delivery address is not required to
+browse published offers; the Go API enforces it only when claiming a campaign
+whose fulfilment method is home delivery. Store-pickup and online-redemption
+offers remain discoverable without a delivery address. Published offers are
+also listed before their configured start time as upcoming offers; the buyer
+can view the details but the Go API blocks claiming until the start time.
+
 ## 6. Seller workflows
 
 ### Catalogue and stock
@@ -172,13 +180,25 @@ authority for stock, register state, authorization, and accounting.
 
 ### IndexedDB stores
 
-- Database `komola-offline-pos-v1`, schema version `2`.
-- Stores: `sales`, `outbox`, `contexts`, `meta`, and `heldCarts`.
+- Database `komola-offline-pos-v1`, schema version `3`.
+- Stores: `sales`, `outbox`, `contexts`, `meta`, `heldCarts`, and `readiness`.
 - Product snapshots use `komola-offline-products-v1` and the `catalogues` store.
+- Each complete product snapshot stores a deterministic content version,
+  effective timestamp, and pricing-policy version. Local barcode/SKU lookup
+  uses the saved snapshot without a network round trip.
 - Every record is scoped by user, organization, and location. Scope changes
   prevent one seller or tenant from reading another seller's local data.
 - Local cash checkout commits the sale, receipt number, cash/change, outbox
   entry, and receipt sequence atomically.
+- Each local sale preserves the catalogue snapshot version/effective time and
+  pricing-policy version alongside immutable line price, tax, unit, quantity,
+  and manual-discount values. The sync payload carries this evidence for the
+  later server-side stale-price/lot policy; it does not silently reprice the
+  local receipt.
+- Before local checkout, the browser must have an online preparation record for
+  the current user, organization, location, register and open shift. The Go
+  API issues a hashed, revocable 12-hour grant; the browser stores the
+  capability token in the scoped readiness record and sends it with sync.
 
 ### Synchronization
 
@@ -212,9 +232,10 @@ offline operation and the seller must repair or cancel it.
   sync attention, and authentication-required sync.
 - `PwaInstallPrompt` supports browser install prompts and iOS Add to Home
   Screen guidance, with dismissal persistence and standalone detection.
-- Logout sends `Clear-Site-Data` for cache/storage cleanup through the logout
-  route. Offline financial records must still be reviewed against the documented
-  account-switching and recovery policy before changing cleanup behavior.
+- Logout sends `Clear-Site-Data: "cache"` only. It deliberately does not clear
+  browser storage because scoped offline financial records may need explicit
+  recovery after logout; the active scope and local unlock are cleared by the
+  POS user context.
 
 ## 9. Configuration and deployment
 
@@ -227,6 +248,8 @@ offline operation and the seller must repair or cancel it.
 | `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` / anon aliases | Public Supabase browser key |
 | `NEXT_PUBLIC_SITE_URL`, `APP_URL` | Canonical site and auth redirect configuration |
 | `NEXT_PUBLIC_AUTH_GOOGLE_ENABLED` and KOMOLA alias | Google login UI flag |
+| `NEXT_PUBLIC_OFFLINE_POS_PILOT_ENABLED` | Enables offline cash sales for pilot builds; defaults to disabled |
+| `NEXT_PUBLIC_OFFLINE_POS_PILOT_ORG_IDS`, `...LOCATION_IDS`, `...REGISTER_IDS`, `...TERMINAL_IDS` | Optional comma-separated offline pilot allowlists |
 
 Netlify builds the Next app using the repository scripts. No database migration
 runs from this repository. Apply backend migrations from `go-api-backend`, then

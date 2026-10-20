@@ -29,11 +29,11 @@ export function OfflineCatalogue() {
       if (active) setSnapshot(saved);
     };
     let syncing = false;
-    const sync = async () => {
+    const sync = async (force = revision > 0) => {
       if (syncing || !active) return;
       syncing = true;
       if (active) { setBusy(true); setError(""); }
-      const ok = await syncOfflineProducts(controller.signal);
+      const ok = await syncOfflineProducts(controller.signal, { force });
       syncing = false;
       if (active) {
         await read();
@@ -44,14 +44,14 @@ export function OfflineCatalogue() {
     const connection = () => {
       setOffline(isOffline());
       if (isOffline()) setOpen(true);
-      else void sync();
+      else void sync(true);
     };
     void Promise.resolve().then(() => {
       if (!active) return;
       setSnapshot(null);
       void read();
       setOffline(isOffline());
-      if (!isOffline()) void sync();
+      if (!isOffline()) void sync(revision > 0);
       else setOpen(true);
     });
     window.addEventListener("online", connection);
@@ -67,7 +67,7 @@ export function OfflineCatalogue() {
   const results = snapshot ? searchProducts(snapshot.items, { q: query, limit: 100 }).items : [];
   return <section className="mb-4 rounded-xl border border-border bg-surface-card p-3 text-sm">
     <div className="flex flex-wrap items-center justify-between gap-2">
-      <p role="status">{offline ? "Offline" : "Online"} · {busy ? "Saving products for offline use…" : snapshot ? `${snapshot.items.length} products saved · ${new Date(snapshot.savedAt).toLocaleString()}` : "No offline catalogue saved yet"}</p>
+      <p role="status">{offline ? "Offline" : "Online"} · {busy ? "Saving products for offline use…" : snapshot ? `${snapshot.items.length} products saved · ${new Date(snapshot.savedAt).toLocaleString()} · ${snapshot.snapshotVersion}` : "No offline catalogue saved yet"}</p>
       <div className="flex gap-3">
         <button type="button" className="font-semibold text-primary" onClick={() => setOpen(!open)} aria-expanded={open}>{open ? "Hide saved products" : "Browse saved products"}</button>
         <button type="button" disabled={offline || busy} className="font-semibold text-primary disabled:opacity-50" onClick={() => setRevision(v => v + 1)}>Sync products</button>
