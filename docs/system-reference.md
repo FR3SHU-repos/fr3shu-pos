@@ -150,14 +150,18 @@ can view the details but the Go API blocks claiming until the start time.
 
 - Product reads are organization-scoped and can be cached locally for offline
   browsing.
-- Product create/edit is online-only and requires the backend role policy.
+- Product creation and stock receipts are queued locally when disconnected;
+  the Go API remains authoritative and receives those mutations after
+  reconnect. Product edits, archival, price changes, and other destructive
+  catalogue changes remain online-only.
 - The Go API owns SKU/barcode identity, prices, tax, availability, and stock
   correctness.
 - Product images are uploaded directly from the browser to the public-read
   Supabase Storage `product-images` bucket, using a category slug and UUID;
   the resulting URL is sent to the Go API.
-- Stock receipt, inventory adjustment, product archival, and price changes are
-  server operations; they are not fabricated as offline mutations.
+- Offline stock receipts update the local catalogue immediately and later
+  become server inventory lots. If an offline sale exceeds server stock, the
+  API records a separate `pending_review` offline stock adjustment.
 
 ### Register and sale
 
@@ -195,17 +199,19 @@ authority for stock, register state, authorization, and accounting.
   and manual-discount values. The sync payload carries this evidence for the
   later server-side stale-price/lot policy; it does not silently reprice the
   local receipt.
-- Before local checkout, the browser must have an online preparation record for
-  the current user, organization, location, register and open shift. The Go
-  API issues a hashed, revocable 12-hour grant; the browser stores the
-  capability token in the scoped readiness record and sends it with sync.
+- Local checkout uses the cached signed-in workspace, register/session context,
+  and saved catalogue. It does not require the seller to prepare offline mode
+  online first. Product creation and stock receipts can also be queued locally
+  and synchronized after reconnect. Previous readiness/grant fields remain
+  optional for backward-compatible sync of older records.
 
 ### Synchronization
 
 - `OfflineSalesSyncWorker` runs on workspace mount, online transitions, local
   sale changes, and every 30 seconds.
-- It refreshes the product snapshot, rechecks previously blocked stock rows,
-  claims at most 10 outbox operations with a lease, and posts them to
+- It first uploads queued product creations and stock receipts, refreshes the
+  product snapshot, rechecks previously blocked stock rows, claims at most 10
+  outbox operations with a lease, and posts them to
   `POST /api/v1/pos/sync/sales`.
 - Upload outcomes are accepted, already accepted, retry, or rejected. Rejected
   rows become actionable blocked records; auth failures become `auth_required`.
@@ -216,8 +222,10 @@ authority for stock, register state, authorization, and accounting.
   records, open local receipts, export JSON backup, and clean old synced data.
 
 Offline does not promise shared multi-device stock correctness. A second device
-may consume stock before the first device reconnects; the server can reject the
-offline operation and the seller must repair or cancel it.
+may consume stock before the first device reconnects. The sale remains
+recorded; any quantity unavailable on the server is represented by a separate
+stock-adjustment record for manager review instead of silently dropping the
+transaction.
 
 ## 8. PWA and caching
 
@@ -248,7 +256,7 @@ offline operation and the seller must repair or cancel it.
 | `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` / anon aliases | Public Supabase browser key |
 | `NEXT_PUBLIC_SITE_URL`, `APP_URL` | Canonical site and auth redirect configuration |
 | `NEXT_PUBLIC_AUTH_GOOGLE_ENABLED` and KOMOLA alias | Google login UI flag |
-| `NEXT_PUBLIC_OFFLINE_POS_PILOT_ENABLED` | Enables offline cash sales for pilot builds; defaults to disabled |
+| `NEXT_PUBLIC_OFFLINE_POS_PILOT_ENABLED` | Legacy deployment control for pilot builds; current local checkout does not require it |
 | `NEXT_PUBLIC_OFFLINE_POS_PILOT_ORG_IDS`, `...LOCATION_IDS`, `...REGISTER_IDS`, `...TERMINAL_IDS` | Optional comma-separated offline pilot allowlists |
 
 Netlify builds the Next app using the repository scripts. No database migration

@@ -132,7 +132,7 @@ describe("offline cash sales", () => {
     expect(await listPendingOfflineSales(scope)).toEqual([]);
   });
 
-  it("blocks a local sale when the preparation grant has expired", async () => {
+  it("continues recording locally when a previous preparation grant has expired", async () => {
     await saveOfflineReadiness(scope, {
       deviceId: "device-1",
       grantId: "grant-expired",
@@ -145,7 +145,7 @@ describe("offline cash sales", () => {
       preparedAt: Date.now(),
       storage: { status: "ready", persisted: false, checkedAt: Date.now() },
     });
-    await expect(commitOfflineCashSale({
+    const sale = await commitOfflineCashSale({
       scope,
       session,
       cashierId: "cashier-1",
@@ -153,7 +153,9 @@ describe("offline cash sales", () => {
       cashReceivedPaise: 10000,
       customerName: "Asha",
       operationId: "expired-grant-op",
-    })).rejects.toThrow("Offline authorization has expired");
+    });
+    expect(sale.syncState).toBe("pending");
+    expect(sale.offlineGrantToken).toBe("grant-token-expired");
   });
 
   it("atomically persists the sale, outbox, and receipt sequence", async () => {
@@ -329,9 +331,8 @@ describe("offline cash sales", () => {
     expect(localStockDeductions([sale])["sku-1"]).toBeUndefined();
   });
 
-  it("rejects overselling after prior local offline sales", () => {
-    expect(() =>
-      buildOfflineSaleRecord(
+  it("allows overselling locally for later server reconciliation", () => {
+    const sale = buildOfflineSaleRecord(
         {
           scope,
           session,
@@ -343,8 +344,9 @@ describe("offline cash sales", () => {
         2,
         new Date("2026-09-13T06:30:00.000Z"),
         { "sku-1": 1500 },
-      ),
-    ).toThrow("Tomato does not have enough offline stock.");
+      );
+    expect(sale.lines[0].qty).toBe(4);
+    expect(sale.syncState).toBe("pending");
   });
   it("repairs a blocked sale by reducing quantity and recalculating cash totals", () => {
     const sale = buildOfflineSaleRecord(

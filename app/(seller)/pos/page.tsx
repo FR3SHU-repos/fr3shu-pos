@@ -251,23 +251,24 @@ export default function PosPage() {
   }, [qrAmountPaise, store]);
 
   function addProduct(p: ProductDTO) {
+    const offline = typeof navigator !== "undefined" && !navigator.onLine;
     setLines((prev) => {
       const idx = prev.findIndex((l) => l.product._id === p._id);
       if (idx >= 0) {
         const copy = [...prev];
-        const next = clampQuantityToStock(copy[idx].qty + 1, copy[idx].saleUnit, p.availableBase);
-        if (next === copy[idx].qty) {
+        const next = offline ? copy[idx].qty + 1 : clampQuantityToStock(copy[idx].qty + 1, copy[idx].saleUnit, p.availableBase);
+        if (!offline && next === copy[idx].qty) {
           toast.error("No more stock is available for this product");
           return prev;
         }
         copy[idx] = { ...copy[idx], qty: next };
         return copy;
       }
-      if (p.availableBase <= 0) {
+      if (!offline && p.availableBase <= 0) {
         toast.error("This product is out of stock");
         return prev;
       }
-      const initialQty = clampQuantityToStock(1, p.saleUnit, p.availableBase);
+      const initialQty = offline ? 1 : clampQuantityToStock(1, p.saleUnit, p.availableBase);
       return [
         ...prev,
         {
@@ -294,12 +295,14 @@ export default function PosPage() {
   }
 
   function setQty(key: string, qty: number) {
+    const offline = typeof navigator !== "undefined" && !navigator.onLine;
     setLines((prev) =>
-      prev.map((l) => (l.key === key ? { ...l, qty: clampQuantityToStock(qty, l.saleUnit, l.product.availableBase) } : l)),
+      prev.map((l) => (l.key === key ? { ...l, qty: offline ? Math.max(0, qty) : clampQuantityToStock(qty, l.saleUnit, l.product.availableBase) } : l)),
     );
   }
   function setUnit(key: string, unit: SaleUnit) {
-    setLines((prev) => prev.map((l) => (l.key === key ? { ...l, saleUnit: unit, qty: clampQuantityToStock(l.qty, unit, l.product.availableBase) } : l)));
+    const offline = typeof navigator !== "undefined" && !navigator.onLine;
+    setLines((prev) => prev.map((l) => (l.key === key ? { ...l, saleUnit: unit, qty: offline ? l.qty : clampQuantityToStock(l.qty, unit, l.product.availableBase) } : l)));
   }
   function removeLine(key: string) {
     setLines((prev) => prev.filter((l) => l.key !== key));

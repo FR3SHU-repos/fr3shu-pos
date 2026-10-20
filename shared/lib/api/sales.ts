@@ -155,6 +155,15 @@ export interface OfflineSaleSyncResult {
   reason?: string;
   sale?: GoSale;
   inventoryCursor?: string;
+  stockAdjustments?: Array<{
+    id: string;
+    saleId: string;
+    operationId: string;
+    skuId: string;
+    productName?: string;
+    shortfallQuantity: string;
+    status: string;
+  }>;
 }
 
 function automaticSyncMessage(reason?: string): string {
@@ -281,10 +290,13 @@ export async function syncPendingOfflineSales(scope: OfflineScope): Promise<{
   const accepted: Array<{ operationId: string; message: string; serverSaleId?: string; serverReceiptNo?: string; serverInventoryCursor?: string }> = [];
   for (const result of res.data.results ?? []) {
     if (result.outcome === "accepted" || result.outcome === "already_accepted") {
+      const adjustmentMessage = result.stockAdjustments?.length
+        ? ` ${result.stockAdjustments.length} stock adjustment${result.stockAdjustments.length === 1 ? "" : "s"} require review.`
+        : "";
       if (await markOfflineSaleSyncState(scope, result.operationId, "synced", {
         message: result.sale?.receiptNo
-          ? `Synced to the server as ${result.sale.receiptNo}.`
-          : result.outcome === "already_accepted" ? "Already accepted by the server." : "Synced to the server.",
+          ? `Synced to the server as ${result.sale.receiptNo}.${adjustmentMessage}`
+          : result.outcome === "already_accepted" ? `Already accepted by the server.${adjustmentMessage}` : `Synced to the server.${adjustmentMessage}`,
         serverSaleId: result.sale?.id,
         serverReceiptNo: result.sale?.receiptNo,
         serverInventoryCursor: result.inventoryCursor,
@@ -292,8 +304,8 @@ export async function syncPendingOfflineSales(scope: OfflineScope): Promise<{
       accepted.push({
         operationId: result.operationId,
         message: result.sale?.receiptNo
-          ? `Synced to the server as ${result.sale.receiptNo}.`
-          : result.outcome === "already_accepted" ? "Already accepted by the server." : "Synced to the server.",
+          ? `Synced to the server as ${result.sale.receiptNo}.${adjustmentMessage}`
+          : result.outcome === "already_accepted" ? `Already accepted by the server.${adjustmentMessage}` : `Synced to the server.${adjustmentMessage}`,
         serverSaleId: result.sale?.id,
         serverReceiptNo: result.sale?.receiptNo,
         serverInventoryCursor: result.inventoryCursor,

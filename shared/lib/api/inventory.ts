@@ -1,5 +1,6 @@
 import { goRequest, type ApiResult } from "./client";
 import { unitFactor } from "./_map";
+import { isOffline, readProducts } from "../offline/products";
 
 export interface InventoryBalanceDTO {
   _id: string;
@@ -10,6 +11,21 @@ export interface InventoryBalanceDTO {
   saleUnit?: string;
   availableBase: number;
   expiryDate?: string;
+}
+
+export interface OfflineStockAdjustmentDTO {
+  id: string;
+  saleId: string;
+  operationId: string;
+  skuId: string;
+  productName?: string;
+  serverQuantityBefore: number;
+  requestedQuantity: number;
+  allocatedQuantity: number;
+  shortfallQuantity: number;
+  inventoryCursor: string;
+  status: string;
+  createdAt: string;
 }
 
 interface GoInvRow {
@@ -27,6 +43,21 @@ export const list = async (params?: {
   productId?: string;
   locationId?: string;
 }): Promise<ApiResult<{ items: InventoryBalanceDTO[] }>> => {
+  if (isOffline()) {
+    const snapshot = await readProducts();
+    if (!snapshot) return { success: false, data: null, status: 0, code: "offline_unavailable", message: "No saved stock data is available on this device." };
+    const items = snapshot.items.flatMap((product) => (product.lots ?? []).map((lot) => ({
+      _id: `${product._id}:${lot.lotId}`,
+      productId: product._id,
+      productName: product.name,
+      lotId: lot.lotId,
+      lotCode: lot.lotCode,
+      saleUnit: product.saleUnit,
+      availableBase: Math.round(lot.qty * product.basePerSaleUnit),
+      expiryDate: lot.expiresAt,
+    })));
+    return { success: true, data: { items }, status: 200, code: "offline_cache", message: "Showing stock saved on this device." };
+  }
   const res = await goRequest<{ items: GoInvRow[] }>("inventory", {
     query: { skuId: params?.productId },
   });
@@ -49,3 +80,6 @@ export const list = async (params?: {
   }
   return { ...res, data: { items } };
 };
+
+export const offlineAdjustments = (): Promise<ApiResult<{ items: OfflineStockAdjustmentDTO[] }>> =>
+  goRequest<{ items: OfflineStockAdjustmentDTO[] }>("inventory/offline-adjustments");

@@ -3,7 +3,25 @@
 Verified 2026-10-20 from the frontend, service worker, Go API, OpenAPI
 contract, and offline tests.
 
+## Current offline policy (2026-10-20)
+
+The seller workflow is not gated by an online “prepare offline mode” step. If
+connectivity drops, the POS continues recording cash sales from the saved
+catalogue. Products and stock receipts can also be created while disconnected;
+they are stored in a scoped local mutation queue and uploaded after reconnect.
+
+Offline sales may exceed the last locally known stock. The server consumes any
+available lots and records the remaining quantity in
+`pos.offline_stock_adjustments` with `pending_review` status. Sellers can see
+these records from the Stock page after sync. The previous readiness/grant
+fields remain for backward-compatible older clients, but are optional for new
+local transactions.
+
 ## Phase implementation history
+
+This table records the earlier phased rollout. The current policy above is the
+authoritative behavior for new offline work; the old readiness/pilot gate is
+retained only for compatibility and operational reference.
 
 | Phase | Delivered outcome |
 | --- | --- |
@@ -44,10 +62,9 @@ on real devices or production-like networks.
   `komola-offline-products-v1` database. Records are scoped by user,
   organization, and location.
 - No local PIN is required. Offline access remains bound to the signed-in
-  workspace scope, the prepared register/shift, the device identity, storage
-  readiness, and the expiring server-issued grant. Logout and account
-  switching clear the active scope; the server grant remains the authority
-  when queued sales synchronize.
+  workspace scope and cached register/session context. Logout and account
+  switching clear the active scope; the server remains the authority when
+  queued records synchronize.
 - Automatic sync runs on workspace mount, online transitions, local sale
   changes, and a 30-second interval. It first checks the scoped local outbox;
   an idle terminal makes no catalogue or sync request. When local work exists,
@@ -56,15 +73,14 @@ on real devices or production-like networks.
 - The seller shell exposes online/offline, server-unavailable, pending-sync,
   authentication-required, and service-worker-update states. It never caches
   personalized POS HTML or API/auth responses in the service worker.
-- Phase 1 readiness is now implemented: the seller can prepare an open
-  register online, save a complete product snapshot, request persistent
-  browser storage, and receive a server-issued 12-hour offline grant.
-- Offline grants are stored server-side as hashes, are bound to the tenant,
-  seller, register, terminal and open shift, and can be revoked by a manager.
-  Offline sync validates the grant before accepting each sale.
-- New offline sales are blocked until the local readiness record matches the
-  current open shift, the grant is unexpired, and local storage is not unsafe.
-  The IndexedDB database is now schema version 3 and adds a readiness store.
+- Legacy Phase 1 readiness remains implemented for older clients: a seller can
+  prepare an open register online, save a complete product snapshot, request
+  persistent browser storage, and receive a server-issued 12-hour offline
+  grant. Current local checkout does not depend on this step.
+- Older offline grants are still stored server-side as hashes and can be
+  revoked by a manager. Grant-bearing legacy uploads remain supported, while
+  new local sales do not require one. The IndexedDB database remains schema
+  version 3 and retains the readiness store for compatibility.
 - Phase 2 local checkout metadata is now implemented: each complete catalogue
   snapshot has a content version, effective time, and pricing-policy version;
   each locally completed sale copies those values into its immutable record and
@@ -96,11 +112,9 @@ on real devices or production-like networks.
   catalogue refresh count and response bytes, sync count and latency, retry
   count, and sync upload bytes are available in browser session storage. They
   are intentionally not sent to a server yet.
-- Phase 6 pilot controls are now implemented: offline cash sales are disabled
-  by default outside tests and can be enabled only through the explicit
-  `NEXT_PUBLIC_OFFLINE_POS_PILOT_ENABLED` flag. Optional organization,
-  location, register, and terminal allowlists narrow the rollout further.
-  The gate is checked both during preparation and at local sale commit.
+- The previous phase-6 pilot gate is no longer used by local checkout. Rollout
+  controls should be applied through deployment, support, and monitoring
+  procedures rather than a checkout blocker.
 - `docs/OFFLINE-PILOT-PLAYBOOK.md` documents deployment setup, the five-sale
   acceptance run, stop conditions, and the online-only payment boundaries.
 - Offline catalogue responses now carry a location inventory cursor and active
@@ -134,7 +148,7 @@ first-release acceptance criteria:
 | Security | Physical verification of account-switching, logout, and grant-expiry behavior | Required before treating a disconnected reopened device as fully authorized |
 | Reconciliation | Physical verification of lot/cursor evidence under stock changes | Required before claiming complete multi-terminal stock and lot guarantees |
 | Resilience | Physical service-worker upgrade/eviction checks and the full failure matrix | Required before broad rollout |
-| Product scope | Keep UPI/card/split payments, refunds/voids, reward redemption, product edits, inventory edits, and new authentication online-only | No blocker for the current cash-only pilot; blocker for expanding offline scope |
+| Product scope | Keep UPI/card/split payments, refunds/voids, reward redemption, product edits, price changes, inventory corrections, and new authentication online-only; allow product creation and stock receipts offline | No blocker for the current cash-only pilot; blocker for expanding the remaining offline scope |
 | Verification | Execute the Android/iPhone/desktop matrix, low-end-device performance, printing, storage denial/eviction, restart, reconnect, and five-sale reconciliation | Required before enabling the pilot outside test builds |
 | Operations | Use the rollback/cache-busting, support, and incident procedures in the operations runbook and record pilot results | Required for controlled rollout and incident response |
 
@@ -142,16 +156,18 @@ first-release acceptance criteria:
 
 The supplied offline-POS references establish the product expectation: an
 outage should be a controlled change of connectivity state, not a change in
-the cashier's workflow. A prepared terminal should continue scanning or
-searching products, building carts, calculating the approved local price/tax
-rules, recording eligible payment, attributing the sale to the signed-in
-operator, and producing a local receipt. When connectivity returns, the
-terminal should upload automatically in order, without manual re-entry, while
-clearly separating “saved on this device” from “accepted by the server.”
+the cashier's workflow. A terminal with a cached workspace and saved data
+should continue scanning or searching products, building carts, calculating
+the approved local price/tax rules, recording eligible payment, attributing
+the sale to the signed-in operator, and producing a local receipt. When
+connectivity returns, the terminal should upload automatically in order,
+without manual re-entry, while clearly separating “saved on this device” from
+“accepted by the server.”
 
 This is the target behavior for KOMOLA, not a claim that the current build
 already meets every point. KOMOLA's first release remains intentionally
-cash-only offline; UPI/card/split payments, product edits, inventory changes,
+cash-only offline. Product creation and stock receipts are also supported
+offline through the local mutation queue. Product edits, price changes,
 returns/voids, rewards redemption, and new authentication remain online-only
 until their own correctness and authorization policies exist.
 
@@ -160,18 +176,17 @@ until their own correctness and authorization policies exist.
 The work should be delivered in these phases, with each phase verified before
 offline sales are enabled more broadly.
 
-### A. Prepare and authorize the terminal
+### A. Prepare and authorize the terminal (legacy compatibility)
 
-- Implemented: explicit online preparation for a seller, register, open shift,
-  saved catalogue, and bounded offline capability grant.
+- Legacy support: explicit online preparation for a seller, register, open
+  shift, saved catalogue, and bounded offline capability grant.
 - Implemented: grant hashes are persisted server-side with expiry and manager
   revocation; raw grant tokens are returned only to the prepared browser and
   are never logged.
-- Show a readiness checklist: last catalogue sync, register/shift, storage
-  availability, authorization expiry, pending records, and device scope.
-- The seller shell now shows the preparation state and blocks new offline sales
-  when preparation is incomplete, authorization has expired, storage is unsafe,
-  or the register/shift context does not match.
+- Show readiness diagnostics when useful: last catalogue sync,
+  register/shift, storage availability, pending records, and device scope.
+- The seller shell may show preparation state for diagnostics, but current
+  local checkout does not block on preparation, a grant, or a pilot flag.
 - Persistent storage is requested on preparation and quota headroom is checked.
 - No local PIN is required after a browser restart. The signed-in workspace,
   scoped offline records, prepared register/shift, device identity, and
@@ -249,8 +264,8 @@ must remain available even if synchronization is delayed.
 
 ### F. Pilot before general rollout
 
-- Implemented: enable offline sales behind the explicit pilot flag and narrow
-  organization/location/register/terminal allowlists.
+- Historical pilot controls remain available for deployment operations, but
+  they are no longer a customer-facing prerequisite for local checkout.
 - Pilot one device per register with a known supported browser/device matrix.
 - Run the five-sale acceptance flow from the offline proposal, including
   change, receipt reprint, browser restart, reconnect, and exact server-side
@@ -270,9 +285,11 @@ authorization, and reconciliation behavior are defined and tested.
 
 ## Explicitly online-only for the first release
 
-UPI/card/split payments, product and price edits, receiving/adjustments,
-returns/voids, reward redemption, new login/password recovery, and automatic
-message delivery remain online-only. Multi-terminal shared-stock guarantees,
+UPI/card/split payments, product and price edits, returns/voids, reward
+redemption, new login/password recovery, and automatic message delivery
+remain online-only. Offline product creation and stock receipts are supported;
+when an offline sale exceeds server stock, the resulting adjustment requires
+manager review after synchronization. Multi-terminal shared-stock guarantees,
 customer identity linking, and reward confirmation require later policy and
 server work.
 

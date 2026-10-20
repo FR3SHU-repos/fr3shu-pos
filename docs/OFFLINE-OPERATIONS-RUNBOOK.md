@@ -2,19 +2,21 @@
 
 ## Rollout
 
-1. Keep `NEXT_PUBLIC_OFFLINE_POS_PILOT_ENABLED=false` in normal builds.
-2. Enable it only for the narrowest organization/location/register/terminal
-   allowlist after the device matrix and five-sale acceptance run pass.
+1. Use deployment allowlists or a separate pilot deployment if operational
+   rollout control is needed; the old pilot flag is not required for local
+   checkout in the current build.
+2. Complete the device matrix and five-sale acceptance run before broadening
+   the supported device scope.
 3. Changing `NEXT_PUBLIC_*` values requires a new deployment because they are
    compiled into the browser bundle.
-4. Prepare the register online, verify the storage state, catalogue timestamp,
-   inventory cursor, shift, device scope, and grant expiry before disconnecting.
+4. Before disconnecting, verify the saved catalogue, storage state, inventory
+   cursor, and intended account/location scope. Do not require a separate
+   offline-preparation action from the seller.
 
 ## Rollback and cache busting
 
-- First disable the pilot flag and redeploy. This stops new offline
-  preparations and local commits for the affected scope; it does not erase
-  pending receipts.
+- Pause the affected deployment or narrow its rollout controls and redeploy.
+  This does not erase pending receipts or locally committed sales.
 - If a broken POS shell is deployed, publish the previous known-good build and
   increment the service-worker cache name in `public/sw.js`. Keep the old
   IndexedDB stores; never delete `sales` or `outbox` as a cache cleanup.
@@ -22,7 +24,7 @@
   visible Sync/Review actions. Do not clear browser storage until support has
   confirmed that the export and server reconciliation are complete.
 - A server rollback must preserve the offline sync endpoint, idempotency keys,
-  grant tables, and response outcome contract. Database migrations are not
+  grant tables for legacy clients, and response outcome contract. Database migrations are not
   rolled back from this client runbook.
 
 ## Support procedure
@@ -50,11 +52,11 @@ the server already accepted the operation.
 - **Needs review / inventory conflict:** keep the receipt, export it, and
   reconcile stock/lot evidence before repair or cancellation.
 - **Authentication or scope error:** sign in to the intended account and
-  confirm the register, location, and grant scope; never switch accounts while
+  confirm the register and location scope; never switch accounts while
   unresolved records are being reviewed.
-- **Storage full/evicted:** stop accepting offline sales, export what remains,
-  free storage, prepare again online, and document any records that were not
-  recoverable.
+- **Storage full/evicted:** stop accepting offline writes, export what remains,
+  free storage, reconnect and resave the catalogue, and document any records
+  that were not recoverable.
 
 ## Pilot closeout
 

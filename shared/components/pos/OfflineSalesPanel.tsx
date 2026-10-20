@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent } f
 import { AlertCircle, Clock3, Printer, ReceiptText, RefreshCw, Upload, X } from "lucide-react";
 import toast from "react-hot-toast";
 import { usePosUser } from "@/shared/context/PosUserContext";
-import { salesApi } from "@/shared/lib/api";
+import { productsApi, salesApi } from "@/shared/lib/api";
 import { formatPaise } from "@/shared/lib/money";
 import {
   cancelOfflineSale,
@@ -24,6 +24,7 @@ import { StatusBadge, ghostBtnCls, primaryBtnCls } from "@/shared/components/ui"
 import { ReceiptView } from "@/shared/components/pos/ReceiptView";
 import { OFFLINE_SALES_SYNC_EVENT, offlineSalesLastSyncKey, type OfflineSalesSyncDetail } from "@/shared/components/pos/OfflineSalesSyncWorker";
 import { printReceipt } from "@/shared/lib/offline/receipt-print";
+import { syncOfflineMutations } from "@/shared/lib/offline/mutations";
 
 const STATUS_LABEL: Record<OfflineSaleSyncState, string> = {
   pending: "waiting",
@@ -94,11 +95,13 @@ export function OfflineSalesPanel() {
     }
     setSyncing(true);
     setMessage("Syncing offline sales...");
+    const mutations = await syncOfflineMutations();
+    if (mutations.synced > 0) await productsApi.refreshOfflineProducts(undefined, { force: true });
     const result = await salesApi.syncPendingOfflineSales(scope);
     const syncAt = new Date().toISOString();
     try {
       if (result.synced > 0 || result.attempted > 0) localStorage.setItem(offlineSalesLastSyncKey(scope), syncAt);
-      window.dispatchEvent(new CustomEvent<OfflineSalesSyncDetail>(OFFLINE_SALES_SYNC_EVENT, { detail: { ...result, at: syncAt, automatic: false } }));
+      window.dispatchEvent(new CustomEvent<OfflineSalesSyncDetail>(OFFLINE_SALES_SYNC_EVENT, { detail: { ...result, at: syncAt, automatic: false, message: mutations.messages.join(" ") || result.message } }));
     } catch {
       /* best effort status update */
     }
@@ -106,7 +109,11 @@ export function OfflineSalesPanel() {
     await refresh();
     const latestSales = await listOfflineSales(scope);
     const hasBlockedSale = latestSales.some((sale) => sale.syncState === "blocked" || sale.syncState === "needs_review");
-    if (result.attempted === 0 && hasBlockedSale) {
+    if (result.attempted === 0 && mutations.synced > 0) {
+      setOpen(false);
+      setMessage(`${mutations.synced} offline change${mutations.synced === 1 ? "" : "s"} synced.`);
+      toast.success(`${mutations.synced} offline change${mutations.synced === 1 ? "" : "s"} synced`);
+    } else if (result.attempted === 0 && hasBlockedSale) {
       setOpen(true);
       setMessage("Blocked sales are paused. Open the sale and tap Try again to run automatic checks again.");
     } else if (result.attempted === 0) {

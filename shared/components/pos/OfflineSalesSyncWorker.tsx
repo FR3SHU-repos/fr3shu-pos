@@ -3,9 +3,10 @@
 import { useCallback, useEffect, useMemo, useRef } from "react";
 import toast from "react-hot-toast";
 import { usePosUser } from "@/shared/context/PosUserContext";
-import { salesApi } from "@/shared/lib/api";
+import { productsApi, salesApi } from "@/shared/lib/api";
 import { cleanupOfflineSales, type OfflineScope } from "@/shared/lib/offline/sales";
 import { cleanupExpiredHeldCarts } from "@/shared/lib/offline/held-carts";
+import { syncOfflineMutations } from "@/shared/lib/offline/mutations";
 
 const SYNC_INTERVAL_MS = 30_000;
 const LAST_SYNC_KEY_PREFIX = "komola:offline-sales:last-sync:";
@@ -45,9 +46,11 @@ export function OfflineSalesSyncWorker() {
     if (typeof navigator !== "undefined" && !navigator.onLine) return;
     syncingRef.current = true;
     try {
+      const mutations = await syncOfflineMutations();
+      if (mutations.synced > 0) await productsApi.refreshOfflineProducts(undefined, { force: true });
       const result = await salesApi.syncPendingOfflineSales(scope);
       if (result.synced > 0) await cleanupOfflineSales(scope, 0);
-      const detail: OfflineSalesSyncDetail = { ...result, at: new Date().toISOString(), automatic };
+      const detail: OfflineSalesSyncDetail = { ...result, at: new Date().toISOString(), automatic, message: mutations.messages.join(" ") || result.message };
       if (typeof window !== "undefined") {
         if (result.synced > 0 || result.attempted > 0) {
           localStorage.setItem(offlineSalesLastSyncKey(scope), detail.at);
@@ -56,6 +59,7 @@ export function OfflineSalesSyncWorker() {
       }
       if (!automatic) return;
       if (result.synced > 0) toast.success(`${result.synced} offline sale${result.synced === 1 ? "" : "s"} completed`);
+      if (mutations.synced > 0 && result.synced === 0) toast.success(`${mutations.synced} offline change${mutations.synced === 1 ? "" : "s"} synced`);
     } finally {
       syncingRef.current = false;
     }
