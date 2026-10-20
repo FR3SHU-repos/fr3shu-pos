@@ -2,20 +2,20 @@ import React from "react";
 import { cx } from "@/shared/lib/utils";
 
 export const inputCls =
-  "w-full rounded-xl border border-border bg-surface px-4 py-2.5 text-sm " +
-  "text-foreground-heading placeholder:text-foreground-muted " +
+  "w-full rounded-[14px] border border-border bg-surface-card px-4 py-3 text-sm " +
+  "text-foreground-body placeholder:text-foreground-muted " +
   "focus:outline-none focus:ring-2 focus:ring-primary/30 transition";
 
-export const cardCls = "rounded-2xl border border-border bg-surface-card p-5";
+export const cardCls = "rounded-[26px] border border-border bg-surface-card p-5";
 
 export const primaryBtnCls =
-  "inline-flex items-center justify-center gap-2 rounded-xl bg-primary px-5 py-2.5 " +
+  "inline-flex items-center justify-center gap-2 rounded-full bg-primary px-5 py-3 " +
   "text-sm font-semibold text-primary-foreground hover:bg-primary-hover transition " +
   "disabled:opacity-50 disabled:pointer-events-none min-h-11";
 
 export const ghostBtnCls =
-  "inline-flex items-center justify-center gap-2 rounded-xl border border-border " +
-  "bg-surface-card px-4 py-2.5 text-sm font-medium text-foreground-body hover:bg-surface " +
+  "inline-flex items-center justify-center gap-2 rounded-full border border-border " +
+  "bg-surface-card px-4 py-3 text-sm font-medium text-foreground-body hover:bg-surface " +
   "transition disabled:opacity-50 min-h-11";
 
 const STATUS_COLORS: Record<string, string> = {

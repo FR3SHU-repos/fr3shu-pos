@@ -12,6 +12,9 @@ import { formatPaise } from "@/shared/lib/money";
 import { listOfflineSales, type OfflineSaleRecord, type OfflineScope } from "@/shared/lib/offline/sales";
 import { mergeSalesWithOffline, pendingOfflineCashTotal } from "@/shared/lib/offline/session-summary";
 import { KomoEmptyState, KomoMessage } from "@/shared/components/mascot";
+import { OfflineReadinessPanel } from "@/shared/components/pos/OfflineReadinessPanel";
+import { OfflineSalesPanel } from "@/shared/components/pos/OfflineSalesPanel";
+import { PwaInstallPrompt } from "@/shared/components/PwaInstallPrompt";
 
 export default function DashboardPage() {
   const { user } = usePosUser();
@@ -56,12 +59,13 @@ export default function DashboardPage() {
 
   return (
     <div className="mx-auto max-w-5xl space-y-6">
-      <header className="flex flex-wrap items-center justify-between gap-3">
+      <header className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="text-xl font-semibold text-foreground-heading">
+          <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-primary">Seller workspace</p>
+          <h1 className="mt-1 text-3xl font-black tracking-[-0.04em] text-foreground">
             Good day{user ? `, ${user.name.split(" ")[0]}` : ""}
           </h1>
-          <p className="text-sm text-foreground-muted">
+          <p className="mt-1 text-sm text-foreground-muted">
             {session ? "Register session is open" : "No open register session"}
           </p>
         </div>
@@ -72,6 +76,28 @@ export default function DashboardPage() {
       </header>
 
       <KomoMessage action="wave" title="Ready for your first sale?" description="Komo is here to help you keep the counter moving." compact />
+
+      <section id="offline-tools" className={cardCls}>
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-primary">Device operations</p>
+            <h2 className="mt-1 text-xl font-bold tracking-[-0.02em] text-foreground">Offline tools</h2>
+            <p className="mt-1 max-w-2xl text-sm text-foreground-muted">Prepare this terminal, review saved products, and resolve queued sales when connectivity is limited.</p>
+          </div>
+          <span className="rounded-full bg-surface-muted px-3 py-1.5 text-xs font-semibold text-foreground-muted">Manage when needed</span>
+        </div>
+        <details className="mt-4 rounded-2xl border border-border bg-surface-muted p-3">
+          <summary className="flex min-h-11 cursor-pointer items-center justify-between gap-3 rounded-xl px-2 text-sm font-semibold text-foreground-body">
+            <span>Open offline readiness and queued sales</span>
+            <span className="text-xs font-medium text-foreground-muted">Terminal controls</span>
+          </summary>
+          <div className="mt-3 space-y-3">
+            <OfflineReadinessPanel />
+            <OfflineSalesPanel />
+            <PwaInstallPrompt />
+          </div>
+        </details>
+      </section>
 
       {loading ? (
         <SkeletonRows rows={3} />

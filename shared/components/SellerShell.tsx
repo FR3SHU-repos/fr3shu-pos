@@ -23,17 +23,14 @@ import { sellerDestination } from "@/shared/lib/api/sellerOrgs";
 import { Skeleton } from "@/shared/components/ui";
 
 import { OfflineCatalogue } from "@/shared/components/products/OfflineCatalogue";
-import { OfflineSalesPanel } from "@/shared/components/pos/OfflineSalesPanel";
 import { OfflineSalesSyncWorker } from "@/shared/components/pos/OfflineSalesSyncWorker";
-import { OfflineReadinessPanel } from "@/shared/components/pos/OfflineReadinessPanel";
-import { PwaInstallPrompt } from "@/shared/components/PwaInstallPrompt";
 import { PwaStatusBar } from "@/shared/components/PwaStatusBar";
 
 const NAV = [
-  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/pos", label: "Point of Sale", icon: ScanBarcode },
-  { href: "/pos/history", label: "Sales history", icon: ReceiptText },
-  { href: "/register-sessions", label: "Register sessions", icon: Calculator },
+  { href: "/dashboard", label: "Today", icon: LayoutDashboard },
+  { href: "/pos", label: "Sell", icon: ScanBarcode },
+  { href: "/pos/history", label: "Sales", icon: ReceiptText },
+  { href: "/register-sessions", label: "Register", icon: Calculator },
   { href: "/products", label: "Products", icon: Package },
   { href: "/stock", label: "Stock", icon: Boxes },
   { href: "/settings", label: "Settings", icon: Settings },
@@ -83,10 +80,10 @@ export default function SellerShell({ children }: { children: React.ReactNode })
             key={href}
             href={href}
             className={cx(
-              "flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition min-h-11",
+              "flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold transition min-h-11",
               active
-                ? "bg-primary text-primary-foreground"
-                : "text-foreground-body hover:bg-surface",
+                ? "bg-foreground text-white shadow-sm"
+                : "text-foreground-body hover:bg-surface-muted",
             )}
           >
             <Icon className="h-5 w-5 shrink-0" />
@@ -101,27 +98,30 @@ export default function SellerShell({ children }: { children: React.ReactNode })
     <div className="flex min-h-screen bg-background">
       {/* Desktop sidebar */}
       <aside className="hidden w-64 shrink-0 flex-col border-r border-border bg-surface-card p-4 lg:flex">
-        <Brand />
-        <div className="mt-6 flex-1">{nav}</div>
+        <div className="rounded-2xl bg-surface-muted p-3">
+          <Brand />
+          <p className="mt-2 text-xs text-foreground-muted">Seller workspace</p>
+        </div>
+        <div className="mt-5 flex-1">{nav}</div>
         {user ? <UserFooter name={user.name} role={user.role} onLogout={handleLogout} /> : <Skeleton className="h-10 w-full" />}
       </aside>
 
       {/* Mobile top bar */}
       <div className="flex min-w-0 flex-1 flex-col">
         <header className="flex items-center justify-between border-b border-border bg-surface-card px-4 py-3 lg:hidden">
-          <span className="text-sm font-semibold text-foreground-heading">Seller workspace</span>
+          <Brand />
           <button
             type="button"
             aria-label="Toggle menu"
             onClick={() => setMobileOpen((v) => !v)}
-            className="rounded-lg p-2 text-foreground-body hover:bg-surface"
+            className="min-h-11 min-w-11 rounded-xl p-2 text-foreground-body hover:bg-surface-muted"
           >
             {mobileOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
           </button>
         </header>
 
         {mobileOpen ? (
-          <div className="border-b border-border bg-surface-card p-4 lg:hidden">
+          <div className="border-b border-border bg-surface-card p-4 shadow-sm lg:hidden">
             {nav}
             <div className="mt-4">
               {user ? <UserFooter name={user.name} role={user.role} onLogout={handleLogout} /> : <Skeleton className="h-10 w-full" />}
@@ -129,12 +129,9 @@ export default function SellerShell({ children }: { children: React.ReactNode })
           </div>
         ) : null}
 
-        <main className="min-w-0 flex-1 p-4 sm:p-6">
+        <main className="min-w-0 flex-1 bg-background p-4 sm:p-6 lg:p-8">
           {user ? <OfflineSalesSyncWorker key={`sales-sync:${user.id}:${user.orgId}:${user.locationId}`} /> : null}
-          {user ? <OfflineReadinessPanel key={`readiness:${user.id}:${user.orgId}:${user.locationId}`} /> : null}
-          {user ? <OfflineCatalogue key={`catalogue:${user.id}:${user.orgId}:${user.locationId}`} /> : null}
-          {user ? <OfflineSalesPanel key={`sales:${user.id}:${user.orgId}:${user.locationId}`} /> : null}
-          {user ? <PwaInstallPrompt /> : null}
+          {user ? <OfflineCatalogue key={`catalogue:${user.id}:${user.orgId}:${user.locationId}`} compact /> : null}
           {user ? <PwaStatusBar /> : null}
           {children}
         </main>
