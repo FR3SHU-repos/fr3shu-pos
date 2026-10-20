@@ -11,8 +11,7 @@ import {
   Package,
   Calculator,
   LogOut,
-  Menu,
-  X,
+  MoreHorizontal,
   Settings,
   HelpCircle,
 } from "lucide-react";
@@ -41,7 +40,7 @@ export default function SellerShell({ children }: { children: React.ReactNode })
   const { user, capabilities, organization, loading, logout } = usePosUser();
   const router = useRouter();
   const pathname = usePathname();
-  const [mobileOpen, setMobileOpen] = useState(false);
+  const [moreOpen, setMoreOpen] = useState(false);
 
   useEffect(() => {
     if (!loading && !user) router.replace("/login");
@@ -68,7 +67,7 @@ export default function SellerShell({ children }: { children: React.ReactNode })
   }, [capabilities, loading, organization, pathname, router, user]);
 
   useEffect(() => {
-    setMobileOpen(false);
+    setMoreOpen(false);
   }, [pathname]);
 
   const nav = (
@@ -94,6 +93,9 @@ export default function SellerShell({ children }: { children: React.ReactNode })
     </nav>
   );
 
+  const mobilePrimaryNav = NAV.slice(0, 4);
+  const mobileMoreNav = NAV.slice(4);
+
   return (
     <div className="flex min-h-screen bg-background">
       {/* Desktop sidebar */}
@@ -106,35 +108,98 @@ export default function SellerShell({ children }: { children: React.ReactNode })
         {user ? <UserFooter name={user.name} role={user.role} onLogout={handleLogout} /> : <Skeleton className="h-10 w-full" />}
       </aside>
 
-      {/* Mobile top bar */}
+      {/* Application shell */}
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="flex items-center justify-between border-b border-border bg-surface-card px-4 py-3 lg:hidden">
-          <Brand />
-          <button
-            type="button"
-            aria-label="Toggle menu"
-            onClick={() => setMobileOpen((v) => !v)}
-            className="min-h-11 min-w-11 rounded-xl p-2 text-foreground-body hover:bg-surface-muted"
-          >
-            {mobileOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
-          </button>
+        <header className="sticky top-0 z-30 flex items-center justify-between gap-3 border-b border-border bg-surface-card/95 px-4 py-3 backdrop-blur lg:hidden">
+          <div className="min-w-0">
+            <Brand compact />
+            <p className="mt-1 pl-12 text-xs text-foreground-muted">Seller POS</p>
+          </div>
+          <div className="flex shrink-0 items-center gap-2">
+            <Link
+              href="/settings"
+              aria-label="Seller settings"
+              className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-primary/40 bg-primary/5 px-3 text-sm font-semibold text-primary"
+            >
+              <Settings className="h-4 w-4" />
+              <span className="hidden min-[390px]:inline">Settings</span>
+            </Link>
+            <button
+              type="button"
+              onClick={handleLogout}
+              className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-primary px-3 text-sm font-semibold text-primary-foreground"
+            >
+              <LogOut className="h-4 w-4" />
+              <span className="hidden min-[390px]:inline">Exit</span>
+            </button>
+          </div>
         </header>
 
-        {mobileOpen ? (
-          <div className="border-b border-border bg-surface-card p-4 shadow-sm lg:hidden">
-            {nav}
-            <div className="mt-4">
-              {user ? <UserFooter name={user.name} role={user.role} onLogout={handleLogout} /> : <Skeleton className="h-10 w-full" />}
-            </div>
-          </div>
-        ) : null}
-
-        <main className="min-w-0 flex-1 bg-background p-4 sm:p-6 lg:p-8">
+        <main className="min-w-0 flex-1 bg-background px-4 pb-28 pt-4 sm:p-6 sm:pb-28 lg:p-8">
           {user ? <OfflineSalesSyncWorker key={`sales-sync:${user.id}:${user.orgId}:${user.locationId}`} /> : null}
           {user ? <OfflineCatalogue key={`catalogue:${user.id}:${user.orgId}:${user.locationId}`} compact /> : null}
           {user ? <PwaStatusBar /> : null}
           {children}
         </main>
+
+        <div className="fixed inset-x-4 bottom-4 z-40 lg:hidden">
+          {moreOpen ? (
+            <div className="mb-3 rounded-3xl border border-border bg-surface-card p-2 shadow-[0_18px_50px_rgba(23,23,23,0.18)]">
+              <p className="px-3 pb-2 pt-1 text-[11px] font-bold uppercase tracking-[0.14em] text-foreground-muted">More seller tools</p>
+              <div className="grid grid-cols-2 gap-1">
+                {mobileMoreNav.map(({ href, label, icon: Icon }) => {
+                  const active = pathname === href || pathname.startsWith(`${href}/`);
+                  return (
+                    <Link
+                      key={href}
+                      href={href}
+                      className={cx(
+                        "flex min-h-11 items-center gap-2 rounded-2xl px-3 text-sm font-semibold",
+                        active ? "bg-foreground text-white" : "text-foreground-body hover:bg-surface-muted",
+                      )}
+                    >
+                      <Icon className="h-4 w-4 shrink-0" />
+                      {label}
+                    </Link>
+                  );
+                })}
+              </div>
+            </div>
+          ) : null}
+          <nav aria-label="Seller navigation" className="grid grid-cols-5 rounded-3xl border border-border bg-surface-card/95 p-2 shadow-[0_18px_50px_rgba(23,23,23,0.18)] backdrop-blur">
+            {mobilePrimaryNav.map(({ href, label, icon: Icon }) => {
+              const active = pathname === href || pathname.startsWith(`${href}/`);
+              return (
+                <Link
+                  key={href}
+                  href={href}
+                  className={cx(
+                    "flex min-h-14 flex-col items-center justify-center gap-1 rounded-2xl px-1 text-[11px] font-semibold",
+                    active ? "bg-foreground text-white" : "text-foreground-muted hover:bg-surface-muted hover:text-foreground-body",
+                  )}
+                >
+                  <Icon className="h-5 w-5" />
+                  {label}
+                </Link>
+              );
+            })}
+            <button
+              type="button"
+              aria-expanded={moreOpen}
+              aria-label="More seller tools"
+              onClick={() => setMoreOpen((open) => !open)}
+              className={cx(
+                "flex min-h-14 flex-col items-center justify-center gap-1 rounded-2xl px-1 text-[11px] font-semibold",
+                moreOpen || mobileMoreNav.some(({ href }) => pathname === href || pathname.startsWith(`${href}/`))
+                  ? "bg-foreground text-white"
+                  : "text-foreground-muted hover:bg-surface-muted hover:text-foreground-body",
+              )}
+            >
+              <MoreHorizontal className="h-5 w-5" />
+              More
+            </button>
+          </nav>
+        </div>
       </div>
     </div>
   );
@@ -145,11 +210,11 @@ export default function SellerShell({ children }: { children: React.ReactNode })
   }
 }
 
-function Brand() {
+function Brand({ compact = false }: { compact?: boolean }) {
   return (
-    <Link href="/dashboard" className="flex items-center gap-2">
-      <img src="/komola-logo.png" alt="KOMOLA" className="h-8 w-8 rounded-lg object-cover" />
-      <span className="text-sm font-semibold text-foreground-heading">KOMOLA POS</span>
+    <Link href="/dashboard" className="flex min-w-0 items-center gap-2">
+      <img src="/komola-logo.png" alt="KOMOLA" className={cx("shrink-0 rounded-lg object-cover", compact ? "h-10 w-10" : "h-8 w-8")} />
+      <span className={cx("truncate font-semibold text-foreground-heading", compact ? "text-base" : "text-sm")}>KOMOLA POS</span>
     </Link>
   );
 }

@@ -1033,6 +1033,7 @@ The first implementation pass from `cross-platform-assets/common/POS-DESIGN-AUDI
 
 - Seller navigation now uses shorter counter vocabulary: Today, Sell, Sales, Register, Products, Stock, Settings, and Support.
 - The shell follows the Admin visual language more closely: cool-neutral canvas, white surfaces, orange actions, dark active navigation, rounded cards, and larger touch targets.
+- Mobile sellers now get an app-like compact top bar plus a floating bottom navigation for Today, Sell, Sales, Register, and More; secondary tools open in a small sheet above it.
 - Global offline UI is reduced to a compact saved-catalogue strip. Detailed offline readiness, queued-sales review, and install controls are available from the Dashboard's **Offline tools** section.
 - The optional local unlock PIN has been removed; offline readiness now shows only the server-grant, register, storage, and scope safeguards.
 - POS quantity controls and register actions use larger touch targets for counter use.
