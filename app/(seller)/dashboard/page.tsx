@@ -151,7 +151,7 @@ export default function DashboardPage() {
                           {s.receiptNo}
                         </Link>
                       )}
-                      {local ? <p className="text-xs text-foreground-muted">local offline sale</p> : null}
+                      {local ? <p className="text-xs text-foreground-muted">{offlineSales.find((sale) => sale.operationId === s.idempotencyKey)?.syncMessage ?? "local offline sale"}</p> : null}
                     </div>
                     <span className="text-foreground-muted">
                       {new Date(s.soldAt).toLocaleTimeString("en-IN")}

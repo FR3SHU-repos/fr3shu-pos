@@ -773,6 +773,17 @@ export async function listOfflineSales(scope: OfflineScope): Promise<OfflineSale
   }
 }
 
+/** Bring transient failures forward when the operator explicitly retries or connectivity returns. */
+export async function requeueRetryableOfflineSales(scope: OfflineScope): Promise<number> {
+  const sales = await listOfflineSales(scope);
+  let queued = 0;
+  for (const sale of sales) {
+    if (sale.syncState !== "retry_wait") continue;
+    if (await requeueOfflineSale(scope, sale.operationId)) queued += 1;
+  }
+  return queued;
+}
+
 
 export interface OfflineSalesExport {
   exportedAt: string;
@@ -1302,7 +1313,7 @@ export function offlineSaleToSyncOperation(sale: OfflineSaleRecord): OfflineSale
 export function offlineSaleToDTO(sale: OfflineSaleRecord): SaleDTO {
   return {
     _id: sale.id,
-    receiptNo: sale.receiptNo,
+    receiptNo: sale.serverReceiptNo ?? sale.receiptNo,
     status: sale.status,
     items: sale.lines.map((line) => ({
       productId: line.productId,

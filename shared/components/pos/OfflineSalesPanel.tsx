@@ -97,7 +97,7 @@ export function OfflineSalesPanel() {
     setMessage("Syncing offline sales...");
     const mutations = await syncOfflineMutations();
     if (mutations.synced > 0) await productsApi.refreshOfflineProducts(undefined, { force: true });
-    const result = await salesApi.syncPendingOfflineSales(scope);
+    const result = await salesApi.syncPendingOfflineSales(scope, { forceRetry: true });
     const syncAt = new Date().toISOString();
     try {
       if (result.synced > 0 || result.attempted > 0) localStorage.setItem(offlineSalesLastSyncKey(scope), syncAt);

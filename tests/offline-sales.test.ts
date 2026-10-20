@@ -252,6 +252,23 @@ describe("offline cash sales", () => {
     });
   });
 
+  it("shows the canonical server receipt after offline sync", () => {
+    const sale = buildOfflineSaleRecord({
+      scope,
+      session,
+      cashierId: "cashier-1",
+      lines: [line()],
+      cashReceivedPaise: 10000,
+      customerName: "Asha",
+      operationId: "canonical-receipt-op",
+    }, 8);
+    sale.syncState = "synced";
+    sale.serverSaleId = "sale-1";
+    sale.serverReceiptNo = "POS-2026-000010";
+
+    expect(offlineSaleToDTO(sale).receiptNo).toBe("POS-2026-000010");
+  });
+
   it("rejects products that are not eligible for offline checkout", () => {
     expect(() =>
       buildOfflineSaleRecord(

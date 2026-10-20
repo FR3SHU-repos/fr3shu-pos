@@ -94,7 +94,7 @@ describe("offline sale sync API", () => {
 
     const result = await syncPendingOfflineSales(scope);
 
-    expect(mocks.increment).toHaveBeenCalledWith(scope, "op-1", expect.any(Number));
+    expect(mocks.increment).toHaveBeenCalledWith(scope, "op-1", expect.any(Number), "Offline sale sync did not complete. The sale will retry automatically.");
     expect(result).toEqual({ attempted: 1, synced: 0, blocked: 0, authRequired: false, message: "Offline sale sync did not complete.", blockedMessages: [] });
   });
 
@@ -104,7 +104,7 @@ describe("offline sale sync API", () => {
 
     const result = await syncPendingOfflineSales(scope);
 
-    expect(mocks.increment).toHaveBeenCalledWith(scope, "op-1", expect.any(Number));
+    expect(mocks.increment).toHaveBeenCalledWith(scope, "op-1", expect.any(Number), "The backend sync endpoint is unavailable. The sale will retry automatically.");
     expect(result.unavailable).toBe(true);
     expect(result.message).toContain("backend sync endpoint");
   });
