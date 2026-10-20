@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import Image from "next/image";
+import { usePathname } from "next/navigation";
 import {
   CircleUserRound,
   Gift,
@@ -16,11 +17,19 @@ import { ADMIN_HOME, isPlatformAdmin } from "@/shared/lib/auth/routing";
 
 export function SiteHeader() {
   const { user, capabilities, loading, logout } = usePosUser();
+  const pathname = usePathname();
   const accountHref = isPlatformAdmin(user)
     ? ADMIN_HOME
     : user?.orgId
       ? "/dashboard"
       : "/buyer";
+
+  const sellerWorkspaceRoutes = ["/dashboard", "/pos", "/register-sessions", "/products", "/stock", "/settings"];
+  const isSellerWorkspace = sellerWorkspaceRoutes.some((route) => pathname === route || pathname.startsWith(`${route}/`));
+
+  // SellerShell owns the POS application chrome on these routes. Keeping the
+  // public site header here would render two mobile headers and two exits.
+  if (isSellerWorkspace) return null;
 
   async function handleLogout() {
     await logout();

@@ -36,15 +36,6 @@ export interface OfflineReadiness {
   expiresAt: string;
   preparedAt: number;
   storage: OfflineStorageReadiness;
-  /** New preparations require a local unlock after a browser restart. */
-  localUnlockRequired?: boolean;
-}
-
-export interface OfflineLocalUnlockState {
-  salt: string;
-  verifier: string;
-  iterations: number;
-  configuredAt: string;
 }
 
 export interface OfflineCashPayment {
@@ -206,10 +197,7 @@ const HELD_CART_STORE = "heldCarts";
 const READINESS_STORE = "readiness";
 const OFFLINE_DEVICE_ID_KEY = "offline-device-id";
 const ACTIVE_SCOPE_KEY = "komola:offline-active-scope";
-const UNLOCKED_SCOPE_PREFIX = "komola:offline-unlocked:";
-const LOCAL_UNLOCK_PREFIX = "local-unlock:";
 const MIN_OFFLINE_HEADROOM_BYTES = 10 * 1024 * 1024;
-const LOCAL_UNLOCK_ITERATIONS = 120_000;
 
 function notifyOfflineSalesChanged() {
   if (typeof window !== "undefined") window.dispatchEvent(new Event("komola:offline-sales-changed"));
@@ -227,49 +215,6 @@ function sessionStorageSafe(): Storage | null {
   }
 }
 
-function localUnlockKey(scope: OfflineScope): string {
-  return `${LOCAL_UNLOCK_PREFIX}${offlineScopeKey(scope)}`;
-}
-
-function unlockedScopeKey(scope: OfflineScope): string {
-  return `${UNLOCKED_SCOPE_PREFIX}${offlineScopeKey(scope)}`;
-}
-
-function encodeBytes(value: Uint8Array): string {
-  if (typeof btoa === "undefined") throw new Error("This browser cannot protect the offline unlock PIN.");
-  let binary = "";
-  value.forEach((byte) => { binary += String.fromCharCode(byte); });
-  return btoa(binary);
-}
-
-function decodeBytes(value: string): Uint8Array {
-  if (typeof atob === "undefined") throw new Error("This browser cannot protect the offline unlock PIN.");
-  const binary = atob(value);
-  return Uint8Array.from(binary, (character) => character.charCodeAt(0));
-}
-
-function randomBytes(length: number): Uint8Array {
-  const bytes = new Uint8Array(length);
-  if (!globalThis.crypto?.getRandomValues) throw new Error("This browser cannot create a secure offline unlock.");
-  globalThis.crypto.getRandomValues(bytes);
-  return bytes;
-}
-
-async function deriveLocalUnlockVerifier(pin: string, salt: Uint8Array, iterations = LOCAL_UNLOCK_ITERATIONS): Promise<string> {
-  const subtle = globalThis.crypto?.subtle;
-  if (!subtle) throw new Error("This browser cannot protect the offline unlock PIN.");
-  const key = await subtle.importKey("raw", new TextEncoder().encode(pin), "PBKDF2", false, ["deriveBits"]);
-  const bits = await subtle.deriveBits({ name: "PBKDF2", salt: new Uint8Array(salt).buffer as ArrayBuffer, iterations, hash: "SHA-256" }, key, 256);
-  return encodeBytes(new Uint8Array(bits));
-}
-
-function equalBytes(left: string, right: string): boolean {
-  if (left.length !== right.length) return false;
-  let result = 0;
-  for (let index = 0; index < left.length; index += 1) result |= left.charCodeAt(index) ^ right.charCodeAt(index);
-  return result === 0;
-}
-
 /** Selects the current authenticated scope for browser-side offline reads. */
 export function setOfflineActiveScope(scope: OfflineScope | null): void {
   const storage = sessionStorageSafe();
@@ -281,7 +226,6 @@ export function setOfflineActiveScope(scope: OfflineScope | null): void {
 export function lockOfflineScope(scope: OfflineScope): void {
   const storage = sessionStorageSafe();
   if (!storage) return;
-  storage.removeItem(unlockedScopeKey(scope));
   if (storage.getItem(ACTIVE_SCOPE_KEY) === offlineScopeKey(scope)) storage.removeItem(ACTIVE_SCOPE_KEY);
 }
 
@@ -386,58 +330,6 @@ export async function readOfflineReadiness(scope: OfflineScope): Promise<Offline
   }
 }
 
-async function readLocalUnlockState(scope: OfflineScope): Promise<OfflineLocalUnlockState | null> {
-  if (typeof indexedDB === "undefined") return null;
-  try {
-    const db = await openOfflineDatabase();
-    const tx = db.transaction(META_STORE, "readonly");
-    const state = await requestResult<OfflineLocalUnlockState | undefined>(tx.objectStore(META_STORE).get(localUnlockKey(scope)));
-    await txDone(tx);
-    db.close();
-    return state ?? null;
-  } catch {
-    return null;
-  }
-}
-
-export async function configureOfflineLocalUnlock(scope: OfflineScope, pin: string): Promise<boolean> {
-  if (!/^\d{6}$/.test(pin)) throw new Error("Choose a six-digit local unlock PIN.");
-  const salt = randomBytes(16);
-  const state: OfflineLocalUnlockState = {
-    salt: encodeBytes(salt),
-    verifier: await deriveLocalUnlockVerifier(pin, salt),
-    iterations: LOCAL_UNLOCK_ITERATIONS,
-    configuredAt: new Date().toISOString(),
-  };
-  const db = await openOfflineDatabase();
-  try {
-    const tx = db.transaction(META_STORE, "readwrite");
-    tx.objectStore(META_STORE).put(state, localUnlockKey(scope));
-    await txDone(tx);
-    return true;
-  } finally {
-    db.close();
-  }
-}
-
-export async function hasOfflineLocalUnlock(scope: OfflineScope): Promise<boolean> {
-  return Boolean(await readLocalUnlockState(scope));
-}
-
-export async function isOfflineLocalUnlockOpen(scope: OfflineScope): Promise<boolean> {
-  return sessionStorageSafe()?.getItem(unlockedScopeKey(scope)) === "true";
-}
-
-export async function unlockOfflineLocalScope(scope: OfflineScope, pin: string): Promise<boolean> {
-  const state = await readLocalUnlockState(scope);
-  if (!state) return false;
-  if (!/^\d{6}$/.test(pin)) return false;
-  const verifier = await deriveLocalUnlockVerifier(pin, decodeBytes(state.salt), state.iterations);
-  if (!equalBytes(verifier, state.verifier)) return false;
-  sessionStorageSafe()?.setItem(unlockedScopeKey(scope), "true");
-  return true;
-}
-
 async function requireOfflineReadiness(input: OfflineSaleInput): Promise<OfflineReadiness> {
   if (!offlineScopeIsActive(input.scope)) throw new Error("This offline workspace is locked after account switching. Sign in again before using it.");
   const readiness = await readOfflineReadiness(input.scope);
@@ -453,10 +345,6 @@ async function requireOfflineReadiness(input: OfflineSaleInput): Promise<Offline
     throw new Error("Prepare offline mode again for this register session.");
   }
   if (Date.parse(readiness.expiresAt) <= Date.now()) throw new Error("Offline authorization has expired. Reconnect and prepare offline mode again.");
-  if (readiness.localUnlockRequired === true) {
-    if (!await hasOfflineLocalUnlock(input.scope)) throw new Error("Configure a local six-digit unlock PIN while online before using offline checkout.");
-    if (!await isOfflineLocalUnlockOpen(input.scope)) throw new Error("Unlock this offline register with its local PIN before creating a sale.");
-  }
   const storage = await assessOfflineStorage();
   if (storage.status === "unsafe") throw new Error("Offline storage is too full. Free device storage before continuing.");
   return readiness;
