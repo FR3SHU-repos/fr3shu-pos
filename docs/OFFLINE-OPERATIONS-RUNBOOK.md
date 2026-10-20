@@ -7,8 +7,8 @@
    allowlist after the device matrix and five-sale acceptance run pass.
 3. Changing `NEXT_PUBLIC_*` values requires a new deployment because they are
    compiled into the browser bundle.
-4. Prepare the register online, verify the local PIN, storage state, catalogue
-   timestamp, inventory cursor, shift, and grant expiry before disconnecting.
+4. Prepare the register online, verify the storage state, catalogue timestamp,
+   inventory cursor, shift, device scope, and grant expiry before disconnecting.
 
 ## Rollback and cache busting
 
@@ -35,8 +35,8 @@ Collect:
   operation ID, sync state, reason, and server receipt ID if present;
 - exported offline backup and the browser's visible diagnostics only.
 
-Never request or record the local PIN, Supabase access token, offline grant
-token, payment secrets, or unmasked buyer data. Support should first preserve
+Never request or record a Supabase access token, offline grant token, payment
+secrets, or unmasked buyer data. Support should first preserve
 the local receipt and export, then retry or repair only after checking whether
 the server already accepted the operation.
 
@@ -50,8 +50,8 @@ the server already accepted the operation.
 - **Needs review / inventory conflict:** keep the receipt, export it, and
   reconcile stock/lot evidence before repair or cancellation.
 - **Authentication or scope error:** sign in to the intended account and
-  unlock the local register; never switch accounts while unresolved records
-  are being reviewed.
+  confirm the register, location, and grant scope; never switch accounts while
+  unresolved records are being reviewed.
 - **Storage full/evicted:** stop accepting offline sales, export what remains,
   free storage, prepare again online, and document any records that were not
   recoverable.

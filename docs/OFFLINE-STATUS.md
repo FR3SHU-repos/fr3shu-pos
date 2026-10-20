@@ -43,10 +43,11 @@ on real devices or production-like networks.
   session context, metadata, and held carts; product snapshots use the separate
   `komola-offline-products-v1` database. Records are scoped by user,
   organization, and location.
-- Local unlock is a six-digit, salted PBKDF2 verifier stored in the scoped
-  IndexedDB metadata store. The active scope and unlocked state live only in
-  session storage, so a browser restart requires the local PIN again. Logout
-  and account switching clear the active scope and lock the prior scope.
+- No local PIN is required. Offline access remains bound to the signed-in
+  workspace scope, the prepared register/shift, the device identity, storage
+  readiness, and the expiring server-issued grant. Logout and account
+  switching clear the active scope; the server grant remains the authority
+  when queued sales synchronize.
 - Automatic sync runs on workspace mount, online transitions, local sale
   changes, and a 30-second interval. It first checks the scoped local outbox;
   an idle terminal makes no catalogue or sync request. When local work exists,
@@ -130,7 +131,7 @@ first-release acceptance criteria:
 
 | Workstream | Remaining work | Release impact |
 | --- | --- | --- |
-| Security | Physical verification of local unlock and account-switching behavior | Required before treating a disconnected reopened device as fully authorized |
+| Security | Physical verification of account-switching, logout, and grant-expiry behavior | Required before treating a disconnected reopened device as fully authorized |
 | Reconciliation | Physical verification of lot/cursor evidence under stock changes | Required before claiming complete multi-terminal stock and lot guarantees |
 | Resilience | Physical service-worker upgrade/eviction checks and the full failure matrix | Required before broad rollout |
 | Product scope | Keep UPI/card/split payments, refunds/voids, reward redemption, product edits, inventory edits, and new authentication online-only | No blocker for the current cash-only pilot; blocker for expanding offline scope |
@@ -172,9 +173,9 @@ offline sales are enabled more broadly.
   when preparation is incomplete, authorization has expired, storage is unsafe,
   or the register/shift context does not match.
 - Persistent storage is requested on preparation and quota headroom is checked.
-- A local six-digit PIN is required after a browser restart before offline
-  checkout can continue. This is a browser/device guard, not tamper-proof
-  authentication; the server grant remains the authority during sync.
+- No local PIN is required after a browser restart. The signed-in workspace,
+  scoped offline records, prepared register/shift, device identity, and
+  expiring server grant remain the authorization boundaries.
 
 ### B. Build the fast local checkout path
 

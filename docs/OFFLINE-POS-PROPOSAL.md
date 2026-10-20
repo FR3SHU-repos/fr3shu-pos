@@ -145,7 +145,12 @@ Move PWA/service-worker work into the first milestone, before accepting real uns
 
 Enroll online and issue a bounded server-verifiable offline grant containing actor, tenant, terminal, register/shift eligibility, capabilities, and expiry. Proposed pilot default: one shift, at most 12 hours since preparation; this is a policy choice, not an existing capability. Expiry blocks new offline sales while preserving history and recovery.
 
-Offline restart requires a deliberate local unlock/protected-session design; a stored Supabase session or profile alone does not establish current permission. Revocation cannot be checked while disconnected, and browser JavaScript cannot make a terminal tamper-proof. Local PIN/unlock and key handling therefore need resolution before the restart milestone ships, rather than being deferred indefinitely. Never store a raw PIN or claim encryption protects data if its key is stored unprotected beside it.
+Offline restart does not require a local PIN. Access remains bounded by the
+signed-in workspace scope, the prepared device/register/shift context, local
+record scoping, storage safeguards, and the expiring server-verifiable grant.
+Revocation cannot be checked while disconnected, and browser JavaScript cannot
+make a terminal tamper-proof. Account switching and logout must clear the
+active scope, while reconnect-time grant validation remains authoritative.
 
 New cloud login remains online. Before uploads, refresh cloud authentication and validate the enrolling identity/permissions. Service-worker upgrades and IndexedDB migrations must preserve unsynced operations and support old queued payload versions.
 
@@ -154,7 +159,7 @@ New cloud login remains online. Before uploads, refresh cloud authentication and
 | Stage | Deliverable | Gate |
 | --- | --- | --- |
 | A: contracts | Offline eligibility, cash fields, price/lot/shift policies, operation schema, identity/recovery design | Document reviewed against existing Go domain logic; no production offline write enablement |
-| B: durable foundation | IndexedDB repositories/migrations, enrolled context, local unlock, cached app shell, diagnostics/export | Reopen offline and recover scoped test data after crash/update |
+| B: durable foundation | IndexedDB repositories/migrations, enrolled context, scoped session protection, cached app shell, diagnostics/export | Reopen offline and recover scoped test data after crash/update |
 | C: cash vertical slice | Atomic checkout, inventory overlay, local receipt/history, sale sync endpoint and leased outbox | Five-sales milestone and failure tests below pass |
 | D: controlled pilot | One device/register, feature flag, supported browser/device matrix | Real-device storage, printing, recovery, and late-shift reconciliation verified |
 | E: expansion | Incremental pull, multiple-terminal stock policy, returns/corrections | No regression in financial idempotency or inventory accounting |

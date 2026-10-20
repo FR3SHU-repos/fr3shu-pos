@@ -10,9 +10,9 @@ each row.
 
 | Surface | Minimum run | Pass criteria |
 | --- | --- | --- |
-| Desktop Chrome/Edge | Online prepare, browser restart, offline five-sale run, reconnect | PIN is required after restart; receipts remain scoped; sync is exactly once |
+| Desktop Chrome/Edge | Online prepare, browser restart, offline five-sale run, reconnect | Receipts remain scoped; grant and register checks hold; sync is exactly once |
 | Android Chrome | Same run on a low-end supported device and mobile data | Search/commit targets are met; no data loss after app backgrounding or OS reclaim |
-| iPhone Safari/PWA | Add to Home Screen, offline run, Safari/PWA restart, reconnect | Offline route and local receipts open; PIN/account scope is preserved; sync recovers |
+| iPhone Safari/PWA | Add to Home Screen, offline run, Safari/PWA restart, reconnect | Offline route and local receipts open; account scope is preserved; sync recovers |
 | Desktop printer | Browser print preview and the supported thermal printer | Receipt is legible, totals match, no application state is lost when printing is cancelled |
 | Storage pressure | Browser permission denied, low quota, and simulated IndexedDB failure | Preparation is blocked or actionable; existing receipts can be exported; no partial sale is shown |
 

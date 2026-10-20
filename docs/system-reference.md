@@ -234,8 +234,8 @@ offline operation and the seller must repair or cancel it.
   Screen guidance, with dismissal persistence and standalone detection.
 - Logout sends `Clear-Site-Data: "cache"` only. It deliberately does not clear
   browser storage because scoped offline financial records may need explicit
-  recovery after logout; the active scope and local unlock are cleared by the
-  POS user context.
+  recovery after logout; the active offline scope is cleared by the POS user
+  context.
 
 ## 9. Configuration and deployment
 

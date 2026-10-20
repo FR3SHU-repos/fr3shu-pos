@@ -18,7 +18,7 @@ compiled into the browser bundle, changing them requires a new deployment.
 3. Deploy and confirm the seller workspace shows `Pilot: enabled`.
 4. Open the register, prepare offline mode online, and confirm the readiness
    checklist shows the saved catalogue, storage state, open shift, device
-   scope, local PIN, inventory cursor, and grant expiry.
+   scope, inventory cursor, and grant expiry.
 5. Record the device model, browser version, register, location, network type,
    and catalogue size in the pilot log.
 
@@ -29,8 +29,9 @@ With the prepared terminal disconnected:
 1. Complete five eligible cash sales, including one sale requiring change.
 2. Confirm each local receipt is available for viewing and reprint.
 3. Close and reopen the browser while disconnected; confirm the saved receipts
-   and pending queue remain available to the same scoped seller, and confirm
-   the local six-digit PIN is required before another sale can be created.
+   and pending queue remain available to the same scoped seller. Confirm that
+   account switching and logout do not expose the prior scope, and that the
+   prepared grant and register/shift checks still govern new sales.
 4. Reconnect and wait for automatic sync, or use the manual Sync action.
 5. Confirm each sale reaches server-confirmed state exactly once, with no
    duplicate receipt, inventory movement, customer side effect, or reward.

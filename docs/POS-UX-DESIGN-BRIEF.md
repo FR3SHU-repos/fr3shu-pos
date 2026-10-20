@@ -1034,7 +1034,7 @@ The first implementation pass from `cross-platform-assets/common/POS-DESIGN-AUDI
 - Seller navigation now uses shorter counter vocabulary: Today, Sell, Sales, Register, Products, Stock, Settings, and Support.
 - The shell follows the Admin visual language more closely: cool-neutral canvas, white surfaces, orange actions, dark active navigation, rounded cards, and larger touch targets.
 - Global offline UI is reduced to a compact saved-catalogue strip. Detailed offline readiness, queued-sales review, and install controls are available from the Dashboard's **Offline tools** section.
-- Offline pilot-disabled states no longer show misleading PIN setup controls or an unlock form.
+- The optional local unlock PIN has been removed; offline readiness now shows only the server-grant, register, storage, and scope safeguards.
 - POS quantity controls and register actions use larger touch targets for counter use.
 
 Payment capabilities and offline safeguards were intentionally not changed in this UI pass. Card payment support, the final seller navigation information architecture, and runtime device testing remain separate follow-up work.
