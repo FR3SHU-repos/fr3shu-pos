@@ -6,7 +6,6 @@ import type { CartLine } from "@/shared/components/pos/types";
 import { computeLineTotals, sumCartTotals } from "@/shared/lib/money";
 import { fromBaseQuantity, toBaseQuantity } from "@/shared/lib/units";
 import { OFFLINE_PRICING_POLICY_VERSION, readProducts } from "@/shared/lib/offline/products";
-import { offlinePilotStatus } from "@/shared/lib/offline/pilot-gate";
 
 export type OfflineSaleSyncState = "pending" | "uploading" | "retry_wait" | "synced" | "blocked" | "cancelled" | "needs_review" | "auth_required";
 
@@ -330,24 +329,11 @@ export async function readOfflineReadiness(scope: OfflineScope): Promise<Offline
   }
 }
 
-async function requireOfflineReadiness(input: OfflineSaleInput): Promise<OfflineReadiness> {
+async function validateOfflineWorkspace(input: OfflineSaleInput): Promise<OfflineReadiness | null> {
   if (!offlineScopeIsActive(input.scope)) throw new Error("This offline workspace is locked after account switching. Sign in again before using it.");
-  const readiness = await readOfflineReadiness(input.scope);
-  if (!readiness) throw new Error("Prepare offline mode online before creating offline sales.");
-  const pilot = offlinePilotStatus({
-    orgId: input.scope.orgId,
-    locationId: input.scope.locationId,
-    registerId: readiness.registerId,
-    terminalId: readiness.terminalId,
-  });
-  if (!pilot.enabled) throw new Error(pilot.reason ?? "Offline sales are not enabled for this terminal pilot.");
-  if (readiness.registerId !== input.session.registerId || readiness.shiftId !== input.session._id) {
-    throw new Error("Prepare offline mode again for this register session.");
-  }
-  if (Date.parse(readiness.expiresAt) <= Date.now()) throw new Error("Offline authorization has expired. Reconnect and prepare offline mode again.");
   const storage = await assessOfflineStorage();
   if (storage.status === "unsafe") throw new Error("Offline storage is too full. Free device storage before continuing.");
-  return readiness;
+  return readOfflineReadiness(input.scope);
 }
 
 function requestResult<T>(request: IDBRequest<T>): Promise<T> {
@@ -555,8 +541,9 @@ export function buildOfflineSaleRecord(
     if ((line.product as ProductDTO).status !== "active") throw new Error(`${line.product.name} is not active.`);
     if (typeof line.product.basePricePaise !== "number") throw new Error(`${line.product.name} has no saved price.`);
     const qtyBase = toBaseQuantity(line.qty, line.saleUnit);
-    const availableBase = Math.max(0, line.product.availableBase - (existingDeductions[line.product._id] ?? 0));
-    if (qtyBase > availableBase) throw new Error(`${line.product.name} does not have enough offline stock.`);
+    // Offline stock is advisory only. The seller may record the sale even when
+    // local stock is exhausted; the server records any resulting shortfall as
+    // a separate reconciliation item during sync.
   }
   const saleLines = buildOfflineLines(input.lines);
   const cart = sumCartTotals(saleLines);
@@ -628,11 +615,11 @@ export async function readOfflineSessionContext(scope: OfflineScope): Promise<{ 
 
 export async function commitOfflineCashSale(input: OfflineSaleInput): Promise<OfflineSaleRecord> {
   if (typeof indexedDB === "undefined") throw new Error("Offline storage is not available in this browser.");
-  const readiness = await requireOfflineReadiness(input);
+  const readiness = await validateOfflineWorkspace(input);
   const catalogue = await readProducts();
   input = {
     ...input,
-    offlineGrantToken: readiness.grantToken,
+    offlineGrantToken: input.offlineGrantToken ?? readiness?.grantToken,
     catalogueSnapshotVersion: catalogue?.snapshotVersion,
     catalogueEffectiveAt: catalogue?.effectiveAt,
     pricingPolicyVersion: catalogue?.pricingPolicyVersion,

@@ -5,7 +5,7 @@ import toast from "react-hot-toast";
 import { CalendarDays, Loader2, Package, Plus } from "lucide-react";
 import { inventoryApi, productsApi, stockApi } from "@/shared/lib/api";
 import type { ProductDTO } from "@/shared/lib/api/products";
-import type { InventoryBalanceDTO } from "@/shared/lib/api/inventory";
+import type { InventoryBalanceDTO, OfflineStockAdjustmentDTO } from "@/shared/lib/api/inventory";
 import { cardCls, EmptyState, inputCls, primaryBtnCls, SkeletonRows } from "@/shared/components/ui";
 import { formatBaseQuantity, toBaseQuantity, type SaleUnit } from "@/shared/lib/units";
 
@@ -21,6 +21,7 @@ export default function StockPage() {
   const PAGE_SIZE = 15;
   const [products, setProducts] = useState<ProductDTO[]>([]);
   const [balances, setBalances] = useState<InventoryBalanceDTO[]>([]);
+  const [adjustments, setAdjustments] = useState<OfflineStockAdjustmentDTO[]>([]);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [stockPage, setStockPage] = useState(1);
@@ -30,12 +31,13 @@ export default function StockPage() {
   const [expiry, setExpiry] = useState("");
 
   const load = useCallback(async () => {
-    const [p, b] = await Promise.all([productsApi.list({ limit: 100 }), inventoryApi.list()]);
+    const [p, b, a] = await Promise.all([productsApi.list({ limit: 100 }), inventoryApi.list(), inventoryApi.offlineAdjustments()]);
     if (p.success && p.data) {
       setProducts(p.data.items);
       setSkuId((cur) => cur || p.data!.items[0]?._id || "");
     }
     if (b.success && b.data) setBalances(b.data.items);
+    if (a.success && a.data) setAdjustments(a.data.items);
     setLoading(false);
   }, []);
 
@@ -114,6 +116,26 @@ export default function StockPage() {
           <span className="rounded-full bg-surface px-3 py-1.5 text-xs font-semibold text-foreground-muted">{onHand.length} stocked products</span>
         </div>
       </header>
+
+      {adjustments.length > 0 ? (
+        <section className={`${cardCls} border-status-warning/40 bg-status-warning-surface p-5`}>
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <h2 className="text-base font-bold text-foreground-heading">Offline stock adjustments</h2>
+              <p className="mt-1 text-sm text-foreground-muted">These sales were recorded offline above the server stock known at sync time and need review.</p>
+            </div>
+            <span className="rounded-full bg-status-warning-surface px-3 py-1 text-xs font-semibold text-status-warning">{adjustments.length} pending</span>
+          </div>
+          <div className="mt-4 grid gap-2">
+            {adjustments.slice(0, 5).map((adjustment) => (
+              <div key={adjustment.id} className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-surface-card px-3 py-3 text-sm">
+                <span className="font-semibold text-foreground-heading">{adjustment.productName ?? adjustment.skuId}</span>
+                <span className="text-foreground-muted">Shortfall {adjustment.shortfallQuantity} · {new Date(adjustment.createdAt).toLocaleString()}</span>
+              </div>
+            ))}
+          </div>
+        </section>
+      ) : null}
 
       <div className="grid gap-5 lg:grid-cols-[340px_minmax(0,1fr)] lg:items-start">
       <section className={`${cardCls} bg-white p-5 shadow-sm`}>

@@ -64,7 +64,11 @@ export default function NewProductPage() {
     let imageUrl: string | undefined;
     try {
       const categoryName = categories.find((c) => c._id === form.categoryId)?.name ?? "uncategorized";
-      if (image) imageUrl = await uploadProductImage(image, categoryName);
+      if (image && typeof navigator !== "undefined" && !navigator.onLine) {
+        toast("Product will be saved offline without the image. Add the image after reconnecting.");
+      } else if (image) {
+        imageUrl = await uploadProductImage(image, categoryName);
+      }
     } catch (error) {
       setBusy(false);
       return toast.error(error instanceof Error ? error.message : "Image upload failed.");
@@ -84,7 +88,7 @@ export default function NewProductPage() {
     });
     setBusy(false);
     if (!res.success || !res.data) return toast.error(res.message);
-    toast.success("Product created");
+    toast.success(res.code === "offline_queued" ? "Product saved offline and queued for sync" : "Product created");
     router.push("/products");
   }
 
