@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { ProductDTO } from "@/shared/lib/api/products";
-import { searchProducts, setProductScope, productScope, readProducts } from "@/shared/lib/offline/products";
+import { createProductSnapshot, lookupProduct, productSnapshotIsStale, searchProducts, setProductScope, productScope, readProducts } from "@/shared/lib/offline/products";
 
 const items = [
   { _id: "1", name: "Organic Rice", sku: "RICE-1", barcode: "123456", status: "active" },
@@ -13,6 +13,24 @@ describe("saved catalogue search", () => {
     expect(searchProducts(items, { q: " ORGANIC " }).items[0]._id).toBe("1");
     expect(searchProducts(items, { q: "rice-2" }).items[0]._id).toBe("2");
     expect(searchProducts(items, { q: "123456" }).items[0]._id).toBe("1");
+  });
+  it("uses exact barcode and SKU lookup for scanner-style entry", () => {
+    expect(lookupProduct(items, { barcode: "123456" })?._id).toBe("1");
+    expect(lookupProduct(items, { sku: "rice-2" })?._id).toBe("2");
+    expect(lookupProduct(items, { sku: "missing" })).toBeUndefined();
+  });
+  it("records a deterministic catalogue version and pricing policy", () => {
+    const snapshot = createProductSnapshot(items, Date.parse("2026-10-20T10:00:00.000Z"));
+    expect(snapshot.snapshotVersion).toMatch(/^catalogue-v1-[0-9a-f]{8}$/);
+    expect(snapshot.effectiveAt).toBe("2026-10-20T10:00:00.000Z");
+    expect(snapshot.pricingPolicyVersion).toBe("pos-price-tax-manual-discount-v1");
+    expect(createProductSnapshot([...items].reverse(), snapshot.savedAt).snapshotVersion).toBe(snapshot.snapshotVersion);
+  });
+  it("uses a bounded freshness window for catalogue downloads", () => {
+    const saved = createProductSnapshot(items, 1_000);
+    expect(productSnapshotIsStale(saved, 1_000 + 14 * 60_000)).toBe(false);
+    expect(productSnapshotIsStale(saved, 1_000 + 15 * 60_000)).toBe(true);
+    expect(productSnapshotIsStale(null)).toBe(true);
   });
   it("filters status before paginating", () => {
     const result = searchProducts(items, { status: "active", page: 2, limit: 1 });

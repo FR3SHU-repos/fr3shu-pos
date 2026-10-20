@@ -1,7 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { AlertCircle, Clock3, Printer, ReceiptText, RefreshCw, X } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
+import { AlertCircle, Clock3, Printer, ReceiptText, RefreshCw, Upload, X } from "lucide-react";
 import toast from "react-hot-toast";
 import { usePosUser } from "@/shared/context/PosUserContext";
 import { salesApi } from "@/shared/lib/api";
@@ -10,6 +10,7 @@ import {
   cancelOfflineSale,
   cleanupOfflineSales,
   exportOfflineSales,
+  importOfflineSales,
   listOfflineSales,
   repairOfflineSaleLines,
   requeueOfflineSale,
@@ -22,6 +23,7 @@ import {
 import { StatusBadge, ghostBtnCls, primaryBtnCls } from "@/shared/components/ui";
 import { ReceiptView } from "@/shared/components/pos/ReceiptView";
 import { OFFLINE_SALES_SYNC_EVENT, offlineSalesLastSyncKey, type OfflineSalesSyncDetail } from "@/shared/components/pos/OfflineSalesSyncWorker";
+import { printReceipt } from "@/shared/lib/offline/receipt-print";
 
 const STATUS_LABEL: Record<OfflineSaleSyncState, string> = {
   pending: "waiting",
@@ -63,6 +65,7 @@ export function OfflineSalesPanel() {
   const [editForm, setEditForm] = useState({ customerName: "", customerPhone: "", buyerCode: "", marketingConsent: false });
   const [repairingId, setRepairingId] = useState<string | null>(null);
   const [repairLines, setRepairLines] = useState<Record<string, { qty: string; remove: boolean }>>({});
+  const importInputRef = useRef<HTMLInputElement | null>(null);
 
   const scope = useMemo<OfflineScope | null>(() => {
     if (!user) return null;
@@ -134,7 +137,7 @@ export function OfflineSalesPanel() {
       toast.error("Offline sale sync did not complete");
     }
     setSyncing(false);
-  }, [refresh, sales, scope, syncing]);
+  }, [refresh, scope, syncing]);
 
   const trySaleAgain = useCallback(async (operationId: string) => {
     if (!scope || syncing) return;
@@ -235,6 +238,33 @@ export function OfflineSalesPanel() {
     toast.success("Offline sales backup downloaded");
   }, [scope]);
 
+  const importBackup = useCallback(async (file: File) => {
+    if (!scope) return;
+    try {
+      const payload = JSON.parse(await file.text()) as unknown;
+      const result = await importOfflineSales(scope, payload);
+      await refresh();
+      const detail = `${result.imported} imported, ${result.skipped} skipped${result.errors.length ? `, ${result.errors.length} rejected` : ""}.`;
+      setOpen(true);
+      setMessage(result.errors.length ? `${detail} ${result.errors[0]}` : detail);
+      if (result.imported > 0) toast.success(`Restored ${result.imported} offline sale${result.imported === 1 ? "" : "s"}`);
+      else toast(detail, { icon: "ℹ️" });
+      if (result.imported > 0 && typeof navigator !== "undefined" && navigator.onLine) await syncNow();
+    } catch (error) {
+      const text = error instanceof Error ? error.message : "The offline backup could not be imported.";
+      setOpen(true);
+      setMessage(text);
+      toast.error(text);
+    } finally {
+      if (importInputRef.current) importInputRef.current.value = "";
+    }
+  }, [refresh, scope, syncNow]);
+
+  const onImportBackup = useCallback((event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) void importBackup(file);
+  }, [importBackup]);
+
   const clearOldSynced = useCallback(async () => {
     if (!scope || syncing) return;
     await exportBackup();
@@ -264,7 +294,7 @@ export function OfflineSalesPanel() {
   const retryCount = active.filter((sale) => sale.syncState === "retry_wait").length;
   const blockedCount = active.filter((sale) => sale.syncState === "blocked" || sale.syncState === "needs_review").length;
   const authCount = active.filter((sale) => sale.syncState === "auth_required").length;
-  if (active.length === 0) return null;
+  if (!user) return null;
 
   return (
     <section className="mb-4 rounded-xl border border-border bg-surface-card p-3 text-sm">
@@ -275,14 +305,19 @@ export function OfflineSalesPanel() {
           onClick={() => setOpen((value) => !value)}
           aria-expanded={open}
         >
-          {statusIcon(active[0].syncState)}
+          {statusIcon(active[0]?.syncState ?? "pending")}
           Offline sales
           <span className="text-foreground-muted">
-            {waitingCount} waiting · {retryCount} retry · {blockedCount + authCount} issue{blockedCount + authCount === 1 ? "" : "s"}
+            {active.length === 0 ? "no pending records" : `${waitingCount} waiting · ${retryCount} retry · ${blockedCount + authCount} issue${blockedCount + authCount === 1 ? "" : "s"}`}
           </span>
         </button>
         <div className="flex items-center gap-3">
           <button type="button" className="font-semibold text-primary" onClick={() => void exportBackup()}>Export backup</button>
+          <button type="button" className="font-semibold text-primary" onClick={() => importInputRef.current?.click()}>
+            <Upload className="mr-1 inline h-4 w-4" />
+            Import backup
+          </button>
+          <input ref={importInputRef} type="file" accept="application/json,.json" className="hidden" onChange={onImportBackup} />
           <button type="button" className="font-semibold text-primary" onClick={() => setOpen((value) => !value)}>
             {open ? "Hide" : "View"}
           </button>
@@ -298,7 +333,7 @@ export function OfflineSalesPanel() {
         </div>
       </div>
       {message ? <p className="mt-2 text-xs text-foreground-muted">{message}</p> : null}
-      {active.length > 0 ? <p className="mt-2 text-xs text-foreground-muted">Offline sales sync automatically when internet is available. Completed sales move out of this list and appear in sales history.</p> : null}
+      <p className="mt-2 text-xs text-foreground-muted">Offline sales sync automatically when internet is available. Completed sales move out of this list and appear in sales history. Backups are scope-bound and never overwrite existing records.</p>
       {lastSyncAt ? <p className="mt-1 text-xs text-foreground-muted">Last sync check: {new Date(lastSyncAt).toLocaleString()}</p> : null}
       {open ? (
         <div className="mt-3 max-h-80 overflow-auto divide-y divide-border">
@@ -563,7 +598,7 @@ function OfflineReceiptDialog({ sale, onClose }: { sale: OfflineSaleRecord; onCl
         </div>
         <div className="no-print mt-4 flex flex-wrap justify-end gap-2">
           <button type="button" className={ghostBtnCls} onClick={onClose}>Close</button>
-          <button type="button" className={primaryBtnCls} onClick={() => window.print()}>
+          <button type="button" className={primaryBtnCls} onClick={() => printReceipt()}>
             <Printer className="h-4 w-4" />
             Print / save PDF
           </button>

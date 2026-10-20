@@ -5,6 +5,8 @@ import { newUuid } from "@/shared/lib/uuid";
 import type { CartLine } from "@/shared/components/pos/types";
 import { computeLineTotals, sumCartTotals } from "@/shared/lib/money";
 import { fromBaseQuantity, toBaseQuantity } from "@/shared/lib/units";
+import { OFFLINE_PRICING_POLICY_VERSION, readProducts } from "@/shared/lib/offline/products";
+import { offlinePilotStatus } from "@/shared/lib/offline/pilot-gate";
 
 export type OfflineSaleSyncState = "pending" | "uploading" | "retry_wait" | "synced" | "blocked" | "cancelled" | "needs_review" | "auth_required";
 
@@ -14,11 +16,49 @@ export interface OfflineScope {
   locationId: string;
 }
 
+export type OfflineStorageStatus = "ready" | "unsafe" | "unknown";
+
+export interface OfflineStorageReadiness {
+  status: OfflineStorageStatus;
+  persisted: boolean;
+  availableBytes?: number;
+  checkedAt: number;
+}
+
+export interface OfflineReadiness {
+  deviceId: string;
+  grantId: string;
+  grantToken: string;
+  registerId: string;
+  terminalId: string;
+  shiftId: string;
+  issuedAt: string;
+  expiresAt: string;
+  preparedAt: number;
+  storage: OfflineStorageReadiness;
+  /** New preparations require a local unlock after a browser restart. */
+  localUnlockRequired?: boolean;
+}
+
+export interface OfflineLocalUnlockState {
+  salt: string;
+  verifier: string;
+  iterations: number;
+  configuredAt: string;
+}
+
 export interface OfflineCashPayment {
   method: "cash";
   amountPaise: number;
   receivedPaise: number;
   changePaise: number;
+}
+
+export interface OfflineLotEvidence {
+  lotId: string;
+  lotCode?: string;
+  qtyBase: number;
+  expiresAt?: string;
 }
 
 export interface OfflineSaleLine {
@@ -38,6 +78,7 @@ export interface OfflineSaleLine {
   taxRateBps: number;
   taxPaise: number;
   netPaise: number;
+  lotEvidence: OfflineLotEvidence[];
 }
 
 export interface OfflineSaleRecord {
@@ -53,8 +94,16 @@ export interface OfflineSaleRecord {
   syncMessage?: string;
   serverSaleId?: string;
   serverReceiptNo?: string;
+  /** Set only after a successful post-ack catalogue refresh. */
+  inventoryCoveredAt?: string;
+  inventoryCursor?: string;
+  serverInventoryCursor?: string;
   lastSyncAttemptAt?: string;
   syncAttempts?: number;
+  offlineGrantToken?: string;
+  catalogueSnapshotVersion: string;
+  catalogueEffectiveAt: string;
+  pricingPolicyVersion: string;
   lines: OfflineSaleLine[];
   grossPaise: number;
   discountPaise: number;
@@ -68,7 +117,7 @@ export interface OfflineSaleRecord {
   cashierId: string;
   soldAt: string;
   createdAt: string;
-  schemaVersion: 1;
+  schemaVersion: 1 | 2;
 }
 
 export interface OfflineOutboxEntry {
@@ -88,10 +137,15 @@ export interface OfflineOutboxEntry {
 
 export interface OfflineSaleSyncOperation {
   operationId: string;
+  offlineGrantToken?: string;
   registerId: string;
   sessionId: string;
   deviceReceiptNo: string;
   occurredAt: string;
+  catalogueSnapshotVersion?: string;
+  catalogueEffectiveAt?: string;
+  pricingPolicyVersion?: string;
+  inventoryCursor?: string;
   customerName: string;
   customerPhone?: string;
   buyerCode?: string;
@@ -106,6 +160,12 @@ export interface OfflineSaleSyncOperation {
     taxRateBps: number;
     taxMinor: number;
     netMinor: number;
+    lotEvidence: Array<{
+      lotId: string;
+      lotCode?: string;
+      quantity: string;
+      expiresAt?: string;
+    }>;
   }>;
   cashReceivedMinor: number;
   cashAppliedMinor: number;
@@ -127,17 +187,29 @@ export interface OfflineSaleInput {
   buyerCode?: string;
   marketingConsent?: boolean;
   operationId?: string;
+  offlineGrantToken?: string;
+  catalogueSnapshotVersion?: string;
+  catalogueEffectiveAt?: string;
+  pricingPolicyVersion?: string;
+  inventoryCursor?: string;
 }
 
 export type LocalStockDeductions = Record<string, number>;
 
 const DB_NAME = "komola-offline-pos-v1";
-const DB_VERSION = 2;
+const DB_VERSION = 3;
 const SALE_STORE = "sales";
 const OUTBOX_STORE = "outbox";
 const CONTEXT_STORE = "contexts";
 const META_STORE = "meta";
 const HELD_CART_STORE = "heldCarts";
+const READINESS_STORE = "readiness";
+const OFFLINE_DEVICE_ID_KEY = "offline-device-id";
+const ACTIVE_SCOPE_KEY = "komola:offline-active-scope";
+const UNLOCKED_SCOPE_PREFIX = "komola:offline-unlocked:";
+const LOCAL_UNLOCK_PREFIX = "local-unlock:";
+const MIN_OFFLINE_HEADROOM_BYTES = 10 * 1024 * 1024;
+const LOCAL_UNLOCK_ITERATIONS = 120_000;
 
 function notifyOfflineSalesChanged() {
   if (typeof window !== "undefined") window.dispatchEvent(new Event("komola:offline-sales-changed"));
@@ -145,6 +217,77 @@ function notifyOfflineSalesChanged() {
 
 export function offlineScopeKey(scope: OfflineScope): string {
   return JSON.stringify([scope.userId, scope.orgId, scope.locationId]);
+}
+
+function sessionStorageSafe(): Storage | null {
+  try {
+    return typeof sessionStorage === "undefined" ? null : sessionStorage;
+  } catch {
+    return null;
+  }
+}
+
+function localUnlockKey(scope: OfflineScope): string {
+  return `${LOCAL_UNLOCK_PREFIX}${offlineScopeKey(scope)}`;
+}
+
+function unlockedScopeKey(scope: OfflineScope): string {
+  return `${UNLOCKED_SCOPE_PREFIX}${offlineScopeKey(scope)}`;
+}
+
+function encodeBytes(value: Uint8Array): string {
+  if (typeof btoa === "undefined") throw new Error("This browser cannot protect the offline unlock PIN.");
+  let binary = "";
+  value.forEach((byte) => { binary += String.fromCharCode(byte); });
+  return btoa(binary);
+}
+
+function decodeBytes(value: string): Uint8Array {
+  if (typeof atob === "undefined") throw new Error("This browser cannot protect the offline unlock PIN.");
+  const binary = atob(value);
+  return Uint8Array.from(binary, (character) => character.charCodeAt(0));
+}
+
+function randomBytes(length: number): Uint8Array {
+  const bytes = new Uint8Array(length);
+  if (!globalThis.crypto?.getRandomValues) throw new Error("This browser cannot create a secure offline unlock.");
+  globalThis.crypto.getRandomValues(bytes);
+  return bytes;
+}
+
+async function deriveLocalUnlockVerifier(pin: string, salt: Uint8Array, iterations = LOCAL_UNLOCK_ITERATIONS): Promise<string> {
+  const subtle = globalThis.crypto?.subtle;
+  if (!subtle) throw new Error("This browser cannot protect the offline unlock PIN.");
+  const key = await subtle.importKey("raw", new TextEncoder().encode(pin), "PBKDF2", false, ["deriveBits"]);
+  const bits = await subtle.deriveBits({ name: "PBKDF2", salt: new Uint8Array(salt).buffer as ArrayBuffer, iterations, hash: "SHA-256" }, key, 256);
+  return encodeBytes(new Uint8Array(bits));
+}
+
+function equalBytes(left: string, right: string): boolean {
+  if (left.length !== right.length) return false;
+  let result = 0;
+  for (let index = 0; index < left.length; index += 1) result |= left.charCodeAt(index) ^ right.charCodeAt(index);
+  return result === 0;
+}
+
+/** Selects the current authenticated scope for browser-side offline reads. */
+export function setOfflineActiveScope(scope: OfflineScope | null): void {
+  const storage = sessionStorageSafe();
+  if (!storage) return;
+  if (!scope) storage.removeItem(ACTIVE_SCOPE_KEY);
+  else storage.setItem(ACTIVE_SCOPE_KEY, offlineScopeKey(scope));
+}
+
+export function lockOfflineScope(scope: OfflineScope): void {
+  const storage = sessionStorageSafe();
+  if (!storage) return;
+  storage.removeItem(unlockedScopeKey(scope));
+  if (storage.getItem(ACTIVE_SCOPE_KEY) === offlineScopeKey(scope)) storage.removeItem(ACTIVE_SCOPE_KEY);
+}
+
+function offlineScopeIsActive(scope: OfflineScope): boolean {
+  if (process.env.NODE_ENV === "test" || typeof window === "undefined") return true;
+  return sessionStorageSafe()?.getItem(ACTIVE_SCOPE_KEY) === offlineScopeKey(scope);
 }
 
 export async function openOfflineDatabase(): Promise<IDBDatabase> {
@@ -157,10 +300,166 @@ export async function openOfflineDatabase(): Promise<IDBDatabase> {
       if (!db.objectStoreNames.contains(CONTEXT_STORE)) db.createObjectStore(CONTEXT_STORE);
       if (!db.objectStoreNames.contains(META_STORE)) db.createObjectStore(META_STORE);
       if (!db.objectStoreNames.contains(HELD_CART_STORE)) db.createObjectStore(HELD_CART_STORE);
+      if (!db.objectStoreNames.contains(READINESS_STORE)) db.createObjectStore(READINESS_STORE);
     };
-    request.onsuccess = () => resolve(request.result);
-    request.onerror = () => reject(request.error);
+    request.onblocked = () => reject(new Error("Offline storage is waiting for another KOMOLA tab to close before it can update. Close older tabs and try again."));
+    request.onsuccess = () => {
+      const db = request.result;
+      db.onversionchange = () => db.close();
+      resolve(db);
+    };
+    request.onerror = () => reject(request.error ?? new Error("Offline storage could not be opened."));
   });
+}
+
+export async function getOfflineDeviceId(): Promise<string> {
+  const db = await openOfflineDatabase();
+  try {
+    const tx = db.transaction(META_STORE, "readwrite");
+    const store = tx.objectStore(META_STORE);
+    const existing = await requestResult<string | undefined>(store.get(OFFLINE_DEVICE_ID_KEY));
+    if (existing) {
+      await txDone(tx);
+      return existing;
+    }
+    const generated = globalThis.crypto?.randomUUID?.() ?? newUuid();
+    store.put(generated, OFFLINE_DEVICE_ID_KEY);
+    await txDone(tx);
+    return generated;
+  } finally {
+    db.close();
+  }
+}
+
+export async function assessOfflineStorage(): Promise<OfflineStorageReadiness> {
+  const checkedAt = Date.now();
+  if (typeof indexedDB === "undefined") return { status: "unsafe", persisted: false, checkedAt };
+  let persisted = false;
+  let availableBytes: number | undefined;
+  try {
+    if (typeof navigator !== "undefined" && navigator.storage?.persisted) persisted = await navigator.storage.persisted();
+    if (typeof navigator !== "undefined" && navigator.storage?.estimate) {
+      const estimate = await navigator.storage.estimate();
+      if (typeof estimate.quota === "number" && typeof estimate.usage === "number") availableBytes = Math.max(0, estimate.quota - estimate.usage);
+    }
+  } catch {
+    return { status: "unknown", persisted, checkedAt };
+  }
+  if (availableBytes !== undefined && availableBytes < MIN_OFFLINE_HEADROOM_BYTES) return { status: "unsafe", persisted, availableBytes, checkedAt };
+  return { status: availableBytes === undefined ? "unknown" : "ready", persisted, availableBytes, checkedAt };
+}
+
+export async function requestPersistentOfflineStorage(): Promise<OfflineStorageReadiness> {
+  try {
+    if (typeof navigator !== "undefined" && navigator.storage?.persist) await navigator.storage.persist();
+  } catch {
+    // Persistence is a browser policy decision; the quota check below remains authoritative.
+  }
+  return assessOfflineStorage();
+}
+
+export async function saveOfflineReadiness(scope: OfflineScope, readiness: OfflineReadiness): Promise<boolean> {
+  if (typeof indexedDB === "undefined") return false;
+  try {
+    const db = await openOfflineDatabase();
+    const tx = db.transaction(READINESS_STORE, "readwrite");
+    tx.objectStore(READINESS_STORE).put(readiness, `${offlineScopeKey(scope)}:readiness`);
+    await txDone(tx);
+    db.close();
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export async function readOfflineReadiness(scope: OfflineScope): Promise<OfflineReadiness | null> {
+  if (typeof indexedDB === "undefined") return null;
+  try {
+    const db = await openOfflineDatabase();
+    const tx = db.transaction(READINESS_STORE, "readonly");
+    const readiness = await requestResult<OfflineReadiness | undefined>(tx.objectStore(READINESS_STORE).get(`${offlineScopeKey(scope)}:readiness`));
+    await txDone(tx);
+    db.close();
+    return readiness ?? null;
+  } catch {
+    return null;
+  }
+}
+
+async function readLocalUnlockState(scope: OfflineScope): Promise<OfflineLocalUnlockState | null> {
+  if (typeof indexedDB === "undefined") return null;
+  try {
+    const db = await openOfflineDatabase();
+    const tx = db.transaction(META_STORE, "readonly");
+    const state = await requestResult<OfflineLocalUnlockState | undefined>(tx.objectStore(META_STORE).get(localUnlockKey(scope)));
+    await txDone(tx);
+    db.close();
+    return state ?? null;
+  } catch {
+    return null;
+  }
+}
+
+export async function configureOfflineLocalUnlock(scope: OfflineScope, pin: string): Promise<boolean> {
+  if (!/^\d{6}$/.test(pin)) throw new Error("Choose a six-digit local unlock PIN.");
+  const salt = randomBytes(16);
+  const state: OfflineLocalUnlockState = {
+    salt: encodeBytes(salt),
+    verifier: await deriveLocalUnlockVerifier(pin, salt),
+    iterations: LOCAL_UNLOCK_ITERATIONS,
+    configuredAt: new Date().toISOString(),
+  };
+  const db = await openOfflineDatabase();
+  try {
+    const tx = db.transaction(META_STORE, "readwrite");
+    tx.objectStore(META_STORE).put(state, localUnlockKey(scope));
+    await txDone(tx);
+    return true;
+  } finally {
+    db.close();
+  }
+}
+
+export async function hasOfflineLocalUnlock(scope: OfflineScope): Promise<boolean> {
+  return Boolean(await readLocalUnlockState(scope));
+}
+
+export async function isOfflineLocalUnlockOpen(scope: OfflineScope): Promise<boolean> {
+  return sessionStorageSafe()?.getItem(unlockedScopeKey(scope)) === "true";
+}
+
+export async function unlockOfflineLocalScope(scope: OfflineScope, pin: string): Promise<boolean> {
+  const state = await readLocalUnlockState(scope);
+  if (!state) return false;
+  if (!/^\d{6}$/.test(pin)) return false;
+  const verifier = await deriveLocalUnlockVerifier(pin, decodeBytes(state.salt), state.iterations);
+  if (!equalBytes(verifier, state.verifier)) return false;
+  sessionStorageSafe()?.setItem(unlockedScopeKey(scope), "true");
+  return true;
+}
+
+async function requireOfflineReadiness(input: OfflineSaleInput): Promise<OfflineReadiness> {
+  if (!offlineScopeIsActive(input.scope)) throw new Error("This offline workspace is locked after account switching. Sign in again before using it.");
+  const readiness = await readOfflineReadiness(input.scope);
+  if (!readiness) throw new Error("Prepare offline mode online before creating offline sales.");
+  const pilot = offlinePilotStatus({
+    orgId: input.scope.orgId,
+    locationId: input.scope.locationId,
+    registerId: readiness.registerId,
+    terminalId: readiness.terminalId,
+  });
+  if (!pilot.enabled) throw new Error(pilot.reason ?? "Offline sales are not enabled for this terminal pilot.");
+  if (readiness.registerId !== input.session.registerId || readiness.shiftId !== input.session._id) {
+    throw new Error("Prepare offline mode again for this register session.");
+  }
+  if (Date.parse(readiness.expiresAt) <= Date.now()) throw new Error("Offline authorization has expired. Reconnect and prepare offline mode again.");
+  if (readiness.localUnlockRequired === true) {
+    if (!await hasOfflineLocalUnlock(input.scope)) throw new Error("Configure a local six-digit unlock PIN while online before using offline checkout.");
+    if (!await isOfflineLocalUnlockOpen(input.scope)) throw new Error("Unlock this offline register with its local PIN before creating a sale.");
+  }
+  const storage = await assessOfflineStorage();
+  if (storage.status === "unsafe") throw new Error("Offline storage is too full. Free device storage before continuing.");
+  return readiness;
 }
 
 function requestResult<T>(request: IDBRequest<T>): Promise<T> {
@@ -175,6 +474,16 @@ function txDone(tx: IDBTransaction): Promise<void> {
     tx.oncomplete = () => resolve();
     tx.onabort = tx.onerror = () => reject(tx.error);
   });
+}
+
+function storageError(error: unknown): Error | unknown {
+  const name = error instanceof DOMException ? error.name : error && typeof error === "object" && "name" in error ? String((error as { name?: unknown }).name) : "";
+  if (["QuotaExceededError", "InvalidStateError", "AbortError", "VersionError"].includes(name)) {
+    if (name === "QuotaExceededError") return new Error("Offline storage is full. Export a backup or free device storage before continuing.");
+    if (name === "VersionError") return new Error("Offline storage needs another KOMOLA tab to close before it can be upgraded. Close older tabs and try again.");
+    return new Error("Offline storage could not complete this operation. Keep the local receipt and try again.");
+  }
+  return error;
 }
 
 export function parseRupeesToPaise(value: string): number | null {
@@ -207,7 +516,9 @@ export function localStockDeductions(
   const out: LocalStockDeductions = {};
   for (const sale of sales) {
     if (sale.syncState === "cancelled") continue;
-    if (sale.syncState === "synced" && new Date(sale.createdAt).getTime() <= snapshotTime) continue;
+    if (sale.syncState === "synced"
+      && sale.inventoryCoveredAt
+      && new Date(sale.inventoryCoveredAt).getTime() <= snapshotTime) continue;
     for (const line of sale.lines) {
       out[line.productId] = (out[line.productId] ?? 0) + line.qtyBase;
     }
@@ -236,6 +547,9 @@ function saleCanUseProducts(
     if (!product) return { ok: false, reason: `${line.name} is not in the refreshed product catalogue.` };
     if (product.status !== "active") return { ok: false, reason: `${line.name} is not active on the server.` };
     if (typeof product.basePricePaise !== "number") return { ok: false, reason: `${line.name} has no server price.` };
+    if (line.saleUnit !== product.saleUnit) return { ok: false, reason: `${line.name} has a changed sale unit on the server.` };
+    if (line.unitPricePaise !== product.basePricePaise) return { ok: false, reason: `${line.name} has a changed price on the server.` };
+    if (line.taxRateBps !== product.taxRateBps) return { ok: false, reason: `${line.name} has a changed tax rule on the server.` };
     const availableBase = Math.max(0, product.availableBase - (otherDeductions[line.productId] ?? 0));
     if (line.qtyBase > availableBase) {
       const requested = fromBaseQuantity(line.qtyBase, line.saleUnit as Parameters<typeof fromBaseQuantity>[1]);
@@ -280,6 +594,12 @@ function buildOfflineLines(lines: CartLine[]): OfflineSaleLine[] {
       taxRateBps: line.product.taxRateBps ?? 0,
       taxPaise: totals.taxPaise,
       netPaise: totals.netPaise,
+      lotEvidence: (line.product.lots ?? []).map((lot) => ({
+        lotId: lot.lotId,
+        lotCode: lot.lotCode,
+        qtyBase: lot.qty,
+        expiresAt: lot.expiresAt,
+      })),
     };
   });
 }
@@ -366,6 +686,11 @@ export function buildOfflineSaleRecord(
     receiptSequence,
     status: "completed",
     syncState: "pending",
+    offlineGrantToken: input.offlineGrantToken,
+    catalogueSnapshotVersion: input.catalogueSnapshotVersion ?? "catalogue-unknown",
+    catalogueEffectiveAt: input.catalogueEffectiveAt ?? timestamp,
+    pricingPolicyVersion: input.pricingPolicyVersion ?? OFFLINE_PRICING_POLICY_VERSION,
+    inventoryCursor: input.inventoryCursor ?? "0",
     lines: saleLines,
     grossPaise: cart.grossPaise,
     discountPaise: cart.discountPaise,
@@ -379,7 +704,7 @@ export function buildOfflineSaleRecord(
     cashierId: input.cashierId,
     soldAt: timestamp,
     createdAt: timestamp,
-    schemaVersion: 1,
+    schemaVersion: 2,
   };
 }
 
@@ -415,6 +740,16 @@ export async function readOfflineSessionContext(scope: OfflineScope): Promise<{ 
 
 export async function commitOfflineCashSale(input: OfflineSaleInput): Promise<OfflineSaleRecord> {
   if (typeof indexedDB === "undefined") throw new Error("Offline storage is not available in this browser.");
+  const readiness = await requireOfflineReadiness(input);
+  const catalogue = await readProducts();
+  input = {
+    ...input,
+    offlineGrantToken: readiness.grantToken,
+    catalogueSnapshotVersion: catalogue?.snapshotVersion,
+    catalogueEffectiveAt: catalogue?.effectiveAt,
+    pricingPolicyVersion: catalogue?.pricingPolicyVersion,
+    inventoryCursor: catalogue?.inventoryCursor,
+  };
   const db = await openOfflineDatabase();
   try {
     const key = offlineScopeKey(input.scope);
@@ -456,6 +791,8 @@ export async function commitOfflineCashSale(input: OfflineSaleInput): Promise<Of
     await txDone(tx);
     notifyOfflineSalesChanged();
     return sale;
+  } catch (error) {
+    throw storageError(error);
   } finally {
     db.close();
   }
@@ -576,11 +913,126 @@ export async function exportOfflineSales(scope: OfflineScope): Promise<OfflineSa
   };
 }
 
+export interface OfflineSalesImportResult {
+  imported: number;
+  skipped: number;
+  errors: string[];
+}
+
+const IMPORTABLE_SYNC_STATES = new Set<OfflineSaleSyncState>(["pending", "uploading", "retry_wait", "synced", "blocked", "cancelled", "needs_review", "auth_required"]);
+
+function isObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
+function finiteNonNegative(value: unknown): value is number {
+  return typeof value === "number" && Number.isFinite(value) && value >= 0;
+}
+
+function isValidOfflineScope(value: unknown, scope: OfflineScope): value is OfflineScope {
+  return isObject(value)
+    && value.userId === scope.userId
+    && value.orgId === scope.orgId
+    && value.locationId === scope.locationId;
+}
+
+function validateImportedSale(value: unknown, scope: OfflineScope, index: number): OfflineSaleRecord | string {
+  if (!isObject(value)) return `Record ${index + 1} is not an object.`;
+  const requiredStrings = ["id", "operationId", "registerId", "sessionId", "receiptNo", "customerName", "cashierId", "soldAt", "createdAt", "catalogueSnapshotVersion", "catalogueEffectiveAt", "pricingPolicyVersion"];
+  if (requiredStrings.some((key) => typeof value[key] !== "string" || !String(value[key]).trim())) return `Record ${index + 1} is missing required text fields.`;
+  if (value.id !== value.operationId) return `Record ${index + 1} has mismatched record and operation IDs.`;
+  if (!isValidOfflineScope(value.scope, scope)) return `Record ${index + 1} belongs to a different user, organization, or location.`;
+  if (value.status !== "completed" || (value.schemaVersion !== 1 && value.schemaVersion !== 2)) return `Record ${index + 1} has an unsupported schema or status.`;
+  if (typeof value.syncState !== "string" || !IMPORTABLE_SYNC_STATES.has(value.syncState as OfflineSaleSyncState)) return `Record ${index + 1} has an unsupported sync state.`;
+  if (!Array.isArray(value.lines) || value.lines.length === 0) return `Record ${index + 1} must contain at least one product line.`;
+  if (!isObject(value.payment) || value.payment.method !== "cash" || !finiteNonNegative(value.payment.amountPaise) || !finiteNonNegative(value.payment.receivedPaise) || !finiteNonNegative(value.payment.changePaise)) return `Record ${index + 1} has invalid payment data.`;
+  for (const [lineIndex, line] of value.lines.entries()) {
+    if (!isObject(line) || ["productId", "sku", "name", "saleUnit"].some((key) => typeof line[key] !== "string" || !String(line[key]).trim()) || !finiteNonNegative(line.qty) || line.qty <= 0 || !finiteNonNegative(line.qtyBase) || !finiteNonNegative(line.unitPricePaise) || !finiteNonNegative(line.grossPaise) || !finiteNonNegative(line.discountPaise) || !finiteNonNegative(line.taxablePaise) || !finiteNonNegative(line.taxRateBps) || !finiteNonNegative(line.taxPaise) || !finiteNonNegative(line.netPaise)) {
+      return `Record ${index + 1}, line ${lineIndex + 1} has invalid product data.`;
+    }
+  }
+  const dateFields = ["soldAt", "createdAt", "catalogueEffectiveAt"];
+  if (dateFields.some((key) => Number.isNaN(Date.parse(String(value[key]))))) return `Record ${index + 1} has an invalid date.`;
+  const rawState = value.syncState as OfflineSaleSyncState;
+  return {
+    ...(value as unknown as OfflineSaleRecord),
+    syncState: rawState === "uploading" ? "pending" : rawState,
+    syncMessage: rawState === "uploading" ? "Restored from backup and queued for sync." : typeof value.syncMessage === "string" ? value.syncMessage : undefined,
+  };
+}
+
+/**
+ * Restores only records for the current scope. Existing records are never
+ * replaced, and pending records are re-created in the outbox atomically.
+ */
+export async function importOfflineSales(scope: OfflineScope, payload: unknown): Promise<OfflineSalesImportResult> {
+  const result: OfflineSalesImportResult = { imported: 0, skipped: 0, errors: [] };
+  if (!isObject(payload) || !isValidOfflineScope(payload.scope, scope) || !Array.isArray(payload.sales)) {
+    result.errors.push("This backup is invalid or belongs to a different user, organization, or location.");
+    return result;
+  }
+  const candidates: OfflineSaleRecord[] = [];
+  const seen = new Set<string>();
+  for (const [index, value] of payload.sales.entries()) {
+    const sale = validateImportedSale(value, scope, index);
+    if (typeof sale === "string") {
+      result.errors.push(sale);
+      continue;
+    }
+    if (seen.has(sale.operationId)) {
+      result.skipped += 1;
+      continue;
+    }
+    seen.add(sale.operationId);
+    candidates.push(sale);
+  }
+  if (candidates.length === 0) return result;
+  const db = await openOfflineDatabase();
+  try {
+    const tx = db.transaction([SALE_STORE, OUTBOX_STORE], "readwrite");
+    const salesStore = tx.objectStore(SALE_STORE);
+    const outboxStore = tx.objectStore(OUTBOX_STORE);
+    const existingSales = await requestResult<OfflineSaleRecord[]>(salesStore.getAll());
+    const existingOperationIds = new Set(existingSales.map((sale) => sale.operationId));
+    for (const sale of candidates) {
+      if (existingOperationIds.has(sale.operationId)) {
+        result.skipped += 1;
+        continue;
+      }
+      salesStore.add(sale);
+      if (["pending", "retry_wait", "auth_required"].includes(sale.syncState)) {
+        const now = new Date().toISOString();
+        outboxStore.add({
+          id: sale.operationId,
+          saleId: sale.id,
+          operationId: sale.operationId,
+          scope: sale.scope,
+          kind: "sale.cash.v1",
+          status: "pending",
+          attempts: sale.syncAttempts ?? 0,
+          nextAttemptAt: now,
+          createdAt: sale.createdAt,
+          updatedAt: now,
+        } satisfies OfflineOutboxEntry);
+      }
+      existingOperationIds.add(sale.operationId);
+      result.imported += 1;
+    }
+    await txDone(tx);
+    notifyOfflineSalesChanged();
+    return result;
+  } catch (error) {
+    throw storageError(error);
+  } finally {
+    db.close();
+  }
+}
+
 export async function markOfflineSaleSyncState(
   scope: OfflineScope,
   operationId: string,
   syncState: OfflineSaleSyncState,
-  detail?: { message?: string; serverSaleId?: string; serverReceiptNo?: string },
+  detail?: { message?: string; serverSaleId?: string; serverReceiptNo?: string; inventoryCoveredAt?: string; serverInventoryCursor?: string },
 ): Promise<boolean> {
   if (typeof indexedDB === "undefined") return false;
   try {
@@ -598,6 +1050,8 @@ export async function markOfflineSaleSyncState(
     sale.syncMessage = detail?.message;
     sale.serverSaleId = detail?.serverSaleId ?? sale.serverSaleId;
     sale.serverReceiptNo = detail?.serverReceiptNo ?? sale.serverReceiptNo;
+    sale.inventoryCoveredAt = detail?.inventoryCoveredAt ?? sale.inventoryCoveredAt;
+    sale.serverInventoryCursor = detail?.serverInventoryCursor ?? sale.serverInventoryCursor;
     sale.lastSyncAttemptAt = new Date().toISOString();
     saleStore.put(sale);
     if (syncState === "synced") {
@@ -930,10 +1384,15 @@ export async function incrementOfflineSaleAttempt(scope: OfflineScope, operation
 export function offlineSaleToSyncOperation(sale: OfflineSaleRecord): OfflineSaleSyncOperation {
   return {
     operationId: sale.operationId,
+    offlineGrantToken: sale.offlineGrantToken,
     registerId: sale.registerId,
     sessionId: sale.sessionId,
     deviceReceiptNo: sale.receiptNo,
     occurredAt: sale.soldAt,
+    catalogueSnapshotVersion: sale.catalogueSnapshotVersion,
+    catalogueEffectiveAt: sale.catalogueEffectiveAt,
+    pricingPolicyVersion: sale.pricingPolicyVersion,
+    inventoryCursor: sale.inventoryCursor ?? "0",
     customerName: sale.customerName,
     customerPhone: sale.customerPhone,
     buyerCode: sale.buyerCode,
@@ -948,6 +1407,12 @@ export function offlineSaleToSyncOperation(sale: OfflineSaleRecord): OfflineSale
       taxRateBps: line.taxRateBps,
       taxMinor: line.taxPaise,
       netMinor: line.netPaise,
+      lotEvidence: (line.lotEvidence ?? []).map((lot) => ({
+        lotId: lot.lotId,
+        lotCode: lot.lotCode,
+        quantity: String(lot.qtyBase),
+        expiresAt: lot.expiresAt,
+      })),
     })),
     cashReceivedMinor: sale.payment.receivedPaise,
     cashAppliedMinor: sale.payment.amountPaise,

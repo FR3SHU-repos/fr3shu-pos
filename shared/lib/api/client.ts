@@ -10,6 +10,8 @@ export interface ApiResult<T> {
   code?: string;
   /** Server-provided retry delay from Retry-After, in milliseconds. */
   retryAfterMs?: number;
+  /** Response size when the server exposes a Content-Length header. */
+  responseBytes?: number;
 }
 
 export function apiBase(value: string | undefined): string {
@@ -43,6 +45,7 @@ async function normalize<T>(res: Response): Promise<ApiResult<T>> {
     error?: string;
     code?: string;
   };
+  const contentLength = res.headers?.get?.("Content-Length");
   return {
     success: res.ok && b.success === true,
     message: b.message ?? (res.ok ? "Success" : `Request failed (${res.status})`),
@@ -50,6 +53,7 @@ async function normalize<T>(res: Response): Promise<ApiResult<T>> {
     status: res.status,
     code: b.code,
     retryAfterMs: parseRetryAfter(res.headers?.get?.("Retry-After") ?? null),
+    responseBytes: contentLength && Number.isFinite(Number(contentLength)) ? Number(contentLength) : undefined,
   };
 }
 

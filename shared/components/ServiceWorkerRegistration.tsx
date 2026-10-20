@@ -8,6 +8,9 @@ export function ServiceWorkerRegistration() {
     let disposed = false;
 
     const watchForUpdates = (registration: ServiceWorkerRegistration) => {
+      if (registration.waiting && navigator.serviceWorker.controller) {
+        window.dispatchEvent(new Event("komola:pwa-update-ready"));
+      }
       const worker = registration.installing;
       if (!worker) return;
       worker.addEventListener("statechange", () => {
@@ -15,6 +18,15 @@ export function ServiceWorkerRegistration() {
         window.dispatchEvent(new Event("komola:pwa-update-ready"));
       });
     };
+
+    const activateUpdate = () => {
+      void navigator.serviceWorker.getRegistration().then((current) => {
+        current?.waiting?.postMessage({ type: "SKIP_WAITING" });
+      });
+    };
+    const reloadAfterActivation = () => window.location.reload();
+    window.addEventListener("komola:pwa-activate-update", activateUpdate);
+    navigator.serviceWorker.addEventListener("controllerchange", reloadAfterActivation, { once: true });
 
     const register = () => {
       void navigator.serviceWorker.register("/sw.js").then((registration) => {
@@ -31,6 +43,8 @@ export function ServiceWorkerRegistration() {
     return () => {
       disposed = true;
       window.removeEventListener("load", register);
+      window.removeEventListener("komola:pwa-activate-update", activateUpdate);
+      navigator.serviceWorker.removeEventListener("controllerchange", reloadAfterActivation);
     };
   }, []);
 

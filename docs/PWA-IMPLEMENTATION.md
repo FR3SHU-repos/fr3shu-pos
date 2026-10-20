@@ -1,8 +1,11 @@
 # KOMOLA POS PWA implementation plan
 
-Updated: 2026-10-15
+Updated: 2026-10-20
 Owner: KOMOLA POS engineering  
-Status: Plan B implementation complete in code; production device verification remains
+Status: PWA and scoped offline POS code is implemented through Phase 6; production/device verification remains
+pending. Service-worker updates use a waiting-worker/user-activation flow and
+cache version `komola-pos-shell-v4`; see `docs/OFFLINE-DEVICE-TEST-MATRIX.md`
+and `docs/OFFLINE-OPERATIONS-RUNBOOK.md` for the required physical checks.
 
 ## Objective
 
@@ -23,7 +26,7 @@ POS operation works offline.
 | Offline fallback | Implemented | `app/offline/page.tsx` |
 | Navigation/static caching | Implemented with same-origin restrictions | `public/sw.js` |
 | Auth/API protection | Implemented: API, auth, login, and registration paths are not cached | `public/sw.js` |
-| POS data recovery | Partially implemented through IndexedDB/offline POS work | `docs/OFFLINE-STATUS.md` |
+| POS data recovery | Implemented for the scoped, cash-only offline POS flow; pilot and production verification remain | `docs/OFFLINE-STATUS.md`, `docs/OFFLINE-PILOT-PLAYBOOK.md` |
 | Install prompt UI | Implemented for browser prompts and iOS guidance | `shared/components/PwaInstallPrompt.tsx` |
 | Dedicated PWA icon set | Implemented with 192px, 512px, and maskable declarations | `app/manifest.ts`, `public/icons/` |
 | Production device verification | Pending | Release gate below |
@@ -53,6 +56,10 @@ POS operation works offline.
 
 See [Offline feature status](./OFFLINE-STATUS.md) and the [offline POS proposal](./OFFLINE-POS-PROPOSAL.md)
 for the separate authorization, storage, financial, and synchronization gates.
+
+The offline implementation history is recorded in [Offline feature status](./OFFLINE-STATUS.md).
+Phases 1–6 describe code delivered so far; the pending list in that document is
+the source of truth for production-readiness gaps and pilot work.
 
 ## Implementation worklist
 

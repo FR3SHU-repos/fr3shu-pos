@@ -111,8 +111,16 @@ export interface ProductDTO {
   status: ProductStatus;
   isPinned: boolean;
   availableBase: number;
+  lots?: ProductLotDTO[];
   imageUrl?: string;
   producer?: Producer;
+}
+
+export interface ProductLotDTO {
+  lotId: string;
+  lotCode: string;
+  qty: number;
+  expiresAt?: string;
 }
 
 export function mapProduct(p: GoProduct): ProductDTO {
@@ -139,6 +147,12 @@ export function mapProduct(p: GoProduct): ProductDTO {
     // since the canonical catalogue does not carry a POS pin flag.
     isPinned: p.isPinned ?? false,
     availableBase: Math.round(Number(p.availableQty ?? 0) * unitFactor(p.unit)),
+    lots: (p.lots ?? []).map((lot) => ({
+      lotId: lot.lotId ?? "",
+      lotCode: lot.lotCode ?? "",
+      qty: Number(lot.qty ?? 0),
+      expiresAt: lot.expiresAt,
+    })).filter((lot) => lot.lotId && Number.isFinite(lot.qty) && lot.qty > 0),
     producer: p.producer ?? undefined,
     imageUrl: p.imageUrl || undefined,
   };
@@ -228,6 +242,7 @@ export interface GoRegisterRow {
     name: string;
     status: string;
     sellingLocationId: string;
+    terminalId: string;
     currentShiftId?: string;
   };
   currentShift?: GoShift;
@@ -239,6 +254,7 @@ export interface RegisterDTO {
   name: string;
   status: string;
   locationId: string;
+  terminalId: string;
 }
 
 export const mapRegister = (r: GoRegisterRow["register"]): RegisterDTO => ({
@@ -247,6 +263,7 @@ export const mapRegister = (r: GoRegisterRow["register"]): RegisterDTO => ({
   name: r.name,
   status: r.status,
   locationId: r.sellingLocationId,
+  terminalId: r.terminalId,
 });
 
 /** Go sale DTO (see internal/modules/pos/service.go saleDTO). */

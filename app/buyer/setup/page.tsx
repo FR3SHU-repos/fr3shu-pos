@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { identityApi } from "@/shared/lib/api";
 import { normalizeIndianMobile } from "@/shared/lib/auth/phone";
 import { cardCls, inputCls, primaryBtnCls } from "@/shared/components/ui";
+import { createAuthBrowserClient } from "@/shared/lib/supabase/auth-client";
 
 export default function BuyerSetupPage() {
   const router = useRouter();
@@ -23,12 +24,25 @@ export default function BuyerSetupPage() {
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
+    void createAuthBrowserClient().auth.getUser().then(({ data }) => {
+      const metadata = data.user?.user_metadata as Record<string, unknown> | undefined;
+      const metadataName = typeof metadata?.display_name === "string"
+        ? metadata.display_name
+        : typeof metadata?.full_name === "string"
+          ? metadata.full_name
+          : typeof metadata?.name === "string" ? metadata.name : "";
+      const metadataPhone = typeof data.user?.phone === "string" && data.user.phone
+        ? data.user.phone
+        : typeof metadata?.phone_e164 === "string" ? metadata.phone_e164 : "";
+      if (metadataName.trim()) setName((current) => current || metadataName.trim());
+      if (metadataPhone.trim()) setPhone((current) => current || metadataPhone.replace(/^\+91/, "").replace(/\D/g, "").slice(0, 10));
+    });
     void identityApi.profile().then((result) => {
       if (!result.success || !result.data) return;
-      setName(result.data.displayName);
+      if (result.data.displayName.trim()) setName(result.data.displayName);
       const existingPhone = result.data.contacts.find((contact) => contact.type === "phone" && contact.primary)
         ?? result.data.contacts.find((contact) => contact.type === "phone");
-      if (existingPhone) setPhone(existingPhone.value.replace(/^\+91/, ""));
+      if (existingPhone) setPhone(existingPhone.value.replace(/^\+91/, "").replace(/\D/g, "").slice(0, 10));
       if (result.data.locationCode) setLocationCode(result.data.locationCode);
       if (result.data.address) {
         setLine1(result.data.address.line1 ?? "");

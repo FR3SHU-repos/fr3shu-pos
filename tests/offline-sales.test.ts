@@ -6,10 +6,13 @@ import {
   applyOfflineSaleLineRepair,
   commitOfflineCashSale,
   claimPendingOfflineSales,
+  importOfflineSales,
   listPendingOfflineSales,
   localStockDeductions,
   offlineSaleToDTO,
+  offlineSaleToSyncOperation,
   parseRupeesToPaise,
+  saveOfflineReadiness,
   validateCashPayment,
   type OfflineSaleRecord,
   type OfflineScope,
@@ -45,6 +48,18 @@ beforeEach(async () => {
     const request = indexedDB.deleteDatabase("komola-offline-pos-v1");
     request.onsuccess = () => resolve();
     request.onerror = () => reject(request.error);
+  });
+  await saveOfflineReadiness(scope, {
+    deviceId: "device-1",
+    grantId: "grant-1",
+    grantToken: "grant-token-1",
+    registerId: session.registerId,
+    terminalId: "terminal-1",
+    shiftId: session._id,
+    issuedAt: "2026-09-13T05:00:00.000Z",
+    expiresAt: "2099-09-13T05:00:00.000Z",
+    preparedAt: Date.now(),
+    storage: { status: "ready", persisted: false, checkedAt: Date.now() },
   });
 });
 
@@ -82,6 +97,65 @@ function line(overrides: Partial<CartLine> = {}): CartLine {
 }
 
 describe("offline cash sales", () => {
+  it("restores a pending backup into the scoped outbox without overwriting it", async () => {
+    const sale = buildOfflineSaleRecord({
+      scope,
+      session,
+      cashierId: "cashier-1",
+      lines: [line()],
+      cashReceivedPaise: 10000,
+      customerName: "Asha",
+      operationId: "restored-op-1",
+    }, 1, new Date("2026-09-13T06:30:00.000Z"));
+    sale.syncState = "uploading";
+    const payload = { exportedAt: new Date().toISOString(), scope, sales: [sale] };
+
+    await expect(importOfflineSales(scope, payload)).resolves.toMatchObject({ imported: 1, skipped: 0, errors: [] });
+    expect((await listPendingOfflineSales(scope)).map((item) => item.operationId)).toEqual(["restored-op-1"]);
+    await expect(importOfflineSales(scope, payload)).resolves.toMatchObject({ imported: 0, skipped: 1, errors: [] });
+    expect((await listPendingOfflineSales(scope)).map((item) => item.operationId)).toEqual(["restored-op-1"]);
+  });
+
+  it("rejects a backup from another location without changing local records", async () => {
+    const sale = buildOfflineSaleRecord({
+      scope: { ...scope, locationId: "other-location" },
+      session,
+      cashierId: "cashier-1",
+      lines: [line()],
+      cashReceivedPaise: 10000,
+      customerName: "Asha",
+      operationId: "foreign-op-1",
+    }, 1);
+    const result = await importOfflineSales(scope, { exportedAt: new Date().toISOString(), scope, sales: [sale] });
+    expect(result.imported).toBe(0);
+    expect(result.errors[0]).toContain("different user, organization, or location");
+    expect(await listPendingOfflineSales(scope)).toEqual([]);
+  });
+
+  it("blocks a local sale when the preparation grant has expired", async () => {
+    await saveOfflineReadiness(scope, {
+      deviceId: "device-1",
+      grantId: "grant-expired",
+      grantToken: "grant-token-expired",
+      registerId: session.registerId,
+      terminalId: "terminal-1",
+      shiftId: session._id,
+      issuedAt: "2020-09-13T05:00:00.000Z",
+      expiresAt: "2020-09-13T06:00:00.000Z",
+      preparedAt: Date.now(),
+      storage: { status: "ready", persisted: false, checkedAt: Date.now() },
+    });
+    await expect(commitOfflineCashSale({
+      scope,
+      session,
+      cashierId: "cashier-1",
+      lines: [line()],
+      cashReceivedPaise: 10000,
+      customerName: "Asha",
+      operationId: "expired-grant-op",
+    })).rejects.toThrow("Offline authorization has expired");
+  });
+
   it("atomically persists the sale, outbox, and receipt sequence", async () => {
     const input = {
       scope,
@@ -159,11 +233,21 @@ describe("offline cash sales", () => {
     expect(sale.totalPaise).toBe(9000);
     expect(sale.payment).toMatchObject({ receivedPaise: 10000, changePaise: 1000 });
     expect(sale.lines[0]).toMatchObject({ sku: "TOM-1", qtyBase: 1500, unitPricePaise: 6000 });
+    expect(sale).toMatchObject({
+      catalogueSnapshotVersion: "catalogue-unknown",
+      pricingPolicyVersion: "pos-price-tax-manual-discount-v1",
+      schemaVersion: 2,
+    });
 
     const dto = offlineSaleToDTO(sale);
     expect(dto.syncState).toBe("pending");
     expect(dto.receiptNo).toBe(sale.receiptNo);
     expect(dto.totalPaise).toBe(9000);
+    expect(offlineSaleToSyncOperation(sale)).toMatchObject({
+      catalogueSnapshotVersion: "catalogue-unknown",
+      catalogueEffectiveAt: "2026-09-13T06:30:00.000Z",
+      pricingPolicyVersion: "pos-price-tax-manual-discount-v1",
+    });
   });
 
   it("rejects products that are not eligible for offline checkout", () => {
@@ -216,6 +300,7 @@ describe("offline cash sales", () => {
       operationId: "op-2",
       syncState: "synced",
       createdAt: "2026-09-13T05:00:00.000Z",
+      inventoryCoveredAt: "2026-09-13T05:15:00.000Z",
     };
     const deductions = localStockDeductions([pending, syncedBeforeSnapshot], Date.parse("2026-09-13T05:30:00.000Z"));
 

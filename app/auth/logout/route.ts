@@ -18,6 +18,9 @@ export async function POST(request: NextRequest) {
       response.cookies.set(cookie.name, "", { path: "/", maxAge: 0, expires: new Date(0) });
     }
   }
-  response.headers.set("Clear-Site-Data", '"cache", "storage"');
+  // Do not clear browser storage here: the scoped IndexedDB outbox may contain
+  // unsynced financial records that must survive logout for explicit recovery.
+  // The POS context locks the scope and clears the active session state.
+  response.headers.set("Clear-Site-Data", '"cache"');
   return response;
 }

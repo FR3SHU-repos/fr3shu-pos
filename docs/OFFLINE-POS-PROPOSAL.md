@@ -1,6 +1,7 @@
 # KOMOLA offline POS — refined proposal
 
-Date: 2026-09-13. Status: proposed, not an implementation claim.
+Date: 2026-09-13. Status: design baseline; implementation completeness is
+tracked separately in [OFFLINE-STATUS.md](./OFFLINE-STATUS.md).
 
 ## Objective and first release
 

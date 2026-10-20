@@ -33,6 +33,7 @@ import {
   Skeleton,
 } from "@/shared/components/ui";
 import { cx } from "@/shared/lib/utils";
+import { printReceipt } from "@/shared/lib/offline/receipt-print";
 import { computeLineTotals, formatPaise, sumCartTotals } from "@/shared/lib/money";
 import { formatBaseQuantity, SALE_UNIT_BASE, toBaseQuantity, type SaleUnit } from "@/shared/lib/units";
 import { clampQuantityToStock, remainingStockBase } from "@/shared/lib/pos-stock";
@@ -618,7 +619,7 @@ export default function PosPage() {
             <Plus className="h-4 w-4" />
             {t("pos.new_sale")}
           </button>
-          <button className={ghostBtnCls} onClick={() => window.print()}>
+          <button className={ghostBtnCls} onClick={() => printReceipt()}>
             <Printer className="h-4 w-4" />
             {t("pos.print_receipt")}
           </button>
