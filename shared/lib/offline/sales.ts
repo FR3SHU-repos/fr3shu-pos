@@ -82,6 +82,9 @@ export interface OfflineSaleRecord {
   status: "completed";
   syncState: OfflineSaleSyncState;
   syncMessage?: string;
+  syncFailureStage?: string;
+  syncRequestId?: string;
+  syncTraceId?: string;
   serverSaleId?: string;
   serverReceiptNo?: string;
   /** Set only after a successful post-ack catalogue refresh. */
@@ -918,7 +921,7 @@ export async function markOfflineSaleSyncState(
   scope: OfflineScope,
   operationId: string,
   syncState: OfflineSaleSyncState,
-  detail?: { message?: string; serverSaleId?: string; serverReceiptNo?: string; inventoryCoveredAt?: string; serverInventoryCursor?: string },
+  detail?: { message?: string; failureStage?: string; requestId?: string; traceId?: string; serverSaleId?: string; serverReceiptNo?: string; inventoryCoveredAt?: string; serverInventoryCursor?: string },
 ): Promise<boolean> {
   if (typeof indexedDB === "undefined") return false;
   try {
@@ -934,6 +937,9 @@ export async function markOfflineSaleSyncState(
     }
     sale.syncState = syncState;
     sale.syncMessage = detail?.message;
+    sale.syncFailureStage = detail?.failureStage ?? sale.syncFailureStage;
+    sale.syncRequestId = detail?.requestId ?? sale.syncRequestId;
+    sale.syncTraceId = detail?.traceId ?? sale.syncTraceId;
     sale.serverSaleId = detail?.serverSaleId ?? sale.serverSaleId;
     sale.serverReceiptNo = detail?.serverReceiptNo ?? sale.serverReceiptNo;
     sale.inventoryCoveredAt = detail?.inventoryCoveredAt ?? sale.inventoryCoveredAt;
@@ -1231,7 +1237,13 @@ export async function requeueOfflineSale(scope: OfflineScope, operationId: strin
   }
 }
 
-export async function incrementOfflineSaleAttempt(scope: OfflineScope, operationId: string, retryInMs: number, message?: string): Promise<void> {
+export interface OfflineSaleSyncDiagnostic {
+  failureStage?: string;
+  requestId?: string;
+  traceId?: string;
+}
+
+export async function incrementOfflineSaleAttempt(scope: OfflineScope, operationId: string, retryInMs: number, message?: string, diagnostic?: OfflineSaleSyncDiagnostic): Promise<void> {
   if (typeof indexedDB === "undefined") return;
   try {
     const db = await openOfflineDatabase();
@@ -1242,6 +1254,9 @@ export async function incrementOfflineSaleAttempt(scope: OfflineScope, operation
     if (sale && offlineScopeKey(sale.scope) === offlineScopeKey(scope)) {
       sale.syncState = "retry_wait";
       sale.syncMessage = message ?? sale.syncMessage;
+      sale.syncFailureStage = diagnostic?.failureStage ?? sale.syncFailureStage;
+      sale.syncRequestId = diagnostic?.requestId ?? sale.syncRequestId;
+      sale.syncTraceId = diagnostic?.traceId ?? sale.syncTraceId;
       sale.lastSyncAttemptAt = new Date().toISOString();
       saleStore.put(sale);
     }

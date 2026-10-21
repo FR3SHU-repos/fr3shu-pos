@@ -42,6 +42,18 @@ function statusIcon(status: OfflineSaleSyncState) {
   return <Clock3 className="h-4 w-4 text-status-warning" />;
 }
 
+const SYNC_FAILURE_STAGE_LABEL: Record<string, string> = {
+  idempotency_lookup: "Checking whether the sale was already recorded",
+  offline_grant_validation: "Validating offline authorization",
+  offline_snapshot_validation: "Validating saved catalogue and stock evidence",
+  sale_create: "Creating the sale record",
+};
+
+function syncFailureStageLabel(stage?: string): string | undefined {
+  if (!stage) return undefined;
+  return SYNC_FAILURE_STAGE_LABEL[stage] ?? `Server sync step: ${stage.replaceAll("_", " ")}`;
+}
+
 function downloadOfflineSalesBackup(payload: unknown) {
   const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
   const url = URL.createObjectURL(blob);
@@ -433,7 +445,10 @@ export function OfflineSalesPanel() {
                   <Detail label="Sale total" value={formatPaise(sale.payment.amountPaise)} />
                   <Detail label="Change" value={formatPaise(sale.payment.changePaise)} />
                   {sale.lastSyncAttemptAt ? <Detail label="Last sync try" value={new Date(sale.lastSyncAttemptAt).toLocaleString()} /> : null}
+                  {syncFailureStageLabel(sale.syncFailureStage) ? <Detail label="What failed" value={syncFailureStageLabel(sale.syncFailureStage) ?? ""} /> : null}
                   {sale.syncMessage ? <Detail label="Sync detail" value={sale.syncMessage} /> : null}
+                  {sale.syncRequestId ? <Detail label="Support request ID" value={sale.syncRequestId} /> : null}
+                  {sale.syncTraceId ? <Detail label="Trace ID" value={sale.syncTraceId} /> : null}
                 </dl>
                 <div className="flex flex-wrap gap-2">
                   <button type="button" className={ghostBtnCls} onClick={() => setReceiptSale(sale)}>
@@ -595,11 +610,14 @@ function OfflineReceiptDialog({ sale, onClose }: { sale: OfflineSaleRecord; onCl
         />
         <div className="no-print mt-4 grid gap-2 rounded-xl border border-border bg-surface p-3 text-xs text-foreground-muted">
           <Detail label="Sync status" value={STATUS_LABEL[sale.syncState]} />
+          {syncFailureStageLabel(sale.syncFailureStage) ? <Detail label="What failed" value={syncFailureStageLabel(sale.syncFailureStage) ?? ""} /> : null}
           {sale.syncMessage ? <Detail label="Sync detail" value={sale.syncMessage} /> : null}
           <Detail label="Local receipt" value={sale.receiptNo} />
           {sale.serverReceiptNo ? <Detail label="Server receipt" value={sale.serverReceiptNo} /> : null}
           {sale.serverSaleId ? <Detail label="Server sale ID" value={sale.serverSaleId} /> : null}
           <Detail label="Operation ID" value={sale.operationId} />
+          {sale.syncRequestId ? <Detail label="Support request ID" value={sale.syncRequestId} /> : null}
+          {sale.syncTraceId ? <Detail label="Trace ID" value={sale.syncTraceId} /> : null}
           <Detail label="Cash received" value={formatPaise(sale.payment.receivedPaise)} />
           <Detail label="Change" value={formatPaise(sale.payment.changePaise)} />
         </div>

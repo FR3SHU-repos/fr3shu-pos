@@ -12,6 +12,8 @@ export interface ApiResult<T> {
   retryAfterMs?: number;
   /** Response size when the server exposes a Content-Length header. */
   responseBytes?: number;
+  /** Safe server correlation id for support diagnostics. */
+  requestId?: string;
 }
 
 export function apiBase(value: string | undefined): string {
@@ -54,6 +56,7 @@ async function normalize<T>(res: Response): Promise<ApiResult<T>> {
     code: b.code,
     retryAfterMs: parseRetryAfter(res.headers?.get?.("Retry-After") ?? null),
     responseBytes: contentLength && Number.isFinite(Number(contentLength)) ? Number(contentLength) : undefined,
+    requestId: res.headers?.get?.("X-Request-ID") ?? undefined,
   };
 }
 

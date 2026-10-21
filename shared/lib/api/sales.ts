@@ -19,6 +19,7 @@ import {
   markOfflineSaleSyncState,
   offlineSaleToSyncOperation,
   type OfflineScope,
+  type OfflineSaleSyncDiagnostic,
 } from "@/shared/lib/offline/sales";
 import { jsonByteLength, recordOfflineSyncAttempt } from "@/shared/lib/offline/network-metrics";
 
@@ -154,6 +155,9 @@ export interface OfflineSaleSyncResult {
   operationId: string;
   outcome: "accepted" | "already_accepted" | "retry" | "needs_review" | "rejected";
   reason?: string;
+  failureStage?: string;
+  requestId?: string;
+  traceId?: string;
   sale?: GoSale;
   inventoryCursor?: string;
   stockAdjustments?: Array<{
@@ -231,6 +235,19 @@ function retryDelayMs(sale: { syncAttempts?: number }, retryAfterMs?: number): n
   return Math.round(base * (0.875 + Math.random() * 0.25));
 }
 
+function scheduleOfflineSaleRetry(
+  scope: OfflineScope,
+  operationId: string,
+  retryInMs: number,
+  message: string,
+  diagnostic?: OfflineSaleSyncDiagnostic,
+): Promise<void> {
+  if (diagnostic && Object.values(diagnostic).some(Boolean)) {
+    return incrementOfflineSaleAttempt(scope, operationId, retryInMs, message, diagnostic);
+  }
+  return incrementOfflineSaleAttempt(scope, operationId, retryInMs, message);
+}
+
 export async function syncPendingOfflineSales(scope: OfflineScope, options: { forceRetry?: boolean } = {}): Promise<{
   attempted: number;
   synced: number;
@@ -263,11 +280,12 @@ export async function syncPendingOfflineSales(scope: OfflineScope, options: { fo
     return { attempted: batch.length, synced: 0, blocked: 0, authRequired: true };
   }
   if (res.status === 404) {
-    await Promise.all(batch.map((sale) => incrementOfflineSaleAttempt(
+    await Promise.all(batch.map((sale) => scheduleOfflineSaleRetry(
       scope,
       sale.operationId,
       retryDelayMs(sale, res.retryAfterMs),
       res.message || "The backend sync endpoint is unavailable. The sale will retry automatically.",
+      { requestId: res.requestId },
     )));
     return {
       attempted: batch.length,
@@ -280,11 +298,12 @@ export async function syncPendingOfflineSales(scope: OfflineScope, options: { fo
     };
   }
   if (!res.success || !res.data) {
-    await Promise.all(batch.map((sale) => incrementOfflineSaleAttempt(
+    await Promise.all(batch.map((sale) => scheduleOfflineSaleRetry(
       scope,
       sale.operationId,
       retryDelayMs(sale, res.retryAfterMs),
       res.message || "Offline sale sync did not complete. The sale will retry automatically.",
+      { requestId: res.requestId },
     )));
     return {
       attempted: batch.length,
@@ -332,7 +351,11 @@ export async function syncPendingOfflineSales(scope: OfflineScope, options: { fo
       await markOfflineSaleSyncState(scope, result.operationId, result.outcome === "needs_review" ? "needs_review" : "blocked", { message });
     } else {
       const sale = batch.find((item) => item.operationId === result.operationId);
-      await incrementOfflineSaleAttempt(scope, result.operationId, retryDelayMs(sale ?? {}, res.retryAfterMs), automaticSyncMessage(result.reason));
+      await scheduleOfflineSaleRetry(scope, result.operationId, retryDelayMs(sale ?? {}, res.retryAfterMs), automaticSyncMessage(result.reason), {
+        failureStage: result.failureStage,
+        requestId: result.requestId ?? res.requestId,
+        traceId: result.traceId,
+      });
     }
   }
   if (accepted.length > 0) {
