@@ -250,6 +250,15 @@ function scheduleOfflineSaleRetry(
   return incrementOfflineSaleAttempt(scope, operationId, retryInMs, message);
 }
 
+function hasUnresolvedOfflineReference(sale: { lines?: Array<{ productId: string; lotEvidence?: Array<{ lotId: string }> }> }): boolean {
+  return sale.lines?.some((line) =>
+    line.productId.startsWith("offline-product-")
+    || (line.lotEvidence ?? []).some((lot) => lot.lotId.startsWith("offline-lot-")),
+  ) ?? false;
+}
+
+const OFFLINE_REFERENCE_PENDING_MESSAGE = "This sale includes a product or stock lot created offline that has not synced yet. The sale will retry after that offline change is synced.";
+
 export async function syncPendingOfflineSales(scope: OfflineScope, options: { forceRetry?: boolean } = {}): Promise<{
   attempted: number;
   synced: number;
@@ -268,7 +277,30 @@ export async function syncPendingOfflineSales(scope: OfflineScope, options: { fo
   if (refreshed) await requeueBlockedOfflineSalesWithAvailableStock(scope, refreshed.items, refreshed.savedAt);
   const pending = await claimPendingOfflineSales(scope, 10);
   if (pending.length === 0) return empty;
-  const batch = pending.slice(0, 10);
+  const claimedBatch = pending.slice(0, 10);
+  const unresolved = claimedBatch.filter(hasUnresolvedOfflineReference);
+  await Promise.all(unresolved.map((sale) => scheduleOfflineSaleRetry(
+    scope,
+    sale.operationId,
+    retryDelayMs(sale),
+    OFFLINE_REFERENCE_PENDING_MESSAGE,
+    {
+      failureStage: "offline_reference_resolution",
+      failureCode: "offline_reference_pending",
+      failureDetail: OFFLINE_REFERENCE_PENDING_MESSAGE,
+    },
+  )));
+  const batch = claimedBatch.filter((sale) => !hasUnresolvedOfflineReference(sale));
+  if (batch.length === 0) {
+    return {
+      attempted: claimedBatch.length,
+      synced: 0,
+      blocked: 0,
+      authRequired: false,
+      message: OFFLINE_REFERENCE_PENDING_MESSAGE,
+      blockedMessages: [],
+    };
+  }
   const startedAt = Date.now();
   const syncPayload = { operations: batch.map(offlineSaleToSyncOperation) };
   const res = await goRequest<{ results: OfflineSaleSyncResult[] }>("sync/sales", {
@@ -279,7 +311,7 @@ export async function syncPendingOfflineSales(scope: OfflineScope, options: { fo
   recordOfflineSyncAttempt(Date.now() - startedAt, jsonByteLength(syncPayload), !res.success || res.data?.results?.some((result) => result.outcome === "retry") === true);
   if (res.status === 401 || res.status === 403) {
     await Promise.all(batch.map((sale) => markOfflineSaleSyncState(scope, sale.operationId, "auth_required", { message: "Sign in again before syncing this sale." })));
-    return { attempted: batch.length, synced: 0, blocked: 0, authRequired: true };
+    return { attempted: claimedBatch.length, synced: 0, blocked: 0, authRequired: true };
   }
   if (res.status === 404) {
     await Promise.all(batch.map((sale) => scheduleOfflineSaleRetry(
@@ -290,7 +322,7 @@ export async function syncPendingOfflineSales(scope: OfflineScope, options: { fo
       { requestId: res.requestId },
     )));
     return {
-      attempted: batch.length,
+      attempted: claimedBatch.length,
       synced: 0,
       blocked: 0,
       authRequired: false,
@@ -308,7 +340,7 @@ export async function syncPendingOfflineSales(scope: OfflineScope, options: { fo
       { requestId: res.requestId },
     )));
     return {
-      attempted: batch.length,
+      attempted: claimedBatch.length,
       synced: 0,
       blocked: 0,
       authRequired: false,
@@ -374,7 +406,7 @@ export async function syncPendingOfflineSales(scope: OfflineScope, options: { fo
       })));
     }
   }
-  return { attempted: batch.length, synced, blocked, authRequired, blockedMessages };
+  return { attempted: claimedBatch.length, synced, blocked, authRequired, blockedMessages };
 }
 
 export const voidSale = (

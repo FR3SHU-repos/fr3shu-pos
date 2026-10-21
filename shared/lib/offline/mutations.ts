@@ -5,7 +5,7 @@ import type { AddStockBody, AddStockResult } from "../api/stock";
 import { newUuid } from "../uuid";
 import { unitFactor, unitBase } from "../api/_map";
 import { productScope, readProducts, writeProducts, isOffline } from "./products";
-import { offlineScopeKey, type OfflineScope } from "./sales";
+import { applyOfflineMutationMappings, offlineScopeKey, type OfflineReferenceMappings, type OfflineScope } from "./sales";
 
 type MutationKind = "product.create" | "stock.receipt";
 type MutationStatus = "pending" | "syncing" | "blocked" | "synced";
@@ -19,6 +19,7 @@ interface OfflineMutation {
   localProductId?: string;
   localLotId?: string;
   serverProductId?: string;
+  serverLotId?: string;
   attempts: number;
   message?: string;
   createdAt: string;
@@ -207,12 +208,16 @@ export async function syncOfflineMutations(): Promise<{ synced: number; pending:
   let synced = 0;
   let blocked = 0;
   const messages: string[] = [];
-  const resolved = new Map<string, string>();
+  const mappings: OfflineReferenceMappings = { productIds: {}, lotIds: {} };
   for (const mutation of all) {
     if (mutation.kind === "product.create" && mutation.localProductId && mutation.serverProductId) {
-      resolved.set(mutation.localProductId, mutation.serverProductId);
+      mappings.productIds[mutation.localProductId] = mutation.serverProductId;
+    }
+    if (mutation.kind === "stock.receipt" && mutation.localLotId && mutation.serverLotId) {
+      mappings.lotIds[mutation.localLotId] = mutation.serverLotId;
     }
   }
+  await applyOfflineMutationMappings(scope, mappings);
   for (const mutation of pending) {
     if (mutation.status === "blocked") { blocked += 1; continue; }
     await updateMutation(mutation.id, { status: "syncing", attempts: mutation.attempts + 1 });
@@ -230,7 +235,7 @@ export async function syncOfflineMutations(): Promise<{ synced: number; pending:
       }
       const product = mapProduct(mapped);
       if (mutation.localProductId) {
-        resolved.set(mutation.localProductId, product._id);
+        mappings.productIds[mutation.localProductId] = product._id;
         await replaceLocalProduct(mutation.localProductId, product);
       }
       await updateMutation(mutation.id, { status: "synced", serverProductId: product._id, message: `Product ${product.name} synced.` });
@@ -239,7 +244,7 @@ export async function syncOfflineMutations(): Promise<{ synced: number; pending:
       continue;
     }
     const payload = mutation.payload as AddStockBody;
-    const skuId = resolved.get(payload.skuId) ?? payload.skuId;
+    const skuId = mappings.productIds[payload.skuId] ?? payload.skuId;
     const res = await goRequest<AddStockResult>("inventory/receipts", {
       method: "POST", body: { ...payload, skuId },
     });
@@ -252,10 +257,19 @@ export async function syncOfflineMutations(): Promise<{ synced: number; pending:
       }
       continue;
     }
-    await updateMutation(mutation.id, { status: "synced", message: "Stock receipt synced." });
+    if (mutation.localLotId && res.data.lotId) {
+      mappings.lotIds[mutation.localLotId] = res.data.lotId;
+    }
+    await updateMutation(mutation.id, {
+      status: "synced",
+      serverProductId: res.data.skuId,
+      serverLotId: res.data.lotId,
+      message: "Stock receipt synced.",
+    });
     synced += 1;
     messages.push("Stock receipt synced.");
   }
+  await applyOfflineMutationMappings(scope, mappings);
   const remaining = await listMutations(scope);
   return { synced, pending: remaining.length, blocked, messages };
 }

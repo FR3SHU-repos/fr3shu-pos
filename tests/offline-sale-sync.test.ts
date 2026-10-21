@@ -98,6 +98,28 @@ describe("offline sale sync API", () => {
     expect(result).toEqual({ attempted: 1, synced: 0, blocked: 0, authRequired: false, message: "Offline sale sync did not complete.", blockedMessages: [] });
   });
 
+  it("does not send a sale while its local product reference is unresolved", async () => {
+    mocks.claimPending.mockResolvedValue([{
+      operationId: "op-1",
+      lines: [{ productId: "offline-product-local", lotEvidence: [] }],
+    }]);
+
+    const result = await syncPendingOfflineSales(scope);
+
+    expect(mocks.request).not.toHaveBeenCalled();
+    expect(mocks.increment).toHaveBeenCalledWith(
+      scope,
+      "op-1",
+      expect.any(Number),
+      expect.stringContaining("product or stock lot created offline"),
+      expect.objectContaining({
+        failureStage: "offline_reference_resolution",
+        failureCode: "offline_reference_pending",
+      }),
+    );
+    expect(result.message).toContain("product or stock lot created offline");
+  });
+
   it("reports clearly when the backend route is not loaded", async () => {
     mocks.claimPending.mockResolvedValue([{ operationId: "op-1" }]);
     mocks.request.mockResolvedValue({ success: false, status: 404, data: null });

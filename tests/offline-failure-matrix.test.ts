@@ -4,6 +4,7 @@ import {
   assessOfflineStorage,
   buildOfflineSaleRecord,
   offlineSaleToSyncOperation,
+  rewriteOfflineSaleReferences,
   type OfflineScope,
 } from "@/shared/lib/offline/sales";
 import type { ProductDTO } from "@/shared/lib/api/products";
@@ -33,6 +34,34 @@ describe("offline failure matrix evidence", () => {
     const operation = offlineSaleToSyncOperation(sale);
     expect(operation.inventoryCursor).toBe("42");
     expect(operation.lines[0].lotEvidence).toEqual([{ lotId: "lot-1", lotCode: "LOT-1", quantity: "5000" }]);
+  });
+
+  it("rewrites local product and lot references after their mutations sync", () => {
+    const sale = buildOfflineSaleRecord({
+      scope,
+      session,
+      cashierId: "cashier-1",
+      lines: [{
+        key: "line-1",
+        product: { ...product, _id: "offline-product-local", id: "offline-product-local", lots: [{ lotId: "offline-lot-local", lotCode: "LOCAL-LOT", qty: 5000 }] },
+        qty: 1,
+        saleUnit: "kg",
+        discountPaise: 0,
+      }],
+      cashReceivedPaise: 10000,
+      customerName: "Asha",
+      inventoryCursor: "42",
+    }, 1);
+
+    const rewritten = rewriteOfflineSaleReferences(sale, {
+      productIds: { "offline-product-local": "server-sku-1" },
+      lotIds: { "offline-lot-local": "server-lot-1" },
+    });
+
+    expect(rewritten.changed).toBe(true);
+    expect(rewritten.sale.lines[0].productId).toBe("server-sku-1");
+    expect(rewritten.sale.lines[0].lotEvidence[0].lotId).toBe("server-lot-1");
+    expect(sale.lines[0].productId).toBe("offline-product-local");
   });
 
   it("blocks local preparation when the browser reports insufficient headroom", async () => {

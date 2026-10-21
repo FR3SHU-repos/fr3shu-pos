@@ -171,6 +171,11 @@ export interface OfflineSaleSyncOperation {
   taxMinor: number;
 }
 
+export interface OfflineReferenceMappings {
+  productIds: Record<string, string>;
+  lotIds: Record<string, string>;
+}
+
 export interface OfflineSaleInput {
   scope: OfflineScope;
   session: SessionDTO;
@@ -209,6 +214,72 @@ function notifyOfflineSalesChanged() {
 
 export function offlineScopeKey(scope: OfflineScope): string {
   return JSON.stringify([scope.userId, scope.orgId, scope.locationId]);
+}
+
+export function rewriteOfflineSaleReferences(
+  sale: OfflineSaleRecord,
+  mappings: OfflineReferenceMappings,
+): { sale: OfflineSaleRecord; changed: boolean } {
+  let changed = false;
+  const lines = sale.lines.map((line) => {
+    const productId = mappings.productIds[line.productId] ?? line.productId;
+    const lotEvidence = line.lotEvidence.map((lot) => {
+      const lotId = mappings.lotIds[lot.lotId] ?? lot.lotId;
+      if (lotId !== lot.lotId) changed = true;
+      return lotId === lot.lotId ? lot : { ...lot, lotId };
+    });
+    if (productId !== line.productId) changed = true;
+    return productId === line.productId && lotEvidence === line.lotEvidence
+      ? line
+      : { ...line, productId, lotEvidence };
+  });
+  return changed ? { sale: { ...sale, lines }, changed } : { sale, changed: false };
+}
+
+export async function applyOfflineMutationMappings(
+  scope: OfflineScope,
+  mappings: OfflineReferenceMappings,
+): Promise<number> {
+  if (typeof indexedDB === "undefined") return 0;
+  const effectiveMappings: OfflineReferenceMappings = {
+    productIds: { ...mappings.productIds },
+    lotIds: { ...mappings.lotIds },
+  };
+  const snapshot = await readProducts();
+  if (snapshot) {
+    for (const sale of await listOfflineSales(scope)) {
+      for (const line of sale.lines) {
+        const productId = effectiveMappings.productIds[line.productId] ?? line.productId;
+        const product = snapshot.items.find((item) => item._id === productId);
+        if (!product) continue;
+        for (const evidence of line.lotEvidence) {
+          if (!evidence.lotId.startsWith("offline-lot-") || !evidence.lotCode) continue;
+          const matchingLot = product.lots?.find((lot) => lot.lotCode === evidence.lotCode && !lot.lotId.startsWith("offline-lot-"));
+          if (matchingLot?.lotId) effectiveMappings.lotIds[evidence.lotId] = matchingLot.lotId;
+        }
+      }
+    }
+  }
+  if (Object.keys(effectiveMappings.productIds).length === 0 && Object.keys(effectiveMappings.lotIds).length === 0) return 0;
+  const db = await openOfflineDatabase();
+  try {
+    const tx = db.transaction(SALE_STORE, "readwrite");
+    const store = tx.objectStore(SALE_STORE);
+    const sales = await requestResult<OfflineSaleRecord[]>(store.getAll());
+    let updated = 0;
+    for (const sale of sales) {
+      if (offlineScopeKey(sale.scope) !== offlineScopeKey(scope)) continue;
+      const rewritten = rewriteOfflineSaleReferences(sale, effectiveMappings);
+      if (!rewritten.changed) continue;
+      store.put(rewritten.sale);
+      updated += 1;
+    }
+    await txDone(tx);
+    if (updated > 0) notifyOfflineSalesChanged();
+    return updated;
+  } finally {
+    db.close();
+  }
 }
 
 function sessionStorageSafe(): Storage | null {
