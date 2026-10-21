@@ -36,27 +36,50 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
   const [copied, setCopied] = useState(false);
 
   useEffect(() => {
-    suppliersApi.list().then((res) => {
-      if (res.success && res.data) setSuppliers(res.data.items);
-    });
-    productsApi.get(id).then((res) => {
-      if (res.success && res.data) {
-        setProduct(res.data);
-        if (res.data.slug && res.data.slug !== id) {
-          router.replace(`/products/${res.data.slug}`);
+    let cancelled = false;
+    setLoading(true);
+
+    void suppliersApi.list()
+      .then((res) => {
+        if (cancelled) return;
+        if (res.success && res.data) setSuppliers(res.data.items);
+        else toast.error(res.message);
+      })
+      .catch((error: unknown) => {
+        if (!cancelled) toast.error(error instanceof Error ? error.message : "Could not load suppliers.");
+      });
+
+    void productsApi.get(id)
+      .then((res) => {
+        if (cancelled) return;
+        if (res.success && res.data) {
+          setProduct(res.data);
+          if (res.data.slug && res.data.slug !== id) {
+            router.replace(`/products/${res.data.slug}`);
+          }
+          setPriceRupees(
+            typeof res.data.basePricePaise === "number"
+              ? String(paiseToRupees(res.data.basePricePaise))
+              : "",
+          );
+          setOrganicStatus(res.data.organicStatus);
+          setStatus(res.data.status ?? "active");
+          setProducer(res.data.producer ?? { kind: "self" });
+        } else {
+          toast.error(res.message);
         }
-        setPriceRupees(
-          typeof res.data.basePricePaise === "number"
-            ? String(paiseToRupees(res.data.basePricePaise))
-            : "",
-        );
-        setOrganicStatus(res.data.organicStatus);
-        setStatus(res.data.status ?? "active");
-        setProducer(res.data.producer ?? { kind: "self" });
-      }
-      setLoading(false);
-    });
-  }, [id]);
+      })
+      .catch((error: unknown) => {
+        if (!cancelled) toast.error(error instanceof Error ? error.message : "Could not load product.");
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [id, router]);
 
   async function save(e: React.FormEvent) {
     e.preventDefault();

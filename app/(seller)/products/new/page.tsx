@@ -46,12 +46,31 @@ export default function NewProductPage() {
   });
 
   useEffect(() => {
-    categoriesApi.list().then((res) => {
-      if (res.success && res.data) setCategories(res.data.items);
-    });
-    suppliersApi.list().then((res) => {
-      if (res.success && res.data) setSuppliers(res.data.items);
-    });
+    let cancelled = false;
+
+    void categoriesApi.list()
+      .then((res) => {
+        if (cancelled) return;
+        if (res.success && res.data) setCategories(res.data.items);
+        else toast.error(res.message);
+      })
+      .catch((error: unknown) => {
+        if (!cancelled) toast.error(error instanceof Error ? error.message : "Could not load categories.");
+      });
+
+    void suppliersApi.list()
+      .then((res) => {
+        if (cancelled) return;
+        if (res.success && res.data) setSuppliers(res.data.items);
+        else toast.error(res.message);
+      })
+      .catch((error: unknown) => {
+        if (!cancelled) toast.error(error instanceof Error ? error.message : "Could not load suppliers.");
+      });
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const set = <K extends keyof typeof form>(k: K, v: (typeof form)[K]) =>

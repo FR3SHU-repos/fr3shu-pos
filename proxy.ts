@@ -1,9 +1,9 @@
 import type { NextRequest } from "next/server";
 import { updateSession } from "@/shared/lib/supabase/middleware";
 
-// Server-side Supabase session refresh + route guard (replaces the SSR check in
-// app/page.tsx / shared/lib/auth.ts).
-export async function middleware(request: NextRequest) {
+// Server-side Supabase session refresh + route guard.
+// Next.js 16 calls this boundary proxy instead of middleware.
+export async function proxy(request: NextRequest) {
   return updateSession(request);
 }
 
