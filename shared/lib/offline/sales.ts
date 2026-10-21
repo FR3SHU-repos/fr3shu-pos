@@ -83,6 +83,8 @@ export interface OfflineSaleRecord {
   syncState: OfflineSaleSyncState;
   syncMessage?: string;
   syncFailureStage?: string;
+  syncFailureCode?: string;
+  syncFailureDetail?: string;
   syncRequestId?: string;
   syncTraceId?: string;
   serverSaleId?: string;
@@ -921,7 +923,7 @@ export async function markOfflineSaleSyncState(
   scope: OfflineScope,
   operationId: string,
   syncState: OfflineSaleSyncState,
-  detail?: { message?: string; failureStage?: string; requestId?: string; traceId?: string; serverSaleId?: string; serverReceiptNo?: string; inventoryCoveredAt?: string; serverInventoryCursor?: string },
+  detail?: { message?: string; failureStage?: string; failureCode?: string; failureDetail?: string; requestId?: string; traceId?: string; serverSaleId?: string; serverReceiptNo?: string; inventoryCoveredAt?: string; serverInventoryCursor?: string },
 ): Promise<boolean> {
   if (typeof indexedDB === "undefined") return false;
   try {
@@ -938,6 +940,8 @@ export async function markOfflineSaleSyncState(
     sale.syncState = syncState;
     sale.syncMessage = detail?.message;
     sale.syncFailureStage = detail?.failureStage ?? sale.syncFailureStage;
+    sale.syncFailureCode = detail?.failureCode ?? sale.syncFailureCode;
+    sale.syncFailureDetail = detail?.failureDetail ?? sale.syncFailureDetail;
     sale.syncRequestId = detail?.requestId ?? sale.syncRequestId;
     sale.syncTraceId = detail?.traceId ?? sale.syncTraceId;
     sale.serverSaleId = detail?.serverSaleId ?? sale.serverSaleId;
@@ -1239,6 +1243,8 @@ export async function requeueOfflineSale(scope: OfflineScope, operationId: strin
 
 export interface OfflineSaleSyncDiagnostic {
   failureStage?: string;
+  failureCode?: string;
+  failureDetail?: string;
   requestId?: string;
   traceId?: string;
 }
@@ -1255,6 +1261,8 @@ export async function incrementOfflineSaleAttempt(scope: OfflineScope, operation
       sale.syncState = "retry_wait";
       sale.syncMessage = message ?? sale.syncMessage;
       sale.syncFailureStage = diagnostic?.failureStage ?? sale.syncFailureStage;
+      sale.syncFailureCode = diagnostic?.failureCode ?? sale.syncFailureCode;
+      sale.syncFailureDetail = diagnostic?.failureDetail ?? sale.syncFailureDetail;
       sale.syncRequestId = diagnostic?.requestId ?? sale.syncRequestId;
       sale.syncTraceId = diagnostic?.traceId ?? sale.syncTraceId;
       sale.lastSyncAttemptAt = new Date().toISOString();

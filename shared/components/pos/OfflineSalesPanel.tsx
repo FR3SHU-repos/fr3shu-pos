@@ -446,6 +446,8 @@ export function OfflineSalesPanel() {
                   <Detail label="Change" value={formatPaise(sale.payment.changePaise)} />
                   {sale.lastSyncAttemptAt ? <Detail label="Last sync try" value={new Date(sale.lastSyncAttemptAt).toLocaleString()} /> : null}
                   {syncFailureStageLabel(sale.syncFailureStage) ? <Detail label="What failed" value={syncFailureStageLabel(sale.syncFailureStage) ?? ""} /> : null}
+                  {sale.syncFailureDetail ? <Detail label="Failure reason" value={sale.syncFailureDetail} /> : null}
+                  {sale.syncFailureCode ? <Detail label="Failure code" value={sale.syncFailureCode} /> : null}
                   {sale.syncMessage ? <Detail label="Sync detail" value={sale.syncMessage} /> : null}
                   {sale.syncRequestId ? <Detail label="Support request ID" value={sale.syncRequestId} /> : null}
                   {sale.syncTraceId ? <Detail label="Trace ID" value={sale.syncTraceId} /> : null}
@@ -611,6 +613,8 @@ function OfflineReceiptDialog({ sale, onClose }: { sale: OfflineSaleRecord; onCl
         <div className="no-print mt-4 grid gap-2 rounded-xl border border-border bg-surface p-3 text-xs text-foreground-muted">
           <Detail label="Sync status" value={STATUS_LABEL[sale.syncState]} />
           {syncFailureStageLabel(sale.syncFailureStage) ? <Detail label="What failed" value={syncFailureStageLabel(sale.syncFailureStage) ?? ""} /> : null}
+          {sale.syncFailureDetail ? <Detail label="Failure reason" value={sale.syncFailureDetail} /> : null}
+          {sale.syncFailureCode ? <Detail label="Failure code" value={sale.syncFailureCode} /> : null}
           {sale.syncMessage ? <Detail label="Sync detail" value={sale.syncMessage} /> : null}
           <Detail label="Local receipt" value={sale.receiptNo} />
           {sale.serverReceiptNo ? <Detail label="Server receipt" value={sale.serverReceiptNo} /> : null}
