@@ -68,10 +68,10 @@ function downloadOfflineSalesBackup(payload: unknown) {
   URL.revokeObjectURL(url);
 }
 
-export function OfflineSalesPanel() {
+export function OfflineSalesPanel({ fullPage = false }: { fullPage?: boolean }) {
   const { user } = usePosUser();
   const [sales, setSales] = useState<OfflineSaleRecord[]>([]);
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(fullPage);
   const [syncing, setSyncing] = useState(false);
   const [message, setMessage] = useState("");
   const [lastSyncAt, setLastSyncAt] = useState<string | null>(null);
@@ -382,7 +382,7 @@ export function OfflineSalesPanel() {
   if (!user) return null;
 
   return (
-    <section className="mb-4 rounded-xl border border-border bg-surface-card p-3 text-sm">
+    <section className={fullPage ? "rounded-[26px] border border-border bg-surface-card p-5 text-sm" : "mb-4 rounded-xl border border-border bg-surface-card p-3 text-sm"} aria-label="Pending offline sales">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <button
           type="button"
@@ -391,7 +391,7 @@ export function OfflineSalesPanel() {
           aria-expanded={open}
         >
           {statusIcon(active[0]?.syncState ?? "pending")}
-          Offline sales
+          {fullPage ? "Pending offline sales" : "Offline sales"}
           <span className="text-foreground-muted">
             {active.length === 0 ? "no pending records" : `${waitingCount} waiting · ${retryCount} retry · ${blockedCount + authCount} issue${blockedCount + authCount === 1 ? "" : "s"}`}
           </span>
@@ -421,7 +421,7 @@ export function OfflineSalesPanel() {
       <p className="mt-2 text-xs text-foreground-muted">Offline sales sync automatically when internet is available. Completed sales move out of this list and appear in sales history. Backups are scope-bound and never overwrite existing records.</p>
       {lastSyncAt ? <p className="mt-1 text-xs text-foreground-muted">Last sync check: {new Date(lastSyncAt).toLocaleString()}</p> : null}
       {open ? (
-        <div className="mt-3 max-h-80 overflow-auto divide-y divide-border">
+        <div className={`mt-3 divide-y divide-border ${fullPage ? "" : "max-h-80 overflow-auto"}`}>
           {active.slice(0, 25).map((sale) => (
             <details key={sale.id} className="py-3">
               <summary className="flex cursor-pointer list-none items-start justify-between gap-3">

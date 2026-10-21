@@ -9,7 +9,7 @@ import { formatBaseQuantity } from "@/shared/lib/units";
 import { inputCls } from "@/shared/components/ui";
 
 /** Stays mounted in the seller shell: offline browsing needs no route request. */
-export function OfflineCatalogue({ compact = false }: { compact?: boolean }) {
+export function OfflineCatalogue({ compact = false, visible = true, active = true }: { compact?: boolean; visible?: boolean; active?: boolean }) {
   const { user } = usePosUser();
   const [offline, setOffline] = useState(false);
   const [snapshot, setSnapshot] = useState<ProductSnapshot | null>(null);
@@ -20,22 +20,22 @@ export function OfflineCatalogue({ compact = false }: { compact?: boolean }) {
   const [revision, setRevision] = useState(0);
 
   useEffect(() => {
-    if (!user) return;
+    if (!user || !active) return;
     setProductScope(user);
-    let active = true;
+    let alive = true;
     const controller = new AbortController();
     const read = async () => {
       const saved = await readProducts();
-      if (active) setSnapshot(saved);
+      if (alive) setSnapshot(saved);
     };
     let syncing = false;
     const sync = async (force = revision > 0) => {
-      if (syncing || !active) return;
+      if (syncing || !alive) return;
       syncing = true;
-      if (active) { setBusy(true); setError(""); }
+      if (alive) { setBusy(true); setError(""); }
       const ok = await syncOfflineProducts(controller.signal, { force });
       syncing = false;
-      if (active) {
+      if (alive) {
         await read();
         setBusy(false);
         if (!ok) setError("Catalogue sync incomplete. Any previous saved copy is still available.");
@@ -47,7 +47,7 @@ export function OfflineCatalogue({ compact = false }: { compact?: boolean }) {
       else void sync(true);
     };
     void Promise.resolve().then(() => {
-      if (!active) return;
+      if (!alive) return;
       setSnapshot(null);
       void read();
       setOffline(isOffline());
@@ -57,12 +57,14 @@ export function OfflineCatalogue({ compact = false }: { compact?: boolean }) {
     window.addEventListener("online", connection);
     window.addEventListener("offline", connection);
     return () => {
-      active = false;
+      alive = false;
       controller.abort();
       window.removeEventListener("online", connection);
       window.removeEventListener("offline", connection);
     };
-  }, [user, revision]); // scope changes must discard the previous view
+  }, [active, user, revision]); // scope changes must discard the previous view
+
+  if (!visible) return null;
 
   const results = snapshot ? searchProducts(snapshot.items, { q: query, limit: 100 }).items : [];
   return <section className={`${compact ? "mb-5 rounded-2xl bg-surface-muted p-3" : "mb-4 rounded-xl bg-surface-card p-3"} border border-border text-sm`}>

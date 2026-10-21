@@ -14,6 +14,7 @@ import {
   MoreHorizontal,
   Settings,
   HelpCircle,
+  CloudOff,
 } from "lucide-react";
 // Boxes now labels "Stock"; the old warehouse-style "Inventory & lots" screen is gone.
 import { cx } from "@/shared/lib/utils";
@@ -32,6 +33,7 @@ const NAV = [
   { href: "/register-sessions", label: "Register", icon: Calculator },
   { href: "/products", label: "Products", icon: Package },
   { href: "/stock", label: "Stock", icon: Boxes },
+  { href: "/offline-operations", label: "Offline", icon: CloudOff },
   { href: "/settings", label: "Settings", icon: Settings },
   { href: "/support", label: "Support", icon: HelpCircle },
 ];
@@ -137,7 +139,7 @@ export default function SellerShell({ children }: { children: React.ReactNode })
 
         <main className="min-w-0 flex-1 bg-background px-4 pb-28 pt-4 sm:p-6 sm:pb-28 lg:p-8">
           {user ? <OfflineSalesSyncWorker key={`sales-sync:${user.id}:${user.orgId}:${user.locationId}`} /> : null}
-          {user ? <OfflineCatalogue key={`catalogue:${user.id}:${user.orgId}:${user.locationId}`} compact /> : null}
+          {user ? <OfflineCatalogue key={`catalogue:${user.id}:${user.orgId}:${user.locationId}`} compact active={pathname !== "/offline-operations"} visible={false} /> : null}
           {user ? <PwaStatusBar /> : null}
           {children}
         </main>
