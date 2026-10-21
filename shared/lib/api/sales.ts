@@ -156,6 +156,8 @@ export interface OfflineSaleSyncResult {
   outcome: "accepted" | "already_accepted" | "retry" | "needs_review" | "rejected";
   reason?: string;
   failureStage?: string;
+  failureCode?: string;
+  failureDetail?: string;
   requestId?: string;
   traceId?: string;
   sale?: GoSale;
@@ -353,6 +355,8 @@ export async function syncPendingOfflineSales(scope: OfflineScope, options: { fo
       const sale = batch.find((item) => item.operationId === result.operationId);
       await scheduleOfflineSaleRetry(scope, result.operationId, retryDelayMs(sale ?? {}, res.retryAfterMs), automaticSyncMessage(result.reason), {
         failureStage: result.failureStage,
+        failureCode: result.failureCode,
+        failureDetail: result.failureDetail,
         requestId: result.requestId ?? res.requestId,
         traceId: result.traceId,
       });
