@@ -82,6 +82,7 @@ export interface OfflineSaleRecord {
   status: "completed";
   syncState: OfflineSaleSyncState;
   syncMessage?: string;
+  syncReviewId?: string;
   syncFailureStage?: string;
   syncFailureCode?: string;
   syncFailureDetail?: string;
@@ -994,7 +995,7 @@ export async function markOfflineSaleSyncState(
   scope: OfflineScope,
   operationId: string,
   syncState: OfflineSaleSyncState,
-  detail?: { message?: string; failureStage?: string; failureCode?: string; failureDetail?: string; requestId?: string; traceId?: string; serverSaleId?: string; serverReceiptNo?: string; inventoryCoveredAt?: string; serverInventoryCursor?: string },
+  detail?: { message?: string; failureStage?: string; failureCode?: string; failureDetail?: string; requestId?: string; traceId?: string; reviewId?: string; serverSaleId?: string; serverReceiptNo?: string; inventoryCoveredAt?: string; serverInventoryCursor?: string },
 ): Promise<boolean> {
   if (typeof indexedDB === "undefined") return false;
   try {
@@ -1015,6 +1016,7 @@ export async function markOfflineSaleSyncState(
     sale.syncFailureDetail = detail?.failureDetail ?? sale.syncFailureDetail;
     sale.syncRequestId = detail?.requestId ?? sale.syncRequestId;
     sale.syncTraceId = detail?.traceId ?? sale.syncTraceId;
+    sale.syncReviewId = detail?.reviewId ?? sale.syncReviewId;
     sale.serverSaleId = detail?.serverSaleId ?? sale.serverSaleId;
     sale.serverReceiptNo = detail?.serverReceiptNo ?? sale.serverReceiptNo;
     sale.inventoryCoveredAt = detail?.inventoryCoveredAt ?? sale.inventoryCoveredAt;

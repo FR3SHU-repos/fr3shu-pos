@@ -5,6 +5,7 @@ import { AlertCircle, Clock3, Printer, ReceiptText, RefreshCw, Upload, X } from 
 import toast from "react-hot-toast";
 import { usePosUser } from "@/shared/context/PosUserContext";
 import { productsApi, salesApi } from "@/shared/lib/api";
+import type { ProductDTO } from "@/shared/lib/api/products";
 import { formatPaise } from "@/shared/lib/money";
 import {
   cancelOfflineSale,
@@ -12,6 +13,7 @@ import {
   exportOfflineSales,
   importOfflineSales,
   listOfflineSales,
+  markOfflineSaleSyncState,
   repairOfflineSaleLines,
   requeueOfflineSale,
   updateOfflineSaleCustomer,
@@ -78,6 +80,9 @@ export function OfflineSalesPanel() {
   const [editForm, setEditForm] = useState({ customerName: "", customerPhone: "", buyerCode: "", marketingConsent: false });
   const [repairingId, setRepairingId] = useState<string | null>(null);
   const [repairLines, setRepairLines] = useState<Record<string, { qty: string; remove: boolean }>>({});
+  const [manualReviewSale, setManualReviewSale] = useState<OfflineSaleRecord | null>(null);
+  const [manualProducts, setManualProducts] = useState<ProductDTO[]>([]);
+  const [manualLines, setManualLines] = useState<Record<number, { skuId: string; qty: string; unit: string; discountMinor: number }>>({});
   const importInputRef = useRef<HTMLInputElement | null>(null);
 
   const scope = useMemo<OfflineScope | null>(() => {
@@ -235,6 +240,67 @@ export function OfflineSalesPanel() {
       setSyncing(false);
     }
   }, [editForm, refresh, scope, syncNow, syncing]);
+
+  const startManualResolution = useCallback(async (sale: OfflineSaleRecord) => {
+    if (!sale.syncReviewId) {
+      toast.error("This sale does not have a server review record yet. Try syncing it again.");
+      return;
+    }
+    try {
+      const response = await productsApi.list({ status: "all", limit: 100 });
+      if (!response.success || !response.data) throw new Error(response.message || "The current product catalogue could not be loaded.");
+      setManualProducts(response.data.items);
+      setManualLines(Object.fromEntries(sale.lines.map((line, index) => {
+        const match = response.data?.items.find((product) => product._id === line.productId || product.name.trim().toLowerCase() === line.name.trim().toLowerCase());
+        return [index, { skuId: match?._id ?? "", qty: String(line.qty), unit: match?.saleUnit ?? line.saleUnit, discountMinor: line.discountPaise }];
+      })));
+      setManualReviewSale(sale);
+    } catch (error) {
+      const text = error instanceof Error ? error.message : "The current product catalogue could not be loaded.";
+      toast.error(text);
+      setMessage(text);
+    }
+  }, []);
+
+  const saveManualResolution = useCallback(async (sale: OfflineSaleRecord) => {
+    if (!scope || syncing || !sale.syncReviewId) return;
+    setSyncing(true);
+    try {
+      const items = sale.lines.map((line, index) => {
+        const value = manualLines[index];
+        if (!value?.skuId || Number(value.qty) <= 0) throw new Error(`Choose a current product and quantity for ${line.name}.`);
+        return { skuId: value.skuId, qty: value.qty, unit: value.unit, discountMinor: value.discountMinor };
+      });
+      const response = await salesApi.resolveOfflineTransactionReview(sale.syncReviewId, {
+        items,
+        tenders: [{ kind: "cash", amountMinor: sale.payment.receivedPaise }],
+        cartDiscountMinor: 0,
+        customerName: sale.customerName,
+        customerPhone: sale.customerPhone,
+        buyerCode: sale.buyerCode,
+        marketingConsent: sale.marketingConsent,
+      });
+      if (!response.success || !response.data) throw new Error(response.message || "The transaction could not be resolved.");
+      await markOfflineSaleSyncState(scope, sale.operationId, "synced", {
+        message: response.data.sale.receiptNo ? `Resolved manually as ${response.data.sale.receiptNo}.` : "Transaction resolved manually.",
+        serverSaleId: response.data.sale._id,
+        serverReceiptNo: response.data.sale.receiptNo,
+        reviewId: sale.syncReviewId,
+      });
+      setManualReviewSale(null);
+      setManualLines({});
+      await cleanupOfflineSales(scope, 0);
+      await refresh();
+      setMessage("Transaction resolved and recorded in sales history.");
+      toast.success("Offline transaction resolved");
+    } catch (error) {
+      const text = error instanceof Error ? error.message : "The transaction could not be resolved.";
+      setMessage(text);
+      toast.error(text);
+    } finally {
+      setSyncing(false);
+    }
+  }, [manualLines, refresh, scope, syncing]);
 
   const cancelLocalSale = useCallback(async (operationId: string) => {
     if (!scope || syncing) return;
@@ -420,6 +486,20 @@ export function OfflineSalesPanel() {
                       >
                         Try again
                       </button>
+                      {sale.syncState === "needs_review" && sale.syncReviewId ? (
+                        <button
+                          type="button"
+                          className="rounded-lg border border-primary bg-surface-card px-2 py-1 text-xs font-semibold text-primary hover:bg-surface"
+                          disabled={syncing}
+                          onClick={(event) => {
+                            event.preventDefault();
+                            event.stopPropagation();
+                            void startManualResolution(sale);
+                          }}
+                        >
+                          Resolve manually
+                        </button>
+                      ) : null}
                       <button
                         type="button"
                         className="rounded-lg border border-border bg-surface-card px-2 py-1 text-xs font-semibold text-status-danger hover:bg-surface"
@@ -563,6 +643,50 @@ export function OfflineSalesPanel() {
                       <button type="button" className="text-xs font-semibold text-foreground-muted" disabled={syncing} onClick={() => setEditingId(null)}>
                         Cancel
                       </button>
+                    </div>
+                  </div>
+                ) : null}
+                {manualReviewSale?.operationId === sale.operationId ? (
+                  <div className="rounded-lg border border-primary/40 bg-surface-card p-3">
+                    <p className="mb-1 font-medium text-foreground-body">Resolve incompatible transaction</p>
+                    <p className="mb-3 text-xs text-foreground-muted">Choose the current catalogue product for each saved line. The original local receipt remains preserved until this correction succeeds.</p>
+                    <div className="space-y-2">
+                      {sale.lines.map((line, index) => {
+                        const value = manualLines[index] ?? { skuId: "", qty: String(line.qty), unit: line.saleUnit, discountMinor: line.discountPaise };
+                        return (
+                          <div key={`${sale.operationId}:manual:${index}`} className="grid gap-2 rounded-lg bg-surface p-2 sm:grid-cols-[1fr_auto] sm:items-end">
+                            <label className="text-xs font-medium text-foreground-body">
+                              {line.name}
+                              <select
+                                className="mt-1 w-full rounded-lg border border-border bg-surface-card px-3 py-2 text-sm text-foreground-heading"
+                                value={value.skuId}
+                                onChange={(event) => {
+                                  const product = manualProducts.find((item) => item._id === event.target.value);
+                                  setManualLines((lines) => ({ ...lines, [index]: { ...value, skuId: event.target.value, unit: product?.saleUnit ?? value.unit } }));
+                                }}
+                              >
+                                <option value="">Select current product</option>
+                                {manualProducts.map((product) => <option key={product._id} value={product._id}>{product.name} · {product.saleUnit}</option>)}
+                              </select>
+                            </label>
+                            <label className="text-xs font-medium text-foreground-body">
+                              Quantity
+                              <input
+                                className="mt-1 w-28 rounded-lg border border-border bg-surface-card px-3 py-2 text-sm text-foreground-heading"
+                                type="number"
+                                min="0.001"
+                                step="0.001"
+                                value={value.qty}
+                                onChange={(event) => setManualLines((lines) => ({ ...lines, [index]: { ...value, qty: event.target.value } }))}
+                              />
+                            </label>
+                          </div>
+                        );
+                      })}
+                    </div>
+                    <div className="mt-3 flex gap-2">
+                      <button type="button" className={primaryBtnCls} disabled={syncing} onClick={() => void saveManualResolution(sale)}>Save correction and record sale</button>
+                      <button type="button" className="text-xs font-semibold text-foreground-muted" disabled={syncing} onClick={() => setManualReviewSale(null)}>Cancel</button>
                     </div>
                   </div>
                 ) : null}
