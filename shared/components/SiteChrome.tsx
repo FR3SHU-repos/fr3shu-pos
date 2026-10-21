@@ -24,7 +24,15 @@ export function SiteHeader() {
       ? "/dashboard"
       : "/buyer";
 
-  const sellerWorkspaceRoutes = ["/dashboard", "/pos", "/register-sessions", "/products", "/stock", "/settings"];
+  const sellerWorkspaceRoutes = [
+    "/dashboard",
+    "/pos",
+    "/register-sessions",
+    "/products",
+    "/stock",
+    "/offline-operations",
+    "/settings",
+  ];
   const isSellerWorkspace = sellerWorkspaceRoutes.some((route) => pathname === route || pathname.startsWith(`${route}/`));
 
   // SellerShell owns the POS application chrome on these routes. Keeping the
