@@ -18,6 +18,8 @@ export interface OfflineSalesSyncDetail {
   blocked: number;
   authRequired: boolean;
   unavailable?: boolean;
+  failed?: boolean;
+  failureCode?: string;
   message?: string;
   blockedMessages?: string[];
   at: string;
@@ -60,6 +62,23 @@ export function OfflineSalesSyncWorker() {
       if (!automatic) return;
       if (result.synced > 0) toast.success(`${result.synced} offline sale${result.synced === 1 ? "" : "s"} completed`);
       if (mutations.synced > 0 && result.synced === 0) toast.success(`${mutations.synced} offline change${mutations.synced === 1 ? "" : "s"} synced`);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Offline sync failed unexpectedly.";
+      const detail: OfflineSalesSyncDetail = {
+        attempted: 0,
+        synced: 0,
+        blocked: 0,
+        authRequired: false,
+        failed: true,
+        failureCode: "offline_sync_failed",
+        message,
+        at: new Date().toISOString(),
+        automatic,
+      };
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new CustomEvent<OfflineSalesSyncDetail>(OFFLINE_SALES_SYNC_EVENT, { detail }));
+      }
+      toast.error(automatic ? "Offline sync failed. The sale is still saved locally." : message);
     } finally {
       syncingRef.current = false;
     }
@@ -67,7 +86,22 @@ export function OfflineSalesSyncWorker() {
 
   useEffect(() => {
     if (!scope) return;
-    void Promise.all([cleanupOfflineSales(scope), cleanupExpiredHeldCarts(scope)]);
+    void Promise.all([cleanupOfflineSales(scope), cleanupExpiredHeldCarts(scope)]).catch((error) => {
+      const message = error instanceof Error ? error.message : "Offline storage cleanup failed.";
+      window.dispatchEvent(new CustomEvent<OfflineSalesSyncDetail>(OFFLINE_SALES_SYNC_EVENT, {
+        detail: {
+          attempted: 0,
+          synced: 0,
+          blocked: 0,
+          authRequired: false,
+          failed: true,
+          failureCode: "offline_storage_cleanup_failed",
+          message,
+          at: new Date().toISOString(),
+          automatic: true,
+        },
+      }));
+    });
     void Promise.resolve().then(() => sync(true));
     const onOnline = () => void sync(true, true);
     const onOfflineSaleChanged = () => void sync(true);

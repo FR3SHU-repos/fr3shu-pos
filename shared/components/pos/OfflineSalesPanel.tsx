@@ -364,7 +364,14 @@ export function OfflineSalesPanel({ fullPage = false }: { fullPage?: boolean }) 
     const onSync = (event: Event) => {
       const detail = (event as CustomEvent<OfflineSalesSyncDetail>).detail;
       if (detail?.at) setLastSyncAt(detail.at);
-      void refresh();
+      if (detail?.failed) {
+        setOpen(true);
+        setMessage(detail.message ?? "Offline sync failed. The sale is still saved locally and will retry.");
+      }
+      void refresh().catch(() => {
+        setOpen(true);
+        setMessage("Offline sales could not be refreshed after the sync attempt.");
+      });
     };
     window.addEventListener("komola:offline-sales-changed", onChange);
     window.addEventListener(OFFLINE_SALES_SYNC_EVENT, onSync);

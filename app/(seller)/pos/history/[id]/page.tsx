@@ -18,10 +18,26 @@ export default function SaleDetailPage({ params }: { params: Promise<{ id: strin
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    salesApi.get(id).then((res) => {
-      if (res.success && res.data) setDetail(res.data);
-      setLoading(false);
-    });
+    let cancelled = false;
+    setLoading(true);
+    setDetail(null);
+
+    void salesApi.get(id)
+      .then((res) => {
+        if (cancelled) return;
+        if (res.success && res.data) setDetail(res.data);
+        else toast.error(res.message);
+      })
+      .catch((error: unknown) => {
+        if (!cancelled) toast.error(error instanceof Error ? error.message : "Could not load sale.");
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
   }, [id]);
 
   if (loading) return <Skeleton className="h-96 w-full max-w-md" />;
