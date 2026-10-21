@@ -85,7 +85,7 @@ organization membership, role, organization status, and location scope.
 | Area | Routes | Responsibility |
 |---|---|---|
 | Public/auth | `/`, `/login`, `/login/seller`, `/login/buyer`, `/register`, `/auth/*` | Landing, login/register portals, OAuth callback, password recovery/reset, logout |
-| Seller workspace | `/dashboard`, `/pos`, `/pos/history`, `/register-sessions`, `/products`, `/stock`, `/settings` | Seller dashboard, checkout, sales history, shifts, catalogue, stock, payment settings |
+| Seller workspace | `/dashboard`, `/pos`, `/pos/history`, `/register-sessions`, `/products`, `/stock`, `/offline-operations`, `/settings` | Seller dashboard, checkout, sales history, shifts, catalogue, stock, offline queue/recovery, payment settings |
 | Seller status | `/seller/onboarding`, `/seller/pending`, `/seller/rejected`, `/seller/suspended` | Organization provisioning and approval-state screens |
 | Buyer experience | `/buyer`, `/buyer/setup`, `/buyer/campaigns`, `/buyer/wallet`, `/buyer/receipts/:id` | Buyer profile, campaign discovery/claims, rewards, receipts |
 | Support and privacy/admin | `/support`, `/privacy`, `/privacy/requests`, `/admin/privacy-requests`, `/admin/seller-applications` | Customer issue reporting by prepared email, privacy notice/requests, and platform administration |

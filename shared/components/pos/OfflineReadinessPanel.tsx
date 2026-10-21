@@ -22,16 +22,16 @@ export function OfflineReadinessPanel() {
   if (!user || !scope) return null;
 
   return (
-    <section className="rounded-2xl border border-border bg-surface-card p-4 text-sm" aria-label="Offline readiness">
+    <section className="rounded-[22px] border border-border bg-surface-card p-5 text-sm" aria-label="Offline availability">
       <div>
-        <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-primary">Device operations</p>
-        <p className="mt-1 font-semibold text-foreground-heading">Offline sales</p>
+        <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-primary">Works automatically</p>
+        <p className="mt-1 text-lg font-bold tracking-[-0.02em] text-foreground-heading">Offline selling is available</p>
         <p className="text-foreground-muted">
-          If the internet drops, the POS keeps saving sales, products, and stock on this device. They sync automatically when the connection returns.
+          If the internet drops, the POS keeps saving eligible cash sales, products, and stock on this device. They sync automatically when the connection returns.
         </p>
       </div>
       <p className="mt-3 text-xs text-foreground-muted">
-        Storage: {storage?.status ?? "checking"}{storage?.persisted ? " · persistent" : ""}. Offline checkout accepts cash and keeps the local receipt until sync completes.
+        Device storage: {storage?.status ?? "checking"}{storage?.persisted ? " · persistent" : ""}. Local receipts remain available until sync completes.
       </p>
       {storage?.status === "unsafe" ? (
         <p className="mt-3 rounded-xl bg-surface-muted px-3 py-3 text-xs text-foreground-body" role="status">

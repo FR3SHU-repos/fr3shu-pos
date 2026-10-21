@@ -12,9 +12,6 @@ import { formatPaise } from "@/shared/lib/money";
 import { listOfflineSales, type OfflineSaleRecord, type OfflineScope } from "@/shared/lib/offline/sales";
 import { mergeSalesWithOffline, pendingOfflineCashTotal } from "@/shared/lib/offline/session-summary";
 import { KomoEmptyState, KomoMessage } from "@/shared/components/mascot";
-import { OfflineReadinessPanel } from "@/shared/components/pos/OfflineReadinessPanel";
-import { OfflineSalesPanel } from "@/shared/components/pos/OfflineSalesPanel";
-import { PwaInstallPrompt } from "@/shared/components/PwaInstallPrompt";
 
 export default function DashboardPage() {
   const { user } = usePosUser();
@@ -52,6 +49,7 @@ export default function DashboardPage() {
   const today = new Date().toISOString().slice(0, 10);
   const recentSales = useMemo(() => mergeSalesWithOffline(sales, offlineSales, today, 5), [offlineSales, sales, today]);
   const { amountPaise: offlineCashPaise, count: offlineSaleCount } = useMemo(() => pendingOfflineCashTotal(offlineSales), [offlineSales]);
+  const offlineAttentionCount = offlineSales.filter((sale) => sale.syncState === "blocked" || sale.syncState === "needs_review" || sale.syncState === "auth_required").length;
 
   const t = session?.totals;
   const serverSalesToday = t ? t.cashSalesPaise + t.upiSalesPaise + t.cardSalesPaise : 0;
@@ -80,23 +78,22 @@ export default function DashboardPage() {
       <section id="offline-tools" className={cardCls}>
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
-            <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-primary">Device operations</p>
-            <h2 className="mt-1 text-xl font-bold tracking-[-0.02em] text-foreground">Offline tools</h2>
-            <p className="mt-1 max-w-2xl text-sm text-foreground-muted">Prepare this terminal, review saved products, and resolve queued sales when connectivity is limited.</p>
+            <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-primary">Offline operations</p>
+            <h2 className="mt-1 text-xl font-bold tracking-[-0.02em] text-foreground">Keep selling when the internet drops</h2>
+            <p className="mt-1 max-w-2xl text-sm text-foreground-muted">Sales stay on this device and sync automatically when the connection returns.</p>
           </div>
-          <span className="rounded-full bg-surface-muted px-3 py-1.5 text-xs font-semibold text-foreground-muted">Manage when needed</span>
+          <span className={`rounded-full px-3 py-1.5 text-xs font-semibold ${offlineAttentionCount > 0 ? "bg-status-warning-surface text-status-warning" : "bg-status-success-surface text-status-success"}`}>
+            {offlineAttentionCount > 0 ? `${offlineAttentionCount} needs attention` : offlineSaleCount > 0 ? `${offlineSaleCount} pending` : "Ready"}
+          </span>
         </div>
-        <details className="mt-4 rounded-2xl border border-border bg-surface-muted p-3">
-          <summary className="flex min-h-11 cursor-pointer items-center justify-between gap-3 rounded-xl px-2 text-sm font-semibold text-foreground-body">
-            <span>Open offline readiness and queued sales</span>
-            <span className="text-xs font-medium text-foreground-muted">Terminal controls</span>
-          </summary>
-          <div className="mt-3 space-y-3">
-            <OfflineReadinessPanel />
-            <OfflineSalesPanel />
-            <PwaInstallPrompt />
-          </div>
-        </details>
+        <div className="mt-4 grid gap-3 sm:grid-cols-2">
+          <MiniStatus label="Pending sales" value={String(offlineSaleCount)} detail="Saved locally until sync completes" />
+          <MiniStatus label="Needs attention" value={String(offlineAttentionCount)} detail="Open the operations page for details" />
+        </div>
+        <div className="mt-4 flex flex-wrap gap-2">
+          <Link href="/offline-operations" className={primaryBtnCls}>Open offline operations</Link>
+          <Link href="/pos" className="inline-flex min-h-11 items-center justify-center rounded-full border border-border bg-surface-card px-4 py-3 text-sm font-semibold text-foreground-body hover:bg-surface transition">Open POS</Link>
+        </div>
       </section>
 
       {loading ? (
@@ -187,6 +184,18 @@ function StatCard({
         <span className="text-xs font-medium">{label}</span>
       </div>
       <p className="mt-2 text-lg font-semibold text-foreground-heading">{value}</p>
+    </div>
+  );
+}
+
+function MiniStatus({ label, value, detail }: { label: string; value: string; detail: string }) {
+  return (
+    <div className="rounded-2xl border border-border bg-surface-muted px-4 py-3">
+      <div className="flex items-center justify-between gap-3">
+        <span className="text-xs font-semibold text-foreground-muted">{label}</span>
+        <span className="text-lg font-bold text-foreground-heading">{value}</span>
+      </div>
+      <p className="mt-1 text-xs text-foreground-muted">{detail}</p>
     </div>
   );
 }
