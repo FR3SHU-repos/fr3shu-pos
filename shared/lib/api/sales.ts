@@ -154,6 +154,8 @@ export const create = async (
 export interface OfflineSaleSyncResult {
   operationId: string;
   outcome: "accepted" | "already_accepted" | "retry" | "needs_review" | "rejected";
+  reviewId?: string;
+  localReference?: string;
   reason?: string;
   failureStage?: string;
   failureCode?: string;
@@ -223,6 +225,8 @@ function automaticSyncMessage(reason?: string): string {
       return "Review required: server inventory or lot availability differs from this offline sale.";
     case "offline_authorization_expired":
       return "Offline authorization expired or was revoked. Prepare this register online before retrying.";
+    case "offline_manual_review":
+      return "This sale was preserved for manual review. Correct the incompatible details, then resolve it.";
     case "server_error":
       return "Server could not complete sync. The sale will retry automatically.";
     default:
@@ -250,15 +254,6 @@ function scheduleOfflineSaleRetry(
   return incrementOfflineSaleAttempt(scope, operationId, retryInMs, message);
 }
 
-function hasUnresolvedOfflineReference(sale: { lines?: Array<{ productId: string; lotEvidence?: Array<{ lotId: string }> }> }): boolean {
-  return sale.lines?.some((line) =>
-    line.productId.startsWith("offline-product-")
-    || (line.lotEvidence ?? []).some((lot) => lot.lotId.startsWith("offline-lot-")),
-  ) ?? false;
-}
-
-const OFFLINE_REFERENCE_PENDING_MESSAGE = "This sale includes a product or stock lot created offline that has not synced yet. The sale will retry after that offline change is synced.";
-
 export async function syncPendingOfflineSales(scope: OfflineScope, options: { forceRetry?: boolean } = {}): Promise<{
   attempted: number;
   synced: number;
@@ -278,29 +273,11 @@ export async function syncPendingOfflineSales(scope: OfflineScope, options: { fo
   const pending = await claimPendingOfflineSales(scope, 10);
   if (pending.length === 0) return empty;
   const claimedBatch = pending.slice(0, 10);
-  const unresolved = claimedBatch.filter(hasUnresolvedOfflineReference);
-  await Promise.all(unresolved.map((sale) => scheduleOfflineSaleRetry(
-    scope,
-    sale.operationId,
-    retryDelayMs(sale),
-    OFFLINE_REFERENCE_PENDING_MESSAGE,
-    {
-      failureStage: "offline_reference_resolution",
-      failureCode: "offline_reference_pending",
-      failureDetail: OFFLINE_REFERENCE_PENDING_MESSAGE,
-    },
-  )));
-  const batch = claimedBatch.filter((sale) => !hasUnresolvedOfflineReference(sale));
-  if (batch.length === 0) {
-    return {
-      attempted: claimedBatch.length,
-      synced: 0,
-      blocked: 0,
-      authRequired: false,
-      message: OFFLINE_REFERENCE_PENDING_MESSAGE,
-      blockedMessages: [],
-    };
-  }
+  // Always send the preserved payload to the API. The server can now either
+  // resolve compatible references or quarantine incompatible data for manual
+  // correction. Blocking here used to leave legacy local-product IDs retrying
+  // forever without a durable explanation.
+  const batch = claimedBatch;
   const startedAt = Date.now();
   const syncPayload = { operations: batch.map(offlineSaleToSyncOperation) };
   const res = await goRequest<{ results: OfflineSaleSyncResult[] }>("sync/sales", {
@@ -382,7 +359,15 @@ export async function syncPendingOfflineSales(scope: OfflineScope, options: { fo
       blocked += 1;
       const message = automaticSyncMessage(result.reason);
       blockedMessages.push(message);
-      await markOfflineSaleSyncState(scope, result.operationId, result.outcome === "needs_review" ? "needs_review" : "blocked", { message });
+      await markOfflineSaleSyncState(scope, result.operationId, result.outcome === "needs_review" ? "needs_review" : "blocked", {
+        message,
+        failureStage: result.failureStage,
+        failureCode: result.failureCode,
+        failureDetail: result.failureDetail,
+        requestId: result.requestId ?? res.requestId,
+        traceId: result.traceId,
+        reviewId: result.reviewId,
+      });
     } else {
       const sale = batch.find((item) => item.operationId === result.operationId);
       await scheduleOfflineSaleRetry(scope, result.operationId, retryDelayMs(sale ?? {}, res.retryAfterMs), automaticSyncMessage(result.reason), {
@@ -430,3 +415,28 @@ export const returnSale = (
   },
 ): Promise<ApiResult<unknown>> =>
   goRequest(`sales/${id}/returns`, { method: "POST", body, idempotencyKey: body.idempotencyKey });
+
+export interface OfflineManualResolutionInput {
+  items: Array<{ skuId: string; qty: string; unit: string; discountMinor?: number; lotId?: string; lotOverrideReason?: string }>;
+  tenders: Array<{ kind: "cash" | "manual"; amountMinor: number; reference?: string; reason?: string }>;
+  cartDiscountMinor: number;
+  customerName: string;
+  customerPhone?: string;
+  buyerCode?: string;
+  marketingConsent: boolean;
+}
+
+export const resolveOfflineTransactionReview = async (
+  reviewId: string,
+  input: OfflineManualResolutionInput,
+): Promise<ApiResult<{ sale: SaleDTO; reviewId: string }>> => {
+  const res = await goRequest<{ sale: GoSale; reviewId: string }>(`offline/reviews/${reviewId}/resolve`, {
+    method: "POST",
+    body: input,
+    idempotencyKey: `offline-review:${reviewId}`,
+  });
+  return {
+    ...res,
+    data: res.data ? { sale: mapSale(res.data.sale), reviewId: res.data.reviewId } : null,
+  };
+};

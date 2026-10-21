@@ -98,26 +98,26 @@ describe("offline sale sync API", () => {
     expect(result).toEqual({ attempted: 1, synced: 0, blocked: 0, authRequired: false, message: "Offline sale sync did not complete.", blockedMessages: [] });
   });
 
-  it("does not send a sale while its local product reference is unresolved", async () => {
+  it("sends unresolved local references to the server for durable review", async () => {
     mocks.claimPending.mockResolvedValue([{
       operationId: "op-1",
       lines: [{ productId: "offline-product-local", lotEvidence: [] }],
     }]);
+    mocks.request.mockResolvedValue({
+      success: true,
+      status: 200,
+      data: { results: [{ operationId: "op-1", outcome: "needs_review", reason: "offline_manual_review", reviewId: "review-1" }] },
+    });
 
-    const result = await syncPendingOfflineSales(scope);
+    await syncPendingOfflineSales(scope);
 
-    expect(mocks.request).not.toHaveBeenCalled();
-    expect(mocks.increment).toHaveBeenCalledWith(
-      scope,
-      "op-1",
-      expect.any(Number),
-      expect.stringContaining("product or stock lot created offline"),
-      expect.objectContaining({
-        failureStage: "offline_reference_resolution",
-        failureCode: "offline_reference_pending",
-      }),
-    );
-    expect(result.message).toContain("product or stock lot created offline");
+    expect(mocks.request).toHaveBeenCalledWith("sync/sales", expect.objectContaining({
+      body: { operations: [{ operationId: "op-1" }] },
+    }));
+    expect(mocks.mark).toHaveBeenCalledWith(scope, "op-1", "needs_review", expect.objectContaining({
+      reviewId: "review-1",
+      message: expect.stringContaining("preserved for manual review"),
+    }));
   });
 
   it("reports clearly when the backend route is not loaded", async () => {
