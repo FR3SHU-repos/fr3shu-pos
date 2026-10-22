@@ -62,7 +62,6 @@ export default function StockPage() {
 
   const selected = products.find((p) => p._id === skuId);
   const pendingAdjustments = adjustments.filter((adjustment) => adjustment.status === "pending_review");
-  const adjustedStockDetails = adjustments.filter((adjustment) => adjustment.status !== "pending_review");
 
   const onHand = useMemo<OnHand[]>(() => {
     const byProduct = new Map<string, OnHand>();
@@ -224,27 +223,42 @@ export default function StockPage() {
         </section>
       ) : null}
 
-      {adjustedStockDetails.length > 0 ? (
-        <section className={`${cardCls} bg-white p-5 shadow-sm`}>
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-wider text-primary">Reconciliation history</p>
-            <h2 className="mt-1 text-lg font-bold text-foreground-heading">Adjusted stock details</h2>
-            <p className="mt-1 text-sm text-foreground-muted">Confirmed offline stock shortfalls remain here as an audit record.</p>
-          </div>
+      <section className={`${cardCls} bg-white p-5 shadow-sm`}>
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-wider text-primary">Inventory audit</p>
+          <h2 className="mt-1 text-lg font-bold text-foreground-heading">Adjusted stock details</h2>
+          <p className="mt-1 text-sm text-foreground-muted">Every offline stock shortfall is listed here with its server allocation and review status.</p>
+        </div>
+        {adjustments.length === 0 ? (
+          <p className="mt-4 rounded-xl bg-surface p-4 text-sm text-foreground-muted">No adjusted stock records yet.</p>
+        ) : (
           <div className="mt-4 grid gap-2">
-            {adjustedStockDetails.slice(0, 10).map((adjustment) => (
-              <div key={adjustment.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-surface px-3 py-3 text-sm">
-                <div>
-                  <p className="font-semibold text-foreground-heading">{adjustment.productName ?? adjustment.skuId}</p>
-                  <p className="text-foreground-muted">{formatAdjustmentQuantity(adjustment.shortfallQuantity, adjustment.unit)} confirmed · {adjustment.reviewedAt ? new Date(adjustment.reviewedAt).toLocaleString() : "reviewed"}</p>
-                  {adjustment.resolutionNote ? <p className="mt-1 text-xs text-foreground-muted">{adjustment.resolutionNote}</p> : null}
+            {adjustments.slice(0, 25).map((adjustment) => (
+              <div key={adjustment.id} className="rounded-xl border border-border bg-surface px-3 py-3 text-sm">
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div>
+                    <p className="font-semibold text-foreground-heading">{adjustment.productName ?? adjustment.skuId}</p>
+                    <p className="text-foreground-muted">Extra sold {formatAdjustmentQuantity(adjustment.shortfallQuantity, adjustment.unit)} · {new Date(adjustment.createdAt).toLocaleString()}</p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className={`rounded-full px-3 py-1 text-xs font-semibold capitalize ${adjustment.status === "pending_review" ? "bg-status-warning-surface text-status-warning" : "bg-status-success-surface text-status-success"}`}>{adjustment.status.replaceAll("_", " ")}</span>
+                    {adjustment.status === "pending_review" ? (
+                      <button type="button" className="text-xs font-semibold text-primary" onClick={() => setReviewAdjustment(adjustment)}>Review</button>
+                    ) : null}
+                  </div>
                 </div>
-                <span className="rounded-full bg-status-success-surface px-3 py-1 text-xs font-semibold capitalize text-status-success">{adjustment.status.replaceAll("_", " ")}</span>
+                <dl className="mt-3 grid gap-2 border-t border-border/70 pt-3 text-xs sm:grid-cols-4">
+                  <AdjustmentDetail label="Server before" value={formatAdjustmentQuantity(adjustment.serverQuantityBefore, adjustment.unit)} />
+                  <AdjustmentDetail label="Requested" value={formatAdjustmentQuantity(adjustment.requestedQuantity, adjustment.unit)} />
+                  <AdjustmentDetail label="Allocated" value={formatAdjustmentQuantity(adjustment.allocatedQuantity, adjustment.unit)} />
+                  <AdjustmentDetail label={adjustment.reviewedAt ? "Reviewed" : "Created"} value={new Date(adjustment.reviewedAt ?? adjustment.createdAt).toLocaleString()} />
+                </dl>
+                {adjustment.resolutionNote ? <p className="mt-2 text-xs text-foreground-muted">Note: {adjustment.resolutionNote}</p> : null}
               </div>
             ))}
           </div>
-        </section>
-      ) : null}
+        )}
+      </section>
 
       <div className="grid gap-5 lg:grid-cols-[340px_minmax(0,1fr)] lg:items-start">
       <section className={`${cardCls} bg-white p-5 shadow-sm`}>
