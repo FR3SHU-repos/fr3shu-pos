@@ -48,7 +48,7 @@ function line(overrides: Partial<CartLine> = {}): CartLine {
 
 function offlineSale(operationId: string, soldAt: string, overrides: Partial<OfflineSaleRecord> = {}) {
   return {
-    ...buildOfflineSaleRecord({ scope, session, cashierId: "cashier-1", lines: [line()], cashReceivedPaise: 10000, customerName: "Asha", operationId }, 1, new Date(soldAt)),
+    ...buildOfflineSaleRecord({ scope, session, cashierId: "cashier-1", lines: [line()], cashReceivedPaise: 10000, customerName: "Asha", customerPhone: "9999999999", operationId }, 1, new Date(soldAt)),
     ...overrides,
   };
 }

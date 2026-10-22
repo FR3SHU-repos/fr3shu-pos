@@ -58,7 +58,7 @@ export interface CreateSaleBody {
   payments: LegacyPayment[];
   cartDiscountPaise?: number;
   customerName?: string;
-  customerPhone?: string;
+  customerPhone: string;
   buyerCode?: string;
   walkInCustomer?: boolean;
   marketingConsent?: boolean;
@@ -89,6 +89,17 @@ export const get = async (id: string): Promise<ApiResult<SaleDetail>> => {
         }
       : null,
   };
+};
+
+export const updateCustomerPhone = async (
+  id: string,
+  customerPhone: string,
+): Promise<ApiResult<SaleDTO>> => {
+  const res = await goRequest<GoSale>(`sales/${id}/customer-phone`, {
+    method: "PATCH",
+    body: { customerPhone },
+  });
+  return { ...res, data: res.data ? mapSale(res.data) : null };
 };
 /** Maps a legacy cart payment to a provider-neutral canonical tender. */
 function toTender(p: LegacyPayment, stableReference: string) {
@@ -421,7 +432,7 @@ export interface OfflineManualResolutionInput {
   tenders: Array<{ kind: "cash" | "manual"; amountMinor: number; reference?: string; reason?: string }>;
   cartDiscountMinor: number;
   customerName: string;
-  customerPhone?: string;
+  customerPhone: string;
   buyerCode?: string;
   marketingConsent: boolean;
 }

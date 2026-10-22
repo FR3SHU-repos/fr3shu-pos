@@ -100,7 +100,7 @@ export interface OfflineSaleRecord {
   totalPaise: number;
   payment: OfflineCashPayment;
   customerName: string;
-  customerPhone?: string;
+  customerPhone: string;
   buyerCode?: string;
   marketingConsent: boolean;
   cashierId: string;
@@ -136,7 +136,7 @@ export interface OfflineSaleSyncOperation {
   pricingPolicyVersion?: string;
   inventoryCursor?: string;
   customerName: string;
-  customerPhone?: string;
+  customerPhone: string;
   buyerCode?: string;
   marketingConsent: boolean;
   lines: Array<{
@@ -177,7 +177,7 @@ export interface OfflineSaleInput {
   lines: CartLine[];
   cashReceivedPaise: number;
   customerName: string;
-  customerPhone?: string;
+  customerPhone: string;
   buyerCode?: string;
   marketingConsent?: boolean;
   operationId?: string;
@@ -208,7 +208,7 @@ export interface OfflineSalesImportResult {
 
 export interface OfflineSaleCustomerPatch {
   customerName: string;
-  customerPhone?: string;
+  customerPhone: string;
   buyerCode?: string;
   marketingConsent?: boolean;
 }

@@ -8,6 +8,7 @@ import {
   txDone,
 } from "@/shared/lib/offline/sales-storage";
 import { type OfflineOutboxEntry, type OfflineSaleRecord, type OfflineSaleSyncState, type OfflineSalesImportResult, type OfflineScope } from "@/shared/lib/offline/sales-types";
+import { normalizeIndianMobile } from "@/shared/lib/auth/phone";
 
 const IMPORTABLE_SYNC_STATES = new Set<OfflineSaleSyncState>(["pending", "uploading", "retry_wait", "synced", "blocked", "cancelled", "needs_review", "auth_required"]);
 
@@ -28,8 +29,9 @@ function isValidOfflineScope(value: unknown, scope: OfflineScope): value is Offl
 
 function validateImportedSale(value: unknown, scope: OfflineScope, index: number): OfflineSaleRecord | string {
   if (!isObject(value)) return `Record ${index + 1} is not an object.`;
-  const requiredStrings = ["id", "operationId", "registerId", "sessionId", "receiptNo", "customerName", "cashierId", "soldAt", "createdAt", "catalogueSnapshotVersion", "catalogueEffectiveAt", "pricingPolicyVersion"];
+  const requiredStrings = ["id", "operationId", "registerId", "sessionId", "receiptNo", "customerName", "customerPhone", "cashierId", "soldAt", "createdAt", "catalogueSnapshotVersion", "catalogueEffectiveAt", "pricingPolicyVersion"];
   if (requiredStrings.some((key) => typeof value[key] !== "string" || !String(value[key]).trim())) return `Record ${index + 1} is missing required text fields.`;
+  if (!normalizeIndianMobile(String(value.customerPhone))) return `Record ${index + 1} has an invalid customer mobile number.`;
   if (value.id !== value.operationId) return `Record ${index + 1} has mismatched record and operation IDs.`;
   if (!isValidOfflineScope(value.scope, scope)) return `Record ${index + 1} belongs to a different user, organization, or location.`;
   if (value.status !== "completed" || (value.schemaVersion !== 1 && value.schemaVersion !== 2)) return `Record ${index + 1} has an unsupported schema or status.`;

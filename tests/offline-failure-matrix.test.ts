@@ -29,7 +29,7 @@ describe("offline failure matrix evidence", () => {
   it("carries lot evidence and the inventory cursor into the sync payload", () => {
     const sale = buildOfflineSaleRecord({
       scope, session, cashierId: "cashier-1", lines: [{ key: "line-1", product, qty: 1, saleUnit: "kg", discountPaise: 0 }],
-      cashReceivedPaise: 10000, customerName: "Asha", inventoryCursor: "42",
+      cashReceivedPaise: 10000, customerName: "Asha", customerPhone: "9999999999", inventoryCursor: "42",
     }, 1);
     const operation = offlineSaleToSyncOperation(sale);
     expect(operation.inventoryCursor).toBe("42");
@@ -50,6 +50,7 @@ describe("offline failure matrix evidence", () => {
       }],
       cashReceivedPaise: 10000,
       customerName: "Asha",
+      customerPhone: "9999999999",
       inventoryCursor: "42",
     }, 1);
 
