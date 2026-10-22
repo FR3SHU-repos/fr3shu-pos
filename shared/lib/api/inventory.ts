@@ -26,6 +26,9 @@ export interface OfflineStockAdjustmentDTO {
   inventoryCursor: string;
   status: string;
   createdAt: string;
+  unit?: string;
+  reviewedAt?: string;
+  resolutionNote?: string;
 }
 
 interface GoInvRow {
@@ -83,3 +86,12 @@ export const list = async (params?: {
 
 export const offlineAdjustments = (): Promise<ApiResult<{ items: OfflineStockAdjustmentDTO[] }>> =>
   goRequest<{ items: OfflineStockAdjustmentDTO[] }>("inventory/offline-adjustments");
+
+export const resolveOfflineAdjustment = (
+  id: string,
+  note: string,
+): Promise<ApiResult<{ item: Pick<OfflineStockAdjustmentDTO, "id" | "status" | "reviewedAt" | "resolutionNote"> }>> =>
+  goRequest<{ item: Pick<OfflineStockAdjustmentDTO, "id" | "status" | "reviewedAt" | "resolutionNote"> }>(`inventory/offline-adjustments/${id}/resolve`, {
+    method: "POST",
+    body: { note },
+  });
