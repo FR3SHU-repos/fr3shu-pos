@@ -13,9 +13,14 @@ describe("buyer receipt API routes", () => {
     vi.stubGlobal("fetch", fetchMock);
 
     await receiptsApi.list(10, 2);
-    await receiptsApi.get("sale-id");
+	await receiptsApi.get("sale-id");
+	await receiptsApi.claimable();
+	await receiptsApi.claim("sale-id");
 
     expect(fetchMock.mock.calls[0]?.[0]).toBe("/api/v1/buyer/receipts?page=2&limit=10");
-    expect(fetchMock.mock.calls[1]?.[0]).toBe("/api/v1/buyer/receipts/sale-id");
-  });
+	expect(fetchMock.mock.calls[1]?.[0]).toBe("/api/v1/buyer/receipts/sale-id");
+	expect(fetchMock.mock.calls[2]?.[0]).toBe("/api/v1/buyer/receipt-claims");
+	expect(fetchMock.mock.calls[3]?.[0]).toBe("/api/v1/buyer/receipt-claims/sale-id/claim");
+	expect(fetchMock.mock.calls[3]?.[1]?.method).toBe("POST");
+	});
 });

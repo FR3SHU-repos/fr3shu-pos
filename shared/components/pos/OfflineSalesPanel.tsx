@@ -114,6 +114,12 @@ export function OfflineSalesPanel({ fullPage = false }: { fullPage?: boolean }) 
     setMessage("Syncing offline sales...");
     const mutations = await syncOfflineMutations();
     if (mutations.synced > 0) await productsApi.refreshOfflineProducts(undefined, { force: true });
+    if (!mutations.salesReady) {
+      setOpen(true);
+      setMessage(mutations.messages.join(" ") || "Offline product and stock changes must sync before this sale can be uploaded.");
+      setSyncing(false);
+      return;
+    }
     const result = await salesApi.syncPendingOfflineSales(scope, { forceRetry: true });
     const syncAt = new Date().toISOString();
     try {

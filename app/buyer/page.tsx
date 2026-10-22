@@ -7,7 +7,7 @@ import type { BuyerReferral, DiscoveryCode, PersonProfile } from "@/shared/lib/a
 import type { RewardLedgerEntry, RewardSummary } from "@/shared/lib/api/rewards";
 import { cardCls, Skeleton } from "@/shared/components/ui";
 import { formatPaise } from "@/shared/lib/money";
-import { ArrowRight, Check, ChevronLeft, ChevronRight, Coins, Copy, Download, Eye, Loader2, ReceiptText, Share2 } from "lucide-react";
+import { ArrowRight, Bell, Check, ChevronLeft, ChevronRight, Coins, Copy, Download, Eye, Loader2, ReceiptText, Share2 } from "lucide-react";
 import Link from "next/link";
 import toast from "react-hot-toast";
 import { BuyerCodeQr } from "@/shared/components/buyer/BuyerCodeQr";
@@ -28,6 +28,8 @@ export default function BuyerDashboardPage() {
   const [summary, setSummary] = useState<RewardSummary | null>(null);
   const [entries, setEntries] = useState<RewardLedgerEntry[]>([]);
   const [receipts, setReceipts] = useState<BuyerReceiptSummary[]>([]);
+  const [claimableReceipts, setClaimableReceipts] = useState<receiptsApi.ReceiptClaimCandidate[]>([]);
+  const [claimingReceiptID, setClaimingReceiptID] = useState<string | null>(null);
   const [rewardCursors, setRewardCursors] = useState<string[]>([""]);
   const [rewardPage, setRewardPage] = useState(1);
   const [rewardNextCursor, setRewardNextCursor] = useState<string | undefined>();
@@ -57,12 +59,13 @@ export default function BuyerDashboardPage() {
         setLoading(false);
         return;
       }
-      const [discovery, referralList, rewards, history, purchases] = await Promise.all([
+      const [discovery, referralList, rewards, history, purchases, claimable] = await Promise.all([
         identityApi.discoveryCode(),
         identityApi.referrals(),
         rewardsApi.summary(),
         rewardsApi.ledger(undefined, PAGE_SIZE),
         receiptsApi.list(PAGE_SIZE),
+        receiptsApi.claimable(),
       ]);
       if (discovery.success) setCode(discovery.data);
       if (referralList.success) setReferrals(referralList.data?.items ?? []);
@@ -76,6 +79,7 @@ export default function BuyerDashboardPage() {
         setReceipts(purchases.data?.items ?? []);
         setReceiptPages(Math.max(1, purchases.data?.meta?.totalPages ?? 1));
       }
+      if (claimable.success) setClaimableReceipts(claimable.data?.items ?? []);
       setLoading(false);
     });
   }, []);
@@ -92,6 +96,30 @@ export default function BuyerDashboardPage() {
     setReceipts(result.data.items);
     setReceiptPage(result.data.meta.page);
     setReceiptPages(Math.max(1, result.data.meta.totalPages));
+  }
+
+  async function claimReceipt(id: string) {
+    if (claimingReceiptID) return;
+    setClaimingReceiptID(id);
+    const result = await receiptsApi.claim(id);
+    if (!result.success) {
+      toast.error(result.message || "Could not claim this receipt");
+      setClaimingReceiptID(null);
+      return;
+    }
+    setClaimableReceipts((previous) => previous.filter((receipt) => receipt.id !== id));
+    const [summaryResult, receiptsResult] = await Promise.all([
+      rewardsApi.summary(),
+      receiptsApi.list(PAGE_SIZE, receiptPage),
+    ]);
+    if (summaryResult.success) setSummary(summaryResult.data);
+    if (receiptsResult.success && receiptsResult.data) {
+      setReceipts(receiptsResult.data.items);
+      setReceiptPage(receiptsResult.data.meta.page);
+      setReceiptPages(Math.max(1, receiptsResult.data.meta.totalPages));
+    }
+    toast.success("Receipt claimed. Rewards are now linked to your buyer account.");
+    setClaimingReceiptID(null);
   }
 
   async function loadRewardPage(page: number) {
@@ -144,6 +172,10 @@ export default function BuyerDashboardPage() {
     {!profileReady ? <section className={`${cardCls} mt-4 border-primary/30 bg-primary/5`} aria-labelledby="complete-profile-title"><div><p className="font-semibold text-primary">Buyer account setup</p><h2 id="complete-profile-title" className="mt-1 text-xl font-bold text-foreground-heading">Add your details to unlock your buyer account</h2><p className="mt-1 text-sm text-foreground-muted">Enter {missingDetails.join(", ")} to get your buyer code and receive purchase rewards.</p></div><Link href="/buyer/setup" className="mt-4 inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2 font-semibold text-primary-foreground sm:mt-5">Enter buyer details <ArrowRight className="h-4 w-4"/></Link></section> : null}
     <Link href={campaignsReady ? "/buyer/campaigns" : "/buyer/setup"} className={`${cardCls} mt-4 flex items-center justify-between gap-4 transition hover:shadow-md`}><div><p className="font-semibold text-primary">Rewards and offers</p><h2 className="mt-1 text-xl font-bold text-foreground-heading">{campaignsReady ? "Apply for location-based campaigns" : "Complete your profile to view offers"}</h2><p className="mt-1 text-sm text-foreground-muted">{campaignsReady ? "See KOMOLA offers available in your area and apply for them." : "Add your buyer phone and location so KOMOLA can show the right offers for you."}</p></div><span className="inline-flex shrink-0 items-center gap-2 rounded-lg bg-primary px-4 py-2 font-semibold text-primary-foreground">{campaignsReady ? campaignCount === null ? "View offers" : `View ${campaignCount} offer${campaignCount === 1 ? "" : "s"}` : "Enter details"} <ArrowRight className="h-4 w-4"/></span></Link>
     {error && <p role="alert" className="mb-4 rounded-lg bg-red-50 p-4 text-red-700">{error}</p>}
+    {claimableReceipts.length > 0 ? <section className={`${cardCls} mt-4 border-primary/30 bg-primary/5`} aria-labelledby="receipt-claim-title">
+      <div className="flex items-start gap-3"><Bell className="mt-1 h-6 w-6 shrink-0 text-primary"/><div><p className="font-semibold text-primary">Receipt claim notification</p><h2 id="receipt-claim-title" className="mt-1 text-xl font-bold text-foreground-heading">An edited receipt is ready for your confirmation</h2><p className="mt-1 text-sm text-foreground-muted">A seller corrected this receipt after checkout. Claim it only if this purchase is yours. This confirmation cannot move rewards from another buyer.</p></div></div>
+      <ul className="mt-4 divide-y divide-border rounded-lg border border-border bg-surface">{claimableReceipts.map((receipt) => <li key={receipt.id} className="flex flex-col justify-between gap-3 px-3 py-3 sm:flex-row sm:items-center"><div><p className="font-semibold text-foreground-heading">{receipt.storeName}</p><p className="text-sm text-foreground-muted">{receipt.receiptNo} · {new Date(receipt.purchasedAt).toLocaleString("en-IN")}</p><p className="mt-1 text-sm font-medium">{formatPaise(receipt.totalMinor)} · {receipt.locationName}</p></div><button type="button" onClick={() => void claimReceipt(receipt.id)} disabled={claimingReceiptID !== null} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-primary px-4 font-semibold text-primary-foreground disabled:opacity-50">{claimingReceiptID === receipt.id ? <Loader2 className="h-4 w-4 animate-spin"/> : <Check className="h-4 w-4"/>}{claimingReceiptID === receipt.id ? "Claiming…" : "Claim this receipt"}</button></li>)}</ul>
+    </section> : null}
     <section className={`${cardCls} mb-4 text-center`} aria-labelledby="buyer-code-title">
       <h2 id="buyer-code-title" className="text-xl font-semibold">My buyer code</h2>
       <p className="mt-1 text-foreground-muted">Show this code or QR to a KOMOLA seller so your purchase and rewards reach your account.</p>

@@ -5,7 +5,7 @@ import type { AddStockBody, AddStockResult } from "../api/stock";
 import { newUuid } from "../uuid";
 import { unitFactor, unitBase } from "../api/_map";
 import { productScope, readProducts, writeProducts, isOffline } from "./products";
-import { applyOfflineMutationMappings, offlineScopeKey, type OfflineReferenceMappings, type OfflineScope } from "./sales";
+import { applyOfflineMutationMappings, listOfflineSales, offlineScopeKey, type OfflineReferenceMappings, type OfflineScope } from "./sales";
 
 type MutationKind = "product.create" | "stock.receipt";
 type MutationStatus = "pending" | "syncing" | "blocked" | "synced";
@@ -200,14 +200,40 @@ function productPayload(res: { data?: GoProduct | { product?: GoProduct } | null
   return "product" in value ? value.product ?? null : value as GoProduct;
 }
 
-export async function syncOfflineMutations(): Promise<{ synced: number; pending: number; blocked: number; messages: string[] }> {
-  if (isOffline() || typeof indexedDB === "undefined") return { synced: 0, pending: 0, blocked: 0, messages: [] };
+export interface OfflineMutationSyncResult {
+  synced: number;
+  pending: number;
+  blocked: number;
+  messages: string[];
+  /** False when a pending sale still references a product or lot without a server ID. */
+  salesReady: boolean;
+}
+
+async function salesHaveUnresolvedMutationReferences(
+  scope: OfflineScope,
+  productIds: Set<string>,
+  lotIds: Set<string>,
+): Promise<boolean> {
+  if (productIds.size === 0 && lotIds.size === 0) return false;
+  const sales = await listOfflineSales(scope);
+  return sales.some((sale) => {
+    if (["synced", "cancelled"].includes(sale.syncState)) return false;
+    return sale.lines.some((line) =>
+      productIds.has(line.productId) || line.lotEvidence.some((lot) => lotIds.has(lot.lotId)),
+    );
+  });
+}
+
+export async function syncOfflineMutations(): Promise<OfflineMutationSyncResult> {
+  if (isOffline() || typeof indexedDB === "undefined") return { synced: 0, pending: 0, blocked: 0, messages: [], salesReady: true };
   const scope = currentScope();
   const all = await listAllMutations(scope);
   const pending = all.filter((item) => item.status !== "synced");
   let synced = 0;
   let blocked = 0;
   const messages: string[] = [];
+  const unresolvedProductIds = new Set<string>();
+  const unresolvedLotIds = new Set<string>();
   const mappings: OfflineReferenceMappings = { productIds: {}, lotIds: {} };
   for (const mutation of all) {
     if (mutation.kind === "product.create" && mutation.localProductId && mutation.serverProductId) {
@@ -219,7 +245,12 @@ export async function syncOfflineMutations(): Promise<{ synced: number; pending:
   }
   await applyOfflineMutationMappings(scope, mappings);
   for (const mutation of pending) {
-    if (mutation.status === "blocked") { blocked += 1; continue; }
+    if (mutation.status === "blocked") {
+      if (mutation.localProductId) unresolvedProductIds.add(mutation.localProductId);
+      if (mutation.localLotId) unresolvedLotIds.add(mutation.localLotId);
+      blocked += 1;
+      continue;
+    }
     await updateMutation(mutation.id, { status: "syncing", attempts: mutation.attempts + 1 });
     if (mutation.kind === "product.create") {
       const res = await goRequest<GoProduct | { product?: GoProduct }>("catalogue/products", { method: "POST", body: mutation.payload });
@@ -227,9 +258,11 @@ export async function syncOfflineMutations(): Promise<{ synced: number; pending:
       if (!res.success || !mapped) {
         if (res.status >= 400 && res.status < 500) {
           await updateMutation(mutation.id, { status: "blocked", message: res.message });
+          if (mutation.localProductId) unresolvedProductIds.add(mutation.localProductId);
           blocked += 1;
         } else {
           await updateMutation(mutation.id, { status: "pending", message: res.message });
+          if (mutation.localProductId) unresolvedProductIds.add(mutation.localProductId);
         }
         continue;
       }
@@ -251,9 +284,11 @@ export async function syncOfflineMutations(): Promise<{ synced: number; pending:
     if (!res.success || !res.data) {
       if (res.status >= 400 && res.status < 500) {
         await updateMutation(mutation.id, { status: "blocked", message: res.message });
+        if (mutation.localLotId) unresolvedLotIds.add(mutation.localLotId);
         blocked += 1;
       } else {
         await updateMutation(mutation.id, { status: "pending", message: res.message });
+        if (mutation.localLotId) unresolvedLotIds.add(mutation.localLotId);
       }
       continue;
     }
@@ -271,7 +306,8 @@ export async function syncOfflineMutations(): Promise<{ synced: number; pending:
   }
   await applyOfflineMutationMappings(scope, mappings);
   const remaining = await listMutations(scope);
-  return { synced, pending: remaining.length, blocked, messages };
+  const salesReady = !(await salesHaveUnresolvedMutationReferences(scope, unresolvedProductIds, unresolvedLotIds));
+  return { synced, pending: remaining.length, blocked, messages, salesReady };
 }
 
 export async function offlineMutationSummary(scope: OfflineScope): Promise<{ pending: number; blocked: number }> {

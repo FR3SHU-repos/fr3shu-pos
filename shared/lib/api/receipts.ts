@@ -30,6 +30,15 @@ export interface BuyerReceiptDetail extends BuyerReceiptSummary {
   payments: Array<{ method: string; amountMinor: number; reference?: string }>;
 }
 
+export interface ReceiptClaimCandidate {
+  id: string;
+  receiptNo: string;
+  totalMinor: number;
+  storeName: string;
+  locationName: string;
+  purchasedAt: string;
+}
+
 export interface ReceiptPageMeta {
   page: number;
   limit: number;
@@ -42,3 +51,9 @@ export const list = (limit = 25, page = 1): Promise<ApiResult<{ items: BuyerRece
 
 export const get = (id: string): Promise<ApiResult<BuyerReceiptDetail>> =>
   request(`buyer/receipts/${encodeURIComponent(id)}`);
+
+export const claimable = (): Promise<ApiResult<{ items: ReceiptClaimCandidate[] }>> =>
+  request("buyer/receipt-claims");
+
+export const claim = (id: string): Promise<ApiResult<BuyerReceiptDetail>> =>
+  request(`buyer/receipt-claims/${encodeURIComponent(id)}/claim`, { method: "POST" });
