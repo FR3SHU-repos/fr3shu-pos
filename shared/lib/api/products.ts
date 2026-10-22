@@ -17,7 +17,6 @@ import {
   type OfflineScope,
 } from "@/shared/lib/offline/sales";
 import { recordCatalogueRefresh } from "@/shared/lib/offline/network-metrics";
-import { queueOfflineProductCreate } from "@/shared/lib/offline/mutations";
 
 export interface OfflineProductRefreshOptions {
   /** Download even when the saved snapshot is inside the freshness window. */
@@ -35,6 +34,7 @@ export interface ProductMutation {
   name: string;
   description?: string;
   categoryId?: string;
+  categorySlug?: string;
   saleUnit: string;
   basePricePaise?: number;
   taxRateBps: number;
@@ -90,12 +90,7 @@ export const lookup = async (opts: { barcode?: string; sku?: string }): Promise<
 
 export const create = async (body: ProductMutation): Promise<ApiResult<ProductDTO>> => {
   if (isOffline()) {
-    try {
-      const product = await queueOfflineProductCreate(body);
-      return { success: true, data: product, status: 202, code: "offline_queued", message: "Product saved on this device and queued for sync." };
-    } catch (error) {
-      return unavailable(error instanceof Error ? error.message : "Product could not be saved offline.");
-    }
+    return unavailable("Connect to the internet to create products. Offline product creation is disabled so catalogue data stays consistent.");
   }
   const res = await goRequest<GoProduct>("catalogue/products", { method: "POST", body });
   return { ...res, data: res.data ? mapProduct(res.data) : null };

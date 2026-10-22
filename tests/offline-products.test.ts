@@ -59,6 +59,15 @@ vi.mock("@/shared/lib/offline/products", async importOriginal => {
 import * as products from "@/shared/lib/api/products";
 beforeEach(() => { mocks.offline = false; mocks.request.mockReset(); });
 describe("offline product API", () => {
+  it("blocks product creation while offline", async () => {
+    mocks.offline = true;
+    const result = await products.create({ name: "Rice", saleUnit: "kg", taxRateBps: 0, organicStatus: "Verified" });
+    expect(result.success).toBe(false);
+    expect(result.code).toBe("offline_unavailable");
+    expect(result.message).toContain("creation is disabled");
+    expect(mocks.request).not.toHaveBeenCalled();
+  });
+
   it("fails clearly without a downloaded catalogue and makes no network request", async () => {
     mocks.offline = true;
     setProductScope(null);

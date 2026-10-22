@@ -4,9 +4,9 @@ import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
 import { Loader2 } from "lucide-react";
-import { categoriesApi, productsApi, suppliersApi } from "@/shared/lib/api";
-import type { CategoryDTO } from "@/shared/lib/api/categories";
+import { productsApi, suppliersApi } from "@/shared/lib/api";
 import type { Producer, SupplierDTO } from "@/shared/lib/api/products";
+import { CATEGORY_LIST, type CategorySlug } from "@/shared/lib/catalogue-categories";
 import { type SaleUnit } from "@/shared/lib/units";
 import { rupeesToPaise } from "@/shared/lib/money";
 import {
@@ -30,15 +30,15 @@ const ORGANIC = [
 
 export default function NewProductPage() {
   const router = useRouter();
-  const [categories, setCategories] = useState<CategoryDTO[]>([]);
   const [suppliers, setSuppliers] = useState<SupplierDTO[]>([]);
   const [busy, setBusy] = useState(false);
+  const [online, setOnline] = useState(true);
   const [producer, setProducer] = useState<Producer>({ kind: "self" });
   const [image, setImage] = useState<File | null>(null);
 
   const [form, setForm] = useState({
     name: "",
-    categoryId: "",
+    categorySlug: "" as CategorySlug | "",
     saleUnit: "kg" as SaleUnit,
     basePriceRupees: "",
     taxRatePct: "0",
@@ -47,16 +47,10 @@ export default function NewProductPage() {
 
   useEffect(() => {
     let cancelled = false;
-
-    void categoriesApi.list()
-      .then((res) => {
-        if (cancelled) return;
-        if (res.success && res.data) setCategories(res.data.items);
-        else toast.error(res.message);
-      })
-      .catch((error: unknown) => {
-        if (!cancelled) toast.error(error instanceof Error ? error.message : "Could not load categories.");
-      });
+    const updateOnline = () => setOnline(typeof navigator === "undefined" ? true : navigator.onLine);
+    updateOnline();
+    window.addEventListener("online", updateOnline);
+    window.addEventListener("offline", updateOnline);
 
     void suppliersApi.list()
       .then((res) => {
@@ -70,6 +64,8 @@ export default function NewProductPage() {
 
     return () => {
       cancelled = true;
+      window.removeEventListener("online", updateOnline);
+      window.removeEventListener("offline", updateOnline);
     };
   }, []);
 
@@ -79,22 +75,22 @@ export default function NewProductPage() {
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (busy) return;
+    if (!online) {
+      toast.error("Connect to the internet to create products. Offline product creation is disabled.");
+      return;
+    }
     setBusy(true);
     let imageUrl: string | undefined;
     try {
-      const categoryName = categories.find((c) => c._id === form.categoryId)?.name ?? "uncategorized";
-      if (image && typeof navigator !== "undefined" && !navigator.onLine) {
-        toast("Product will be saved offline without the image. Add the image after reconnecting.");
-      } else if (image) {
-        imageUrl = await uploadProductImage(image, categoryName);
-      }
+      const categoryName = CATEGORY_LIST.find((c) => c.slug === form.categorySlug)?.name ?? "uncategorized";
+      if (image) imageUrl = await uploadProductImage(image, categoryName);
     } catch (error) {
       setBusy(false);
       return toast.error(error instanceof Error ? error.message : "Image upload failed.");
     }
     const res = await productsApi.create({
       name: form.name.trim(),
-      categoryId: form.categoryId || undefined,
+      categorySlug: form.categorySlug || undefined,
       saleUnit: form.saleUnit,
       taxRateBps: Math.round(Number(form.taxRatePct || 0) * 100),
       basePricePaise: form.basePriceRupees
@@ -107,13 +103,18 @@ export default function NewProductPage() {
     });
     setBusy(false);
     if (!res.success || !res.data) return toast.error(res.message);
-    toast.success(res.code === "offline_queued" ? "Product saved offline and queued for sync" : "Product created");
+    toast.success("Product created");
     router.push("/products");
   }
 
   return (
     <div className="mx-auto max-w-xl space-y-5 pb-24">
       <h1 className="text-xl font-semibold text-foreground-heading">New agri product</h1>
+      {!online ? (
+        <p role="status" className="rounded-xl border border-status-warning/40 bg-status-warning-surface p-3 text-sm text-status-warning">
+          Product creation is unavailable offline. Reconnect to upload this product to the shared catalogue.
+        </p>
+      ) : null}
 
       <form onSubmit={onSubmit} className={`${cardCls} space-y-4`}>
         <Text label="Name" value={form.name} onChange={(v) => set("name", v)} required />
@@ -125,13 +126,13 @@ export default function NewProductPage() {
           <div>
             <Label>Category</Label>
             <select
-              value={form.categoryId}
-              onChange={(e) => set("categoryId", e.target.value)}
+              value={form.categorySlug}
+              onChange={(e) => set("categorySlug", e.target.value as CategorySlug)}
               className={inputCls}
             >
               <option value="">— choose —</option>
-              {categories.map((c) => (
-                <option key={c._id} value={c._id}>
+              {CATEGORY_LIST.map((c) => (
+                <option key={c.slug} value={c.slug}>
                   {c.name}
                 </option>
               ))}
@@ -195,9 +196,9 @@ export default function NewProductPage() {
         </div>
 
         <div className="flex gap-2 pt-2">
-          <button type="submit" disabled={busy} className={primaryBtnCls}>
+          <button type="submit" disabled={!online || busy} className={primaryBtnCls}>
             {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-            Create product
+            {online ? "Create product" : "Connect to create"}
           </button>
           <button type="button" onClick={() => router.back()} className={ghostBtnCls}>
             Cancel

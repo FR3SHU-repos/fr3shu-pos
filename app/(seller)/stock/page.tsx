@@ -2,7 +2,8 @@
 
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import toast from "react-hot-toast";
-import { CalendarDays, Loader2, Package, Plus } from "lucide-react";
+import { ArrowRight, CalendarDays, Loader2, Package, Plus } from "lucide-react";
+import Link from "next/link";
 import { inventoryApi, productsApi, stockApi } from "@/shared/lib/api";
 import type { ProductDTO } from "@/shared/lib/api/products";
 import type { InventoryBalanceDTO, OfflineStockAdjustmentDTO } from "@/shared/lib/api/inventory";
@@ -24,6 +25,7 @@ export default function StockPage() {
   const [adjustments, setAdjustments] = useState<OfflineStockAdjustmentDTO[]>([]);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
+  const [online, setOnline] = useState(true);
   const [stockPage, setStockPage] = useState(1);
 
   const [skuId, setSkuId] = useState("");
@@ -44,6 +46,17 @@ export default function StockPage() {
   useEffect(() => {
     void load();
   }, [load]);
+
+  useEffect(() => {
+    const updateOnline = () => setOnline(typeof navigator === "undefined" ? true : navigator.onLine);
+    updateOnline();
+    window.addEventListener("online", updateOnline);
+    window.addEventListener("offline", updateOnline);
+    return () => {
+      window.removeEventListener("online", updateOnline);
+      window.removeEventListener("offline", updateOnline);
+    };
+  }, []);
 
   const selected = products.find((p) => p._id === skuId);
 
@@ -72,6 +85,10 @@ export default function StockPage() {
   async function addStock(e: React.FormEvent) {
     e.preventDefault();
     if (busy || !skuId || !qty.trim()) return;
+    if (!online) {
+      toast.error("Connect to the internet to update stock. Offline stock changes are disabled.");
+      return;
+    }
     setBusy(true);
     const res = await stockApi.add({
       skuId,
@@ -117,6 +134,12 @@ export default function StockPage() {
         </div>
       </header>
 
+      {!online ? (
+        <p role="status" className="rounded-xl border border-status-warning/40 bg-status-warning-surface p-3 text-sm text-status-warning">
+          Stock updates are unavailable offline. Reconnect before receiving a new batch.
+        </p>
+      ) : null}
+
       {adjustments.length > 0 ? (
         <section className={`${cardCls} border-status-warning/40 bg-status-warning-surface p-5`}>
           <div className="flex items-start justify-between gap-3">
@@ -128,9 +151,18 @@ export default function StockPage() {
           </div>
           <div className="mt-4 grid gap-2">
             {adjustments.slice(0, 5).map((adjustment) => (
-              <div key={adjustment.id} className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-surface-card px-3 py-3 text-sm">
-                <span className="font-semibold text-foreground-heading">{adjustment.productName ?? adjustment.skuId}</span>
-                <span className="text-foreground-muted">Shortfall {adjustment.shortfallQuantity} · {new Date(adjustment.createdAt).toLocaleString()}</span>
+              <div key={adjustment.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-surface-card px-3 py-3 text-sm">
+                <div>
+                  <p className="font-semibold text-foreground-heading">{adjustment.productName ?? adjustment.skuId}</p>
+                  <p className="text-foreground-muted">Shortfall {adjustment.shortfallQuantity} · {new Date(adjustment.createdAt).toLocaleString()}</p>
+                </div>
+                <Link
+                  href={`/pos/history/${adjustment.saleId}`}
+                  className="inline-flex min-h-9 items-center gap-1.5 rounded-lg border border-primary/40 px-3 py-2 text-xs font-semibold text-primary hover:bg-primary/5"
+                >
+                  Review sale
+                  <ArrowRight className="h-3.5 w-3.5" />
+                </Link>
               </div>
             ))}
           </div>
@@ -184,11 +216,11 @@ export default function StockPage() {
               />
             </div>
             <div className="pt-1">
-              <button type="submit" disabled={busy} className={`${primaryBtnCls} w-full`}>
+              <button type="submit" disabled={!online || busy} className={`${primaryBtnCls} w-full`}>
                 {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-                Add stock
+                {online ? "Add stock" : "Connect to add stock"}
               </button>
-              <p className="mt-2 text-xs text-foreground-muted">This adds to available stock.</p>
+              <p className="mt-2 text-xs text-foreground-muted">{online ? "This adds to available stock." : "Reconnect to add stock; offline stock receipts are disabled."}</p>
             </div>
           </form>
         )}

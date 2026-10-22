@@ -66,6 +66,7 @@ export default function PosPage() {
   const t = useMemo(() => translator(locale), [locale]);
 
   const [loading, setLoading] = useState(true);
+  const [online, setOnline] = useState(true);
   const [session, setSession] = useState<SessionDTO | null>(null);
   const [catalog, setCatalog] = useState<ProductDTO[]>([]);
   const [query, setQuery] = useState("");
@@ -175,6 +176,17 @@ export default function PosPage() {
   }, [load]);
 
   useEffect(() => {
+    const updateOnline = () => setOnline(typeof navigator === "undefined" ? true : navigator.onLine);
+    updateOnline();
+    window.addEventListener("online", updateOnline);
+    window.addEventListener("offline", updateOnline);
+    return () => {
+      window.removeEventListener("online", updateOnline);
+      window.removeEventListener("offline", updateOnline);
+    };
+  }, []);
+
+  useEffect(() => {
     const refresh = () => void refreshPendingOfflineCount();
     window.addEventListener(OFFLINE_SALES_SYNC_EVENT, refresh);
     window.addEventListener("komola:offline-sales-changed", refresh);
@@ -223,6 +235,14 @@ export default function PosPage() {
   }, [query]);
 
   const results = catalog;
+  const offlineShortfallLines = useMemo(
+    () => !online ? lines.map((line) => ({
+      name: line.product.name,
+      unit: line.saleUnit,
+      shortfallBase: Math.max(0, toBaseQuantity(line.qty, line.saleUnit) - line.product.availableBase),
+    })).filter((line) => line.shortfallBase > 0) : [],
+    [lines, online],
+  );
 
   const lineTotals = useMemo(
     () =>
@@ -730,10 +750,14 @@ export default function PosPage() {
               <div className="col-span-full flex flex-col items-center rounded-2xl border border-dashed border-border bg-surface-card px-5 py-8 text-center">
                 <p className="text-base font-semibold text-foreground-heading">No products added yet</p>
                 <p className="mt-1 max-w-sm text-sm text-foreground-muted">Enter your product details to start selling from this register.</p>
-                <Link href="/products/new" className={`${primaryBtnCls} mt-4`}>
-                  <Plus className="h-4 w-4" />
-                  Enter product details
-                </Link>
+                {online ? (
+                  <Link href="/products/new" className={`${primaryBtnCls} mt-4`}>
+                    <Plus className="h-4 w-4" />
+                    Enter product details
+                  </Link>
+                ) : (
+                  <p className="mt-4 text-sm font-medium text-status-warning">Connect to the internet to create products.</p>
+                )}
               </div>
             )
           ) : null}
@@ -883,6 +907,11 @@ export default function PosPage() {
             {offlineSessionSavedAt ? (
               <p className="text-xs text-foreground-muted">
                 Offline register prepared {new Date(offlineSessionSavedAt).toLocaleString()}.
+              </p>
+            ) : null}
+            {offlineShortfallLines.length > 0 ? (
+              <p role="alert" className="rounded-lg border border-status-warning/40 bg-status-warning-surface px-3 py-2 text-xs font-medium text-status-warning">
+                This offline sale exceeds the saved stock for {offlineShortfallLines.map((line) => `${line.name} by ${formatBaseQuantity(line.shortfallBase, line.unit)}`).join(", ")}. The sale can be recorded, but the shortfall will be allocated as a stock adjustment for manager review when it syncs.
               </p>
             ) : null}
             <div className="grid grid-cols-3 gap-2">

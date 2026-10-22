@@ -22,6 +22,18 @@ export default function ProductsPage() {
   const [pages, setPages] = useState(0);
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(true);
+  const [online, setOnline] = useState(true);
+
+  useEffect(() => {
+    const updateOnline = () => setOnline(typeof navigator === "undefined" ? true : navigator.onLine);
+    updateOnline();
+    window.addEventListener("online", updateOnline);
+    window.addEventListener("offline", updateOnline);
+    return () => {
+      window.removeEventListener("online", updateOnline);
+      window.removeEventListener("offline", updateOnline);
+    };
+  }, []);
 
   useEffect(() => {
     const ctrl = new AbortController();
@@ -43,11 +55,19 @@ export default function ProductsPage() {
     <div className="mx-auto max-w-4xl space-y-5">
       <header className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-xl font-semibold text-foreground-heading">Products</h1>
-        <Link href="/products/new" className={primaryBtnCls}>
-          <Plus className="h-4 w-4" />
-          New product
-        </Link>
+        {online ? (
+          <Link href="/products/new" className={primaryBtnCls}>
+            <Plus className="h-4 w-4" />
+            New product
+          </Link>
+        ) : (
+          <button type="button" disabled className={`${primaryBtnCls} cursor-not-allowed opacity-50`} title="Connect to the internet to create products">
+            <Plus className="h-4 w-4" />
+            New product
+          </button>
+        )}
       </header>
+      {!online ? <p role="status" className="text-sm text-status-warning">Product creation is disabled offline. Browse saved products and reconnect to create new catalogue items.</p> : null}
 
       <div className="relative">
         <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-foreground-muted" />
@@ -67,10 +87,17 @@ export default function ProductsPage() {
           title="No products found"
           description="Create your first agri product to start selling."
           action={
-            <Link href="/products/new" className={primaryBtnCls}>
-              <Plus className="h-4 w-4" />
-              New product
-            </Link>
+            online ? (
+              <Link href="/products/new" className={primaryBtnCls}>
+                <Plus className="h-4 w-4" />
+                New product
+              </Link>
+            ) : (
+              <button type="button" disabled className={`${primaryBtnCls} cursor-not-allowed opacity-50`} title="Connect to the internet to create products">
+                <Plus className="h-4 w-4" />
+                New product
+              </button>
+            )
           }
         />
       ) : (

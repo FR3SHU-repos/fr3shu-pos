@@ -159,8 +159,12 @@ export function OfflineSalesPanel({ fullPage = false }: { fullPage?: boolean }) 
       toast.error(text);
     } else if (result.synced > 0) {
       setOpen(false);
-      setMessage(`${result.synced} offline sale${result.synced === 1 ? "" : "s"} completed and moved to sales history.`);
-      toast.success(`${result.synced} offline sale${result.synced === 1 ? "" : "s"} completed`);
+      const adjustmentMessage = result.stockAdjustments
+        ? ` ${result.stockAdjustments} stock adjustment${result.stockAdjustments === 1 ? "" : "s"} require manager review.`
+        : "";
+      setMessage(`${result.synced} offline sale${result.synced === 1 ? "" : "s"} completed and moved to sales history.${adjustmentMessage}`);
+      if (result.stockAdjustments) toast(`Sale completed.${adjustmentMessage}`);
+      else toast.success(`${result.synced} offline sale${result.synced === 1 ? "" : "s"} completed`);
     } else {
       setOpen(true);
       setMessage("Sync did not complete. The sale is still saved locally and will retry.");
