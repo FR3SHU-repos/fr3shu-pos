@@ -73,10 +73,10 @@ export async function markOfflineSaleSyncState(
   }
 }
 
-function normalizeOfflinePhone(value?: string): string | undefined {
+function normalizeOfflinePhone(value?: string): string {
   const digits = (value ?? "").replace(/\D/g, "");
   const national = digits.length === 12 && digits.startsWith("91") ? digits.slice(2) : digits;
-  if (!national) return undefined;
+  if (!national) throw new Error("Customer mobile number is required.");
   if (!/^[6-9][0-9]{9}$/.test(national)) throw new Error("Enter a valid Indian mobile number.");
   return national;
 }

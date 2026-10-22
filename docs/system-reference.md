@@ -170,6 +170,13 @@ can view the details but the Go API blocks claiming until the start time.
 - Online sale creation sends an idempotency key. The Go API recomputes prices,
   tax, discounts, stock allocation, totals, payments, reward posting, and
   receipt identity in its transaction.
+- Customer name and a valid 10-digit Indian mobile number are required for
+  every sale, including verified KOMOLA buyers and guest/walk-in customers.
+  A verified buyer code links the sale to the buyer; it does not make the
+  phone requirement optional.
+- Sales history allows an operator to correct the phone snapshot on an issued
+  receipt. The correction does not change the customer master record or
+  verified buyer identity and is recorded by the API audit trail.
 - Cash, manually recorded UPI/card, and split tender are online payment
   records; no payment gateway is verified by this frontend.
 - History merges active local offline rows with server sales and hides local
@@ -194,6 +201,9 @@ authority for stock, register state, authorization, and accounting.
   prevent one seller or tenant from reading another seller's local data.
 - Local cash checkout commits the sale, receipt number, cash/change, outbox
   entry, and receipt sequence atomically.
+- Local checkout rejects a sale without a valid customer mobile number before
+  writing the IndexedDB sale or outbox entry. Imported offline backups and
+  customer-detail repairs enforce the same rule.
 - Each local sale preserves the catalogue snapshot version/effective time and
   pricing-policy version alongside immutable line price, tax, unit, quantity,
   and manual-discount values. The sync payload carries this evidence for the

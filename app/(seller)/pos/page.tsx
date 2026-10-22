@@ -40,6 +40,7 @@ import { clampQuantityToStock, remainingStockBase } from "@/shared/lib/pos-stock
 import { translator, LOCALES, type Locale } from "@/shared/lib/i18n";
 import { ReceiptView, type ReceiptPaymentLine } from "@/shared/components/pos/ReceiptView";
 import { buildWhatsAppReceiptUrl } from "@/shared/lib/whatsapp-share";
+import { normalizeIndianMobile } from "@/shared/lib/auth/phone";
 import { KomoMessage } from "@/shared/components/mascot";
 import { type CartLine, type HeldCart } from "@/shared/components/pos/types";
 import { loadHeldCarts, saveHeldCarts } from "@/shared/lib/offline/held-carts";
@@ -382,6 +383,10 @@ export default function PosPage() {
     if (submitting || lines.length === 0) return;
     if (!customerName.trim()) {
       toast.error("Enter the customer's name");
+      return;
+    }
+    if (!normalizeIndianMobile(customerPhone)) {
+      toast.error("Enter a valid 10-digit Indian customer mobile number.");
       return;
     }
     if (!guestCustomer && !resolvedBuyer) {
@@ -1065,6 +1070,8 @@ export default function PosPage() {
                 className={inputCls}
                 inputMode="numeric"
                 maxLength={10}
+                pattern="[6-9][0-9]{9}"
+                required
                 autoComplete="off"
                 readOnly={!guestCustomer || Boolean(resolvedBuyer)}
                 disabled={!guestCustomer && !resolvedBuyer}
@@ -1081,7 +1088,7 @@ export default function PosPage() {
 
             <button
               className={`${primaryBtnCls} w-full`}
-              disabled={submitting || !customerName.trim() || (!guestCustomer && !resolvedBuyer)}
+              disabled={submitting || !customerName.trim() || !normalizeIndianMobile(customerPhone) || (!guestCustomer && !resolvedBuyer)}
               onClick={completeSale}
             >
               {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : null}

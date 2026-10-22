@@ -105,6 +105,7 @@ describe("offline cash sales", () => {
       lines: [line()],
       cashReceivedPaise: 10000,
       customerName: "Asha",
+      customerPhone: "9999999999",
       operationId: "restored-op-1",
     }, 1, new Date("2026-09-13T06:30:00.000Z"));
     sale.syncState = "uploading";
@@ -124,6 +125,7 @@ describe("offline cash sales", () => {
       lines: [line()],
       cashReceivedPaise: 10000,
       customerName: "Asha",
+      customerPhone: "9999999999",
       operationId: "foreign-op-1",
     }, 1);
     const result = await importOfflineSales(scope, { exportedAt: new Date().toISOString(), scope, sales: [sale] });
@@ -152,6 +154,7 @@ describe("offline cash sales", () => {
       lines: [line()],
       cashReceivedPaise: 10000,
       customerName: "Asha",
+      customerPhone: "9999999999",
       operationId: "expired-grant-op",
     });
     expect(sale.syncState).toBe("pending");
@@ -166,6 +169,7 @@ describe("offline cash sales", () => {
       lines: [line()],
       cashReceivedPaise: 10000,
       customerName: "Asha",
+      customerPhone: "9999999999",
       operationId: "atomic-op-1",
     };
 
@@ -185,6 +189,7 @@ describe("offline cash sales", () => {
       lines: [line()],
       cashReceivedPaise: 10000,
       customerName: "Asha",
+      customerPhone: "9999999999",
       operationId: "lease-op-1",
     };
     await commitOfflineCashSale(input);
@@ -213,6 +218,18 @@ describe("offline cash sales", () => {
       changePaise: 1000,
     });
     expect(() => validateCashPayment(9000, 8999)).toThrow("Cash received is less than the sale total.");
+  });
+
+  it("requires a customer mobile number before creating an offline sale", () => {
+    expect(() => buildOfflineSaleRecord({
+      scope,
+      session,
+      cashierId: "cashier-1",
+      lines: [line()],
+      cashReceivedPaise: 10000,
+      customerName: "Asha",
+      customerPhone: "",
+    }, 1)).toThrow("customer mobile number");
   });
 
   it("builds an immutable pending sale and receipt DTO", () => {
@@ -260,6 +277,7 @@ describe("offline cash sales", () => {
       lines: [line()],
       cashReceivedPaise: 10000,
       customerName: "Asha",
+      customerPhone: "9999999999",
       operationId: "canonical-receipt-op",
     }, 8);
     sale.syncState = "synced";
@@ -279,6 +297,7 @@ describe("offline cash sales", () => {
           lines: [line({ product: product({ status: "inactive" }) })],
           cashReceivedPaise: 10000,
           customerName: "Asha",
+          customerPhone: "9999999999",
         },
         1,
       ),
@@ -293,6 +312,7 @@ describe("offline cash sales", () => {
           lines: [line({ product: product({ basePricePaise: undefined }) })],
           cashReceivedPaise: 10000,
           customerName: "Asha",
+          customerPhone: "9999999999",
         },
         1,
       ),
@@ -308,6 +328,7 @@ describe("offline cash sales", () => {
         lines: [line()],
         cashReceivedPaise: 10000,
         customerName: "Asha",
+        customerPhone: "9999999999",
         operationId: "op-1",
       },
       1,
@@ -337,6 +358,7 @@ describe("offline cash sales", () => {
           lines: [line()],
           cashReceivedPaise: 10000,
           customerName: "Asha",
+          customerPhone: "9999999999",
           operationId: "op-cancelled",
         },
         3,
@@ -357,6 +379,7 @@ describe("offline cash sales", () => {
           lines: [line({ qty: 4 })],
           cashReceivedPaise: 24000,
           customerName: "Asha",
+          customerPhone: "9999999999",
         },
         2,
         new Date("2026-09-13T06:30:00.000Z"),
@@ -374,6 +397,7 @@ describe("offline cash sales", () => {
         lines: [line({ qty: 2 })],
         cashReceivedPaise: 12000,
         customerName: "Asha",
+        customerPhone: "9999999999",
         operationId: "op-repair",
       },
       4,
@@ -396,6 +420,7 @@ describe("offline cash sales", () => {
         lines: [line()],
         cashReceivedPaise: 10000,
         customerName: "Asha",
+        customerPhone: "9999999999",
         operationId: "op-remove-all",
       },
       5,

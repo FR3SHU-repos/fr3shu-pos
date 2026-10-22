@@ -152,7 +152,7 @@ Body (Zod `createSaleSchema`):
     { "method": "upi",  "amountPaise": 1000, "upiRef": "…" }
   ],
   "cartDiscountPaise": 0,                     // optional
-  "customerName": "…", "customerPhone": "…",  // optional
+  "customerName": "…", "customerPhone": "…",  // customerPhone required: valid Indian mobile
   "marketingConsent": false,                  // optional, separate from recording the phone
   "deviceId": "…"                             // optional
 }

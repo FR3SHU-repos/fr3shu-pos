@@ -713,12 +713,12 @@ export function OfflineSalesPanel({ fullPage = false }: { fullPage?: boolean }) 
           ))}
         </div>
       ) : null}
-    {receiptSale ? <OfflineReceiptDialog sale={receiptSale} onClose={() => setReceiptSale(null)} /> : null}
+    {receiptSale ? <OfflineReceiptDialog sale={receiptSale} onClose={() => setReceiptSale(null)} onEditCustomer={() => { startEditing(receiptSale); setReceiptSale(null); }} /> : null}
     </section>
   );
 }
 
-function OfflineReceiptDialog({ sale, onClose }: { sale: OfflineSaleRecord; onClose: () => void }) {
+function OfflineReceiptDialog({ sale, onClose, onEditCustomer }: { sale: OfflineSaleRecord; onClose: () => void; onEditCustomer: () => void }) {
   const receipt = offlineSaleToDTO(sale);
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto bg-black/40 p-4">
@@ -758,6 +758,7 @@ function OfflineReceiptDialog({ sale, onClose }: { sale: OfflineSaleRecord; onCl
         </div>
         <div className="no-print mt-4 flex flex-wrap justify-end gap-2">
           <button type="button" className={ghostBtnCls} onClick={onClose}>Close</button>
+          <button type="button" className={ghostBtnCls} onClick={onEditCustomer}>Edit customer phone</button>
           <button type="button" className={primaryBtnCls} onClick={() => printReceipt()}>
             <Printer className="h-4 w-4" />
             Print / save PDF

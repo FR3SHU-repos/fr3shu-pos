@@ -4,6 +4,7 @@ import type { CartLine } from "@/shared/components/pos/types";
 import { computeLineTotals, sumCartTotals } from "@/shared/lib/money";
 import { fromBaseQuantity, toBaseQuantity } from "@/shared/lib/units";
 import { OFFLINE_PRICING_POLICY_VERSION } from "@/shared/lib/offline/products";
+import { normalizeIndianMobile } from "@/shared/lib/auth/phone";
 import type {
   LocalStockDeductions,
   OfflineCashPayment,
@@ -189,6 +190,8 @@ export function buildOfflineSaleRecord(
   _existingDeductions: LocalStockDeductions = {},
 ): OfflineSaleRecord {
   if (input.lines.length === 0) throw new Error("Add at least one product before checkout.");
+  const customerPhone = normalizeIndianMobile(input.customerPhone);
+  if (!customerPhone) throw new Error("Enter a valid 10-digit Indian customer mobile number.");
   for (const line of input.lines) {
     if ((line.product as ProductDTO).status !== "active") throw new Error(`${line.product.name} is not active.`);
     if (typeof line.product.basePricePaise !== "number") throw new Error(`${line.product.name} has no saved price.`);
@@ -221,7 +224,7 @@ export function buildOfflineSaleRecord(
     totalPaise: cart.netPaise,
     payment,
     customerName: input.customerName.trim(),
-    customerPhone: input.customerPhone?.trim() || undefined,
+    customerPhone,
     buyerCode: input.buyerCode?.trim() || undefined,
     marketingConsent: Boolean(input.marketingConsent),
     cashierId: input.cashierId,
