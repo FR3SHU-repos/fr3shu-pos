@@ -50,6 +50,23 @@ export function OfflineSalesSyncWorker() {
     try {
       const mutations = await syncOfflineMutations();
       if (mutations.synced > 0) await productsApi.refreshOfflineProducts(undefined, { force: true });
+      if (!mutations.salesReady) {
+        const message = mutations.messages.join(" ") || "Offline product and stock changes must sync before this sale can be uploaded.";
+        const detail: OfflineSalesSyncDetail = {
+          attempted: 0,
+          synced: 0,
+          blocked: 0,
+          authRequired: false,
+          message,
+          at: new Date().toISOString(),
+          automatic,
+        };
+        if (typeof window !== "undefined") {
+          window.dispatchEvent(new CustomEvent<OfflineSalesSyncDetail>(OFFLINE_SALES_SYNC_EVENT, { detail }));
+        }
+        if (!automatic) toast.error(message);
+        return;
+      }
       const result = await salesApi.syncPendingOfflineSales(scope, { forceRetry });
       if (result.synced > 0) await cleanupOfflineSales(scope, 0);
       const detail: OfflineSalesSyncDetail = { ...result, at: new Date().toISOString(), automatic, message: mutations.messages.join(" ") || result.message };
