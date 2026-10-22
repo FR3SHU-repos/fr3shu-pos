@@ -126,7 +126,7 @@ browser-configured; server-only `GO_API_BASE_URL` is preferred for the proxy.
 | `registers.ts` | `/pos/registers`, `/pos/shifts`, open/close routes | Register sessions, dashboard, checkout |
 | `sales.ts`, `customers.ts` | `/pos/sales*`, `/pos/customers/resolve`, `/pos/sync/sales` | Checkout, history, receipts, offline worker |
 | `inventory.ts`, `stock.ts` | `/pos/inventory*`, `/pos/inventory/receipts` | Stock screen and receive-stock flow |
-| `rewards.ts`, `receipts.ts` | `/buyer/rewards/*`, `/buyer/receipts/*` | Buyer wallet, dashboard, receipt detail |
+| `rewards.ts`, `receipts.ts` | `/buyer/rewards/*`, `/buyer/receipts/*`, `/buyer/receipt-claims/*` | Buyer wallet, dashboard, receipt detail, and explicit claim notifications for seller-edited receipts |
 | `campaigns.ts` | `/buyer/reward-campaigns/*`, `/buyer/reward-claims*` | Buyer offers, claim detail, receipt confirmation |
 | `identity.ts`, `privacy.ts` | `/me/*`, `/locations`, `/account/security/audit`, `/admin/privacy/*` | Profile, location, privacy, recovery audit, admin |
 
@@ -143,6 +143,13 @@ whose fulfilment method is home delivery. Store-pickup and online-redemption
 offers remain discoverable without a delivery address. Published offers are
 also listed before their configured start time as upcoming offers; the buyer
 can view the details but the Go API blocks claiming until the start time.
+
+Matching untouched guest receipts are attached automatically during login
+reconciliation after the buyer's phone is verified. If a seller corrected the
+receipt phone after checkout, the dashboard shows a claim notification only
+for that edited receipt. The buyer must select “Claim this receipt”; the Go API
+then links the sale and posts rewards atomically. A seller correction to an
+already-linked receipt remains receipt-only and cannot transfer its rewards.
 
 ## 6. Seller workflows
 
