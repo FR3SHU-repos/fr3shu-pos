@@ -71,19 +71,19 @@ export function SiteHeader() {
         >
           {capabilities?.buyer ? (
             <>
-              <Link href="/buyer" className={navLinkClass}>
+              <Link href="/buyer" className={`${navLinkClass} !hidden xl:!inline-flex`}>
                 <Gift className="h-4 w-4" aria-hidden="true" />
                 Rewards
               </Link>
-              <Link href="/buyer/campaigns" className={navLinkClass}>
+              <Link href="/buyer/campaigns" className={`${navLinkClass} !hidden xl:!inline-flex`}>
                 <Megaphone className="h-4 w-4" aria-hidden="true" />
                 Offers
               </Link>
-              <Link href="/buyer/wallet" className={navLinkClass}>
+              <Link href="/buyer/wallet" className={`${navLinkClass} !hidden xl:!inline-flex`}>
                 <WalletCards className="h-4 w-4" aria-hidden="true" />
                 Wallet
               </Link>
-              <Link href="/buyer/referrals" className={navLinkClass}>
+              <Link href="/buyer/referrals" className={`${navLinkClass} !hidden xl:!inline-flex`}>
                 <UsersRound className="h-4 w-4" aria-hidden="true" />
                 Referrals
               </Link>
@@ -139,6 +139,45 @@ export function SiteHeader() {
         </nav>
       </div>
     </header>
+  );
+}
+
+export function SiteMobileNavigation() {
+  const { capabilities, loading } = usePosUser();
+  const pathname = usePathname();
+
+  if (loading || !capabilities?.buyer || (pathname !== "/buyer" && !pathname.startsWith("/buyer/"))) {
+    return null;
+  }
+
+  const items = [
+    { href: "/buyer", label: "Rewards", icon: Gift },
+    { href: "/buyer/campaigns", label: "Offers", icon: Megaphone },
+    { href: "/buyer/wallet", label: "Wallet", icon: WalletCards },
+    { href: "/buyer/referrals", label: "Referrals", icon: UsersRound },
+  ];
+
+  return (
+    <div className="fixed inset-x-4 bottom-4 z-40 xl:hidden">
+      <nav
+        aria-label="Buyer navigation"
+        className="grid grid-cols-4 rounded-3xl border border-border bg-surface-card/95 p-2 shadow-[0_18px_50px_rgba(23,23,23,0.18)] backdrop-blur"
+      >
+        {items.map(({ href, label, icon: Icon }) => {
+          const active = pathname === href || (href !== "/buyer" && pathname.startsWith(`${href}/`));
+          return (
+            <Link
+              key={href}
+              href={href}
+              className={`${active ? "bg-foreground text-white" : "text-foreground-muted hover:bg-surface-muted hover:text-foreground-body"} flex min-h-14 flex-col items-center justify-center gap-1 rounded-2xl px-1 text-[11px] font-semibold`}
+            >
+              <Icon className="h-5 w-5" aria-hidden="true" />
+              {label}
+            </Link>
+          );
+        })}
+      </nav>
+    </div>
   );
 }
 

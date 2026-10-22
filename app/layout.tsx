@@ -1,7 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { PosUserProvider } from "@/shared/context/PosUserContext";
-import { SiteFooter, SiteHeader } from "@/shared/components/SiteChrome";
+import { SiteFooter, SiteHeader, SiteMobileNavigation } from "@/shared/components/SiteChrome";
 import { Toaster } from "react-hot-toast";
 import { ServiceWorkerRegistration } from "@/shared/components/ServiceWorkerRegistration";
 
@@ -90,6 +90,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <div className="flex min-h-screen flex-col">
             <SiteHeader />
             <div className="min-h-0 flex-1">{children}</div>
+            <SiteMobileNavigation />
             <SiteFooter />
           </div>
         </PosUserProvider>

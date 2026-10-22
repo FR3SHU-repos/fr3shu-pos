@@ -160,13 +160,13 @@ export default function BuyerDashboardPage() {
     window.setTimeout(() => setCopied(false), 2000);
   }
 
-  if (loading) return <main className="mx-auto min-h-screen max-w-4xl space-y-4 bg-surface p-4 sm:p-8"><Skeleton className="h-12 w-72"/><Skeleton className="h-40 w-full"/><Skeleton className="h-72 w-full"/></main>;
+  if (loading) return <main className="mx-auto min-h-screen max-w-4xl space-y-4 bg-surface p-4 pb-28 sm:p-8 sm:pb-28 xl:pb-8"><Skeleton className="h-12 w-72"/><Skeleton className="h-40 w-full"/><Skeleton className="h-72 w-full"/></main>;
 
   const profileReady = buyerProfileReady(profile);
   const campaignsReady = buyerCampaignsReady(profile);
   const missingDetails = missingBuyerDetails(profile);
 
-  return <main className="mx-auto min-h-screen max-w-4xl bg-surface p-4 sm:p-8">
+  return <main className="mx-auto min-h-screen max-w-4xl bg-surface p-4 pb-28 sm:p-8 sm:pb-28 xl:pb-8">
     <header className="mb-6"><p className="font-semibold text-primary">KOMOLA Buyer</p><h1 className="text-3xl font-bold">{profile?.displayName ? `Hello, ${profile.displayName}` : "Your rewards"}</h1><p className="mt-1 text-foreground-muted">Rewards and status from purchases completed by KOMOLA sellers.</p></header>
     <KomoMessage action="wave" title="Let’s make every purchase count." description="Show your buyer code at a KOMOLA seller to collect receipts and rewards." compact />
     {!profileReady ? <section className={`${cardCls} mt-4 border-primary/30 bg-primary/5`} aria-labelledby="complete-profile-title"><div><p className="font-semibold text-primary">Buyer account setup</p><h2 id="complete-profile-title" className="mt-1 text-xl font-bold text-foreground-heading">Add your details to unlock your buyer account</h2><p className="mt-1 text-sm text-foreground-muted">Enter {missingDetails.join(", ")} to get your buyer code and receive purchase rewards.</p></div><Link href="/buyer/setup" className="mt-4 inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2 font-semibold text-primary-foreground sm:mt-5">Enter buyer details <ArrowRight className="h-4 w-4"/></Link></section> : null}

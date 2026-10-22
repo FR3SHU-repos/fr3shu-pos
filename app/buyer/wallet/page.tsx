@@ -46,7 +46,7 @@ export default function BuyerWalletPage() {
 
   if (loading)
     return (
-      <main className="mx-auto min-h-screen max-w-5xl space-y-4 bg-surface p-4 sm:p-8">
+      <main className="mx-auto min-h-screen max-w-5xl space-y-4 bg-surface p-4 pb-28 sm:p-8 sm:pb-28 xl:pb-8">
         <Skeleton className="h-12 w-72" />
         <Skeleton className="h-44 w-full" />
         <Skeleton className="h-64 w-full" />
@@ -54,7 +54,7 @@ export default function BuyerWalletPage() {
     );
 
   return (
-    <main className="mx-auto min-h-screen max-w-5xl bg-surface p-4 sm:p-8">
+    <main className="mx-auto min-h-screen max-w-5xl bg-surface p-4 pb-28 sm:p-8 sm:pb-28 xl:pb-8">
       <header className="mb-6">
         <p className="font-semibold text-primary">KOMOLA Buyer</p>
         <h1 className="text-3xl font-bold text-foreground-heading">

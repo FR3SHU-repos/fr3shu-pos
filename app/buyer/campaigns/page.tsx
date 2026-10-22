@@ -62,7 +62,7 @@ export default function BuyerCampaignsPage() {
       !campaign.buyerClaim || campaign.buyerClaim.status === "cancelled",
   );
 
-  return <main className="mx-auto min-h-screen max-w-4xl bg-surface p-4 sm:p-8">
+  return <main className="mx-auto min-h-screen max-w-4xl bg-surface p-4 pb-28 sm:p-8 sm:pb-28 xl:pb-8">
     <Link href="/buyer" className="mb-5 inline-flex items-center gap-2 text-sm font-semibold text-foreground-muted hover:text-primary"><ArrowLeft className="h-4 w-4"/>Back to buyer dashboard</Link>
     <header className="mb-6"><p className="font-semibold text-primary">KOMOLA Buyer</p><h1 className="mt-1 text-3xl font-bold text-foreground-heading">Rewards and offers</h1><p className="mt-1 text-foreground-muted">Campaigns available for your registered location.</p></header>
     {setupRequired ? <section className={`${cardCls} mb-5 border-primary/30 bg-primary/5`} aria-labelledby="campaign-profile-title"><p className="font-semibold text-primary">Buyer account setup</p><h2 id="campaign-profile-title" className="mt-1 text-xl font-bold text-foreground-heading">Complete your buyer details first</h2><p className="mt-1 text-sm text-foreground-muted">Enter {missingBuyerCampaignDetails(profile).join(", ")} to view offers available in your location.</p><Link href="/buyer/setup" className="mt-4 inline-flex min-h-11 items-center rounded-lg bg-primary px-4 py-2 font-semibold text-primary-foreground">Enter buyer details</Link></section> : null}
