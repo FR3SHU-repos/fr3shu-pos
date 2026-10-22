@@ -94,7 +94,7 @@ export default function BuyerSetupPage() {
     router.replace("/buyer");
   }
 
-  return <main className="flex min-h-screen items-center justify-center bg-surface p-4">
+  return <main className="flex min-h-screen items-center justify-center bg-surface p-4 pb-28 xl:pb-4">
     <form onSubmit={submit} className={`${cardCls} w-full max-w-md space-y-5`}>
       <div>
         <p className="font-semibold text-primary">Buyer profile</p>

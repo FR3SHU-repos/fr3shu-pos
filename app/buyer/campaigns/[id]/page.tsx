@@ -113,7 +113,7 @@ export default function BuyerCampaignDetailPage() {
 
   if (loading)
     return (
-      <main className="mx-auto min-h-screen max-w-4xl space-y-4 bg-surface p-4 sm:p-8">
+      <main className="mx-auto min-h-screen max-w-4xl space-y-4 bg-surface p-4 pb-28 sm:p-8 sm:pb-28 xl:pb-8">
         <Skeleton className="h-8 w-52" />
         <Skeleton className="h-72 w-full" />
         <Skeleton className="h-56 w-full" />
@@ -121,7 +121,7 @@ export default function BuyerCampaignDetailPage() {
     );
   if (!campaign)
     return (
-      <main className="mx-auto min-h-screen max-w-4xl bg-surface p-4 sm:p-8">
+      <main className="mx-auto min-h-screen max-w-4xl bg-surface p-4 pb-28 sm:p-8 sm:pb-28 xl:pb-8">
         <Link
           href="/buyer/campaigns"
           className="inline-flex items-center gap-2 text-sm font-semibold text-foreground-muted"
@@ -152,7 +152,7 @@ export default function BuyerCampaignDetailPage() {
     campaign.claimsRemaining > 0 &&
     (fulfillmentMethod !== "home_delivery" || hasDeliveryAddress);
   return (
-    <main className="mx-auto min-h-screen max-w-4xl bg-surface p-4 sm:p-8">
+    <main className="mx-auto min-h-screen max-w-4xl bg-surface p-4 pb-28 sm:p-8 sm:pb-28 xl:pb-8">
       <Link
         href="/buyer/campaigns"
         className="mb-5 inline-flex items-center gap-2 text-sm font-semibold text-foreground-muted hover:text-primary"

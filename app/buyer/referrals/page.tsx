@@ -48,7 +48,7 @@ export default function BuyerReferralsPage() {
 
   if (loading) {
     return (
-      <main className="mx-auto min-h-screen max-w-5xl space-y-4 bg-surface p-4 sm:p-8">
+      <main className="mx-auto min-h-screen max-w-5xl space-y-4 bg-surface p-4 pb-28 sm:p-8 sm:pb-28 xl:pb-8">
         <Skeleton className="h-6 w-40" />
         <Skeleton className="h-24 w-80" />
         <div className="grid gap-4 sm:grid-cols-3">
@@ -62,7 +62,7 @@ export default function BuyerReferralsPage() {
   }
 
   return (
-    <main className="mx-auto min-h-screen max-w-5xl bg-surface p-4 sm:p-8">
+    <main className="mx-auto min-h-screen max-w-5xl bg-surface p-4 pb-28 sm:p-8 sm:pb-28 xl:pb-8">
       <Link
         href="/buyer"
         className="mb-5 inline-flex items-center gap-2 text-sm font-semibold text-foreground-muted hover:text-primary"

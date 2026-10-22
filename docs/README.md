@@ -32,6 +32,7 @@ the active API or persistence contract.
 | Which API routes does POS consume? | [`../../go-api-backend/docs/api-current.md`](../../go-api-backend/docs/api-current.md) and [`../../go-api-backend/openapi/openapi.yaml`](../../go-api-backend/openapi/openapi.yaml) |
 | How does authentication and tenant scope work? | [`system-reference.md`](system-reference.md), `shared/lib/supabase/middleware.ts`, and `shared/context/PosUserContext.tsx` |
 | What works offline? | [`OFFLINE-STATUS.md`](OFFLINE-STATUS.md) and [`system-reference.md`](system-reference.md) |
+| What POS edge cases must be handled? | [`POS-EDGE-CASE-ANALYSIS.md`](POS-EDGE-CASE-ANALYSIS.md) |
 | How does the PWA cache data safely? | [`PWA-IMPLEMENTATION.md`](PWA-IMPLEMENTATION.md) and `public/sw.js` |
 | What are the performance rules? | [`PERFORMANCE-STARTUP.md`](PERFORMANCE-STARTUP.md) |
 | How are product images handled? | [`PRODUCT-IMAGES.md`](PRODUCT-IMAGES.md) and `shared/lib/supabase/product-images.ts` |
@@ -44,4 +45,3 @@ offline state, service-worker cache rule, product-image rule, or user-visible
 workflow changes, update the closest detailed document and
 [`system-reference.md`](system-reference.md). Keep backend contract changes in
 `go-api-backend`; do not duplicate the full OpenAPI specification here.
-
