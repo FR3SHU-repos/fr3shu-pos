@@ -270,6 +270,7 @@ export async function syncPendingOfflineSales(scope: OfflineScope, options: { fo
   synced: number;
   blocked: number;
   authRequired: boolean;
+  stockAdjustments?: number;
   unavailable?: boolean;
   message?: string;
   blockedMessages?: string[];
@@ -339,6 +340,7 @@ export async function syncPendingOfflineSales(scope: OfflineScope, options: { fo
   let synced = 0;
   let blocked = 0;
   let authRequired = false;
+  let stockAdjustments = 0;
   const blockedMessages: string[] = [];
   const accepted: Array<{ operationId: string; message: string; serverSaleId?: string; serverReceiptNo?: string; serverInventoryCursor?: string }> = [];
   for (const result of res.data.results ?? []) {
@@ -346,6 +348,7 @@ export async function syncPendingOfflineSales(scope: OfflineScope, options: { fo
       const adjustmentMessage = result.stockAdjustments?.length
         ? ` ${result.stockAdjustments.length} stock adjustment${result.stockAdjustments.length === 1 ? "" : "s"} require review.`
         : "";
+      stockAdjustments += result.stockAdjustments?.length ?? 0;
       if (await markOfflineSaleSyncState(scope, result.operationId, "synced", {
         message: result.sale?.receiptNo
           ? `Synced to the server as ${result.sale.receiptNo}.${adjustmentMessage}`
@@ -402,7 +405,14 @@ export async function syncPendingOfflineSales(scope: OfflineScope, options: { fo
       })));
     }
   }
-  return { attempted: claimedBatch.length, synced, blocked, authRequired, blockedMessages };
+  return {
+    attempted: claimedBatch.length,
+    synced,
+    blocked,
+    authRequired,
+    ...(stockAdjustments > 0 ? { stockAdjustments } : {}),
+    blockedMessages,
+  };
 }
 
 export const voidSale = (

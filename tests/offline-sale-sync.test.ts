@@ -65,6 +65,30 @@ describe("offline sale sync API", () => {
     expect(result).toEqual({ attempted: 1, synced: 1, blocked: 0, authRequired: false, blockedMessages: [] });
   });
 
+  it("reports accepted sales with inventory shortfalls for manager review", async () => {
+    mocks.claimPending.mockResolvedValue([{ operationId: "op-oversold" }]);
+    mocks.request.mockResolvedValue({
+      success: true,
+      status: 200,
+      data: {
+        results: [{
+          operationId: "op-oversold",
+          outcome: "accepted",
+          sale: { id: "sale-oversold", receiptNo: "POS-2026-000010" },
+          stockAdjustments: [{ id: "adjustment-1", shortfallQuantity: "10" }],
+        }],
+      },
+    });
+    mocks.mark.mockResolvedValue(true);
+
+    const result = await syncPendingOfflineSales(scope);
+
+    expect(result.stockAdjustments).toBe(1);
+    expect(mocks.mark).toHaveBeenCalledWith(scope, "op-oversold", "synced", expect.objectContaining({
+      message: "Synced to the server as POS-2026-000010. 1 stock adjustment require review.",
+    }));
+  });
+
   it("does not download the catalogue when there is no local sync work", async () => {
     mocks.listSales.mockResolvedValue([]);
 

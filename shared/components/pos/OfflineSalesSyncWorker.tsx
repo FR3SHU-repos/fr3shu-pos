@@ -17,6 +17,7 @@ export interface OfflineSalesSyncDetail {
   synced: number;
   blocked: number;
   authRequired: boolean;
+  stockAdjustments?: number;
   unavailable?: boolean;
   failed?: boolean;
   failureCode?: string;
@@ -77,7 +78,13 @@ export function OfflineSalesSyncWorker() {
         window.dispatchEvent(new CustomEvent<OfflineSalesSyncDetail>(OFFLINE_SALES_SYNC_EVENT, { detail }));
       }
       if (!automatic) return;
-      if (result.synced > 0) toast.success(`${result.synced} offline sale${result.synced === 1 ? "" : "s"} completed`);
+      if (result.synced > 0) {
+        const adjustmentMessage = result.stockAdjustments
+          ? ` ${result.stockAdjustments} stock adjustment${result.stockAdjustments === 1 ? "" : "s"} require manager review.`
+          : "";
+        if (result.stockAdjustments) toast(`Offline sale completed.${adjustmentMessage}`);
+        else toast.success(`${result.synced} offline sale${result.synced === 1 ? "" : "s"} completed`);
+      }
       if (mutations.synced > 0 && result.synced === 0) toast.success(`${mutations.synced} offline change${mutations.synced === 1 ? "" : "s"} synced`);
     } catch (error) {
       const message = error instanceof Error ? error.message : "Offline sync failed unexpectedly.";

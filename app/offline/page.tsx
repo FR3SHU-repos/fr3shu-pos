@@ -7,7 +7,7 @@ export default function OfflinePage() {
         <KomoStatus status="offline" title="You’re offline" description="KOMOLA will keep this state clear while you reconnect." />
         <h1 className="text-lg font-semibold text-foreground-heading">KOMOLA POS is offline</h1>
         <p className="mt-2 text-sm text-foreground-muted">
-          Saved products, offline stock receipts, and sales stay on this browser while you work. They sync to KOMOLA when the connection returns.
+          Saved products and offline sales stay on this browser while you work. Product creation and stock updates require an internet connection.
         </p>
         <a href="/pos" className="mt-4 inline-flex min-h-11 items-center justify-center rounded-xl bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground">
           Open POS
