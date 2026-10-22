@@ -2,7 +2,8 @@
 
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import toast from "react-hot-toast";
-import { CalendarDays, Loader2, Package, Plus } from "lucide-react";
+import { ArrowRight, CalendarDays, Loader2, Package, Plus } from "lucide-react";
+import Link from "next/link";
 import { inventoryApi, productsApi, stockApi } from "@/shared/lib/api";
 import type { ProductDTO } from "@/shared/lib/api/products";
 import type { InventoryBalanceDTO, OfflineStockAdjustmentDTO } from "@/shared/lib/api/inventory";
@@ -150,9 +151,18 @@ export default function StockPage() {
           </div>
           <div className="mt-4 grid gap-2">
             {adjustments.slice(0, 5).map((adjustment) => (
-              <div key={adjustment.id} className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-surface-card px-3 py-3 text-sm">
-                <span className="font-semibold text-foreground-heading">{adjustment.productName ?? adjustment.skuId}</span>
-                <span className="text-foreground-muted">Shortfall {adjustment.shortfallQuantity} · {new Date(adjustment.createdAt).toLocaleString()}</span>
+              <div key={adjustment.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-surface-card px-3 py-3 text-sm">
+                <div>
+                  <p className="font-semibold text-foreground-heading">{adjustment.productName ?? adjustment.skuId}</p>
+                  <p className="text-foreground-muted">Shortfall {adjustment.shortfallQuantity} · {new Date(adjustment.createdAt).toLocaleString()}</p>
+                </div>
+                <Link
+                  href={`/pos/history/${adjustment.saleId}`}
+                  className="inline-flex min-h-9 items-center gap-1.5 rounded-lg border border-primary/40 px-3 py-2 text-xs font-semibold text-primary hover:bg-primary/5"
+                >
+                  Review sale
+                  <ArrowRight className="h-3.5 w-3.5" />
+                </Link>
               </div>
             ))}
           </div>

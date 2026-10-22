@@ -4,9 +4,9 @@ import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
 import { Loader2 } from "lucide-react";
-import { categoriesApi, productsApi, suppliersApi } from "@/shared/lib/api";
-import type { CategoryDTO } from "@/shared/lib/api/categories";
+import { productsApi, suppliersApi } from "@/shared/lib/api";
 import type { Producer, SupplierDTO } from "@/shared/lib/api/products";
+import { CATEGORY_LIST, type CategorySlug } from "@/shared/lib/catalogue-categories";
 import { type SaleUnit } from "@/shared/lib/units";
 import { rupeesToPaise } from "@/shared/lib/money";
 import {
@@ -30,7 +30,6 @@ const ORGANIC = [
 
 export default function NewProductPage() {
   const router = useRouter();
-  const [categories, setCategories] = useState<CategoryDTO[]>([]);
   const [suppliers, setSuppliers] = useState<SupplierDTO[]>([]);
   const [busy, setBusy] = useState(false);
   const [online, setOnline] = useState(true);
@@ -39,7 +38,7 @@ export default function NewProductPage() {
 
   const [form, setForm] = useState({
     name: "",
-    categoryId: "",
+    categorySlug: "" as CategorySlug | "",
     saleUnit: "kg" as SaleUnit,
     basePriceRupees: "",
     taxRatePct: "0",
@@ -52,16 +51,6 @@ export default function NewProductPage() {
     updateOnline();
     window.addEventListener("online", updateOnline);
     window.addEventListener("offline", updateOnline);
-
-    void categoriesApi.list()
-      .then((res) => {
-        if (cancelled) return;
-        if (res.success && res.data) setCategories(res.data.items);
-        else toast.error(res.message);
-      })
-      .catch((error: unknown) => {
-        if (!cancelled) toast.error(error instanceof Error ? error.message : "Could not load categories.");
-      });
 
     void suppliersApi.list()
       .then((res) => {
@@ -93,7 +82,7 @@ export default function NewProductPage() {
     setBusy(true);
     let imageUrl: string | undefined;
     try {
-      const categoryName = categories.find((c) => c._id === form.categoryId)?.name ?? "uncategorized";
+      const categoryName = CATEGORY_LIST.find((c) => c.slug === form.categorySlug)?.name ?? "uncategorized";
       if (image) imageUrl = await uploadProductImage(image, categoryName);
     } catch (error) {
       setBusy(false);
@@ -101,7 +90,7 @@ export default function NewProductPage() {
     }
     const res = await productsApi.create({
       name: form.name.trim(),
-      categoryId: form.categoryId || undefined,
+      categorySlug: form.categorySlug || undefined,
       saleUnit: form.saleUnit,
       taxRateBps: Math.round(Number(form.taxRatePct || 0) * 100),
       basePricePaise: form.basePriceRupees
@@ -137,13 +126,13 @@ export default function NewProductPage() {
           <div>
             <Label>Category</Label>
             <select
-              value={form.categoryId}
-              onChange={(e) => set("categoryId", e.target.value)}
+              value={form.categorySlug}
+              onChange={(e) => set("categorySlug", e.target.value as CategorySlug)}
               className={inputCls}
             >
               <option value="">— choose —</option>
-              {categories.map((c) => (
-                <option key={c._id} value={c._id}>
+              {CATEGORY_LIST.map((c) => (
+                <option key={c.slug} value={c.slug}>
                   {c.name}
                 </option>
               ))}

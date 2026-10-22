@@ -34,6 +34,7 @@ export interface ProductMutation {
   name: string;
   description?: string;
   categoryId?: string;
+  categorySlug?: string;
   saleUnit: string;
   basePricePaise?: number;
   taxRateBps: number;
