@@ -24,6 +24,10 @@ describe("session middleware network boundary", () => {
     "/sitemap.xml",
     "/robots.txt",
     "/manifest.webmanifest",
+    "/privacy",
+    "/privacy/requests",
+    "/support",
+    "/terms",
   ])(
     "does not contact Supabase before serving %s", async (path) => {
       const { updateSession } = await import("@/shared/lib/supabase/middleware");

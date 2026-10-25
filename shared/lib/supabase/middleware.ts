@@ -21,6 +21,10 @@ const KEY =
 
 const PUBLIC_PREFIXES = ["/login", "/register", "/auth/"];
 const PUBLIC_EXACT_PATHS = [
+  "/privacy",
+  "/privacy/requests",
+  "/support",
+  "/terms",
   "/sitemap.xml",
   "/robots.txt",
   "/manifest.webmanifest",
