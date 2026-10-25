@@ -26,7 +26,7 @@ export default function PrivacyPage() {
       <section className="mt-8 rounded-xl bg-surface p-5">
         <h2 className="text-lg font-black text-foreground-heading">Questions or privacy requests</h2>
         <p className="mt-2 leading-7 text-foreground-muted">Signed-in users can submit and track an access, correction, erasure, nomination or grievance request through the privacy request centre.</p>
-        <div className="mt-4 flex flex-wrap gap-4"><Link href="/privacy/requests" className="font-bold text-primary hover:underline">Open privacy request centre →</Link><a href="mailto:varma.v.business@gmail.com" className="font-bold text-primary hover:underline">Email privacy contact</a></div>
+        <div className="mt-4 flex flex-wrap gap-4"><Link href="/privacy/requests" className="font-bold text-primary hover:underline">Open privacy request centre →</Link><Link href="/terms" className="font-bold text-primary hover:underline">Terms of service →</Link><a href="mailto:varma.v.business@gmail.com" className="font-bold text-primary hover:underline">Email privacy contact</a></div>
       </section>
       <p className="mt-8 text-xs leading-6 text-foreground-muted">This notice is designed to support KOMOLA’s implementation of India’s Digital Personal Data Protection framework. It is not a substitute for legal advice and may be updated as the product, providers and applicable requirements change.</p>
     </article>

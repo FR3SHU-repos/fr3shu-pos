@@ -88,7 +88,7 @@ organization membership, role, organization status, and location scope.
 | Seller workspace | `/dashboard`, `/pos`, `/pos/history`, `/register-sessions`, `/products`, `/stock`, `/offline-operations`, `/settings` | Seller dashboard, checkout, sales history, shifts, catalogue, stock, offline queue/recovery, payment settings |
 | Seller status | `/seller/onboarding`, `/seller/pending`, `/seller/rejected`, `/seller/suspended` | Organization provisioning and approval-state screens |
 | Buyer experience | `/buyer`, `/buyer/setup`, `/buyer/campaigns`, `/buyer/wallet`, `/buyer/receipts/:id` | Buyer profile, campaign discovery/claims, rewards, receipts |
-| Support and privacy/admin | `/support`, `/privacy`, `/privacy/requests`, `/admin/privacy-requests`, `/admin/seller-applications` | Customer issue reporting by prepared email, privacy notice/requests, and platform administration |
+| Support and privacy/admin | `/support`, `/privacy`, `/terms`, `/privacy/requests`, `/admin/privacy-requests`, `/admin/seller-applications` | Customer issue reporting by prepared email, terms, privacy notice/requests, and platform administration |
 | PWA/support | `/offline`, `/manifest.webmanifest`, `/llms.txt`, `/ai-catalog.json` | Offline fallback, install metadata, agent-discovery assets |
 
 `middleware.ts` delegates to `shared/lib/supabase/middleware.ts`. It refreshes
