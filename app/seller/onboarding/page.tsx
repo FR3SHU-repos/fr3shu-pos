@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { registerSeller, sellerDestination, type SellerOrgType } from "@/shared/lib/api/sellerOrgs";
 import { identityApi } from "@/shared/lib/api";
-import type { PlatformLocation } from "@/shared/lib/api/identity";
+import { LOCALITIES } from "@/shared/lib/localities";
 import { newUuid } from "@/shared/lib/uuid";
 import { normalizeIndianMobile } from "@/shared/lib/auth/phone";
 import { cardCls, inputCls, primaryBtnCls } from "@/shared/components/ui";
@@ -43,13 +43,12 @@ export default function SellerOnboarding() {
     referralCode: draft.referralCode || "",
     line1: "",
     line2: "",
-    city: "",
+    city: LOCALITIES[0]?.name ?? "",
     state: "",
     postalCode: "",
   });
-  const [locations, setLocations] = useState<PlatformLocation[]>([]);
-  const [locationCode, setLocationCode] = useState("");
-  const [locationsLoading, setLocationsLoading] = useState(true);
+  const locations = LOCALITIES;
+  const [locationCode, setLocationCode] = useState(LOCALITIES[0]?.code ?? "");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const errorRef = useRef<HTMLParagraphElement>(null);
@@ -66,27 +65,6 @@ export default function SellerOnboarding() {
       if (existingPhone) {
         setForm((current) => current.phone ? current : { ...current, phone: existingPhone.value.replace(/^\+91/, "") });
       }
-    });
-    void identityApi.locations().then((result) => {
-      if (!result.success) {
-        setError(result.status === 401 ? "Your session has expired. Please sign in again." : `We could not load KOMOLA-enabled localities (${result.message || `HTTP ${result.status}`}).`);
-        setLocationsLoading(false);
-        return;
-      }
-      if (!result.data?.items?.length) {
-        setError("No KOMOLA localities are enabled right now. Please contact support.");
-        setLocationsLoading(false);
-        return;
-      }
-      const enabledLocations = result.data.items.filter((location) => location.enabled && location.status === "enabled");
-      setLocations(enabledLocations);
-      const selectedLocation = enabledLocations[0];
-      setLocationCode(selectedLocation?.code ?? "");
-      if (selectedLocation) setForm((form) => form.city ? form : { ...form, city: selectedLocation.name });
-      setLocationsLoading(false);
-    }).catch(() => {
-      setError("We could not load KOMOLA-enabled localities. Please try again.");
-      setLocationsLoading(false);
     });
   }, []);
 
@@ -254,8 +232,8 @@ export default function SellerOnboarding() {
               const selected = locations.find((location) => location.code === event.target.value);
               setLocationCode(event.target.value);
               if (selected) update("city", selected.name);
-            }} disabled={locationsLoading || locations.length === 0} required>
-              <option value="">{locationsLoading ? "Loading enabled localities…" : "Select an enabled locality"}</option>
+            }} disabled={locations.length === 0} required>
+              <option value="">Select an enabled locality</option>
               {locations.map((location) => <option key={location.code} value={location.code}>{location.name}</option>)}
             </select>
             <p className="mt-1.5 text-xs text-foreground-muted">Only locations enabled by KOMOLA can accept seller applications.</p>
@@ -266,7 +244,7 @@ export default function SellerOnboarding() {
       </fieldset>
 
       {error && <p ref={errorRef} role="alert" className="rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}</p>}
-      <button className={`${primaryBtnCls} min-h-12 w-full`} disabled={busy || locationsLoading || locations.length === 0}>{busy ? "Submitting…" : "Submit seller application"}</button>
+      <button className={`${primaryBtnCls} min-h-12 w-full`} disabled={busy || locations.length === 0}>{busy ? "Submitting…" : "Submit seller application"}</button>
     </form>
   </main>;
 }
