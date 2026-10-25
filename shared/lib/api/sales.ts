@@ -1,4 +1,5 @@
 import { goRequest, type ApiResult } from "./client";
+import type { BaseUnit } from "../units";
 import { refreshOfflineProducts } from "./products";
 import {
   mapSale,
@@ -51,6 +52,10 @@ export interface CreateSaleBody {
     productId: string;
     qty: number;
     saleUnit: string;
+    baseUnit?: BaseUnit;
+    basePerSaleUnit?: number;
+    unitPricePaise?: number;
+    priceOverridden?: boolean;
     lotId?: string;
     discountPaise?: number;
     lotOverrideReason?: string;
@@ -139,6 +144,10 @@ export const create = async (
       skuId: i.productId,
       qty: String(i.qty),
       unit: i.saleUnit,
+      baseUnit: i.baseUnit,
+      basePerSaleUnit: i.basePerSaleUnit,
+      unitPriceMinor: i.priceOverridden ? i.unitPricePaise : undefined,
+      priceOverridden: i.priceOverridden,
       discountMinor: i.discountPaise ?? 0,
       lotId: i.lotId,
       lotOverrideReason: i.lotOverrideReason,

@@ -75,12 +75,15 @@ export function saleCanUseProducts(
     if (product.status !== "active") return { ok: false, reason: `${line.name} is not active on the server.` };
     if (typeof product.basePricePaise !== "number") return { ok: false, reason: `${line.name} has no server price.` };
     if (line.saleUnit !== product.saleUnit) return { ok: false, reason: `${line.name} has a changed sale unit on the server.` };
-    if (line.unitPricePaise !== product.basePricePaise) return { ok: false, reason: `${line.name} has a changed price on the server.` };
+    if (!line.priceOverridden && line.unitPricePaise !== product.basePricePaise) return { ok: false, reason: `${line.name} has a changed price on the server.` };
+    if ((line.baseUnit ?? product.baseUnit) !== product.baseUnit) {
+      return { ok: false, reason: `${line.name} has a changed measurement on the server.` };
+    }
     if (line.taxRateBps !== product.taxRateBps) return { ok: false, reason: `${line.name} has a changed tax rule on the server.` };
     const availableBase = Math.max(0, product.availableBase - (otherDeductions[line.productId] ?? 0));
     if (line.qtyBase > availableBase) {
-      const requested = fromBaseQuantity(line.qtyBase, line.saleUnit as Parameters<typeof fromBaseQuantity>[1]);
-      const available = fromBaseQuantity(availableBase, line.saleUnit as Parameters<typeof fromBaseQuantity>[1]);
+      const requested = fromBaseQuantity(line.qtyBase, line.saleUnit as Parameters<typeof fromBaseQuantity>[1], line.basePerSaleUnit);
+      const available = fromBaseQuantity(availableBase, line.saleUnit as Parameters<typeof fromBaseQuantity>[1], line.basePerSaleUnit);
       return { ok: false, reason: `${line.name} needs ${requested} ${line.saleUnit}, but only ${available} ${line.saleUnit} is available in the refreshed catalogue.` };
     }
   }
@@ -96,11 +99,14 @@ export function stockRecheckCandidate(sale: OfflineSaleRecord): boolean {
 
 function buildOfflineLines(lines: CartLine[]): OfflineSaleLine[] {
   return lines.map((line) => {
-    const qtyBase = toBaseQuantity(line.qty, line.saleUnit);
+    const baseUnit = line.baseUnit ?? line.product.baseUnit;
+    const basePerSaleUnit = line.basePerSaleUnit ?? line.product.basePerSaleUnit;
+    const unitPricePaise = line.unitPricePaise ?? line.product.basePricePaise ?? 0;
+    const qtyBase = toBaseQuantity(line.qty, line.saleUnit, basePerSaleUnit);
     const totals = computeLineTotals({
       qtyBase,
-      unitPricePaise: line.product.basePricePaise ?? 0,
-      basePerSaleUnit: line.product.basePerSaleUnit,
+      unitPricePaise,
+      basePerSaleUnit,
       taxRateBps: line.product.taxRateBps ?? 0,
       discountPaise: line.discountPaise,
     });
@@ -111,10 +117,12 @@ function buildOfflineLines(lines: CartLine[]): OfflineSaleLine[] {
       barcode: line.product.barcode,
       name: line.product.name,
       saleUnit: line.saleUnit,
+      baseUnit,
       qty: line.qty,
       qtyBase,
-      basePerSaleUnit: line.product.basePerSaleUnit,
-      unitPricePaise: line.product.basePricePaise ?? 0,
+      basePerSaleUnit,
+      unitPricePaise,
+      priceOverridden: line.priceOverridden === true,
       grossPaise: totals.grossPaise,
       discountPaise: totals.discountPaise,
       taxablePaise: totals.taxablePaise,
@@ -132,7 +140,7 @@ function buildOfflineLines(lines: CartLine[]): OfflineSaleLine[] {
 }
 
 function recalculateOfflineLine(line: OfflineSaleLine, qty: number): OfflineSaleLine {
-  const qtyBase = toBaseQuantity(qty, line.saleUnit as Parameters<typeof toBaseQuantity>[1]);
+  const qtyBase = toBaseQuantity(qty, line.saleUnit as Parameters<typeof toBaseQuantity>[1], line.basePerSaleUnit);
   const totals = computeLineTotals({
     qtyBase,
     unitPricePaise: line.unitPricePaise,
@@ -163,7 +171,7 @@ export function applyOfflineSaleLineRepair(
     if (change?.remove) continue;
     if (typeof change?.qty === "number") {
       if (!Number.isFinite(change.qty) || change.qty <= 0) throw new Error("Enter a quantity greater than zero.");
-      if (toBaseQuantity(change.qty, line.saleUnit as Parameters<typeof toBaseQuantity>[1]) > line.qtyBase) throw new Error("Quantity can only be reduced while repairing an offline sale.");
+      if (toBaseQuantity(change.qty, line.saleUnit as Parameters<typeof toBaseQuantity>[1], line.basePerSaleUnit) > line.qtyBase) throw new Error("Quantity can only be reduced while repairing an offline sale.");
       lines.push(recalculateOfflineLine(line, change.qty));
     } else {
       lines.push(line);

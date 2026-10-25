@@ -5,7 +5,7 @@ import { usePosUser } from "@/shared/context/PosUserContext";
 import { syncOfflineProducts } from "@/shared/lib/api/products";
 import { isOffline, readProducts, searchProducts, setProductScope, type ProductSnapshot } from "@/shared/lib/offline/products";
 import { formatPaise } from "@/shared/lib/money";
-import { formatBaseQuantity } from "@/shared/lib/units";
+import { formatProductQuantity } from "@/shared/lib/units";
 import { inputCls } from "@/shared/components/ui";
 
 /** Stays mounted in the seller shell: offline browsing needs no route request. */
@@ -88,7 +88,7 @@ export function OfflineCatalogue({ compact = false, visible = true, active = tru
           <summary className="cursor-pointer">{product.name} · {product.basePricePaise == null ? "No price" : formatPaise(product.basePricePaise)} / {product.saleUnit}</summary>
           <div className="mt-2 space-y-1 text-foreground-muted">
             <p>SKU: {product.sku}{product.barcode ? ` · Barcode: ${product.barcode}` : ""}</p>
-            <p>Last saved stock: {formatBaseQuantity(product.availableBase, product.saleUnit)} · {product.status}</p>
+            <p>Last saved stock: {formatProductQuantity(product.availableBase, product.saleUnit, product.baseUnit, product.basePerSaleUnit)} · {product.status}</p>
             <p>{product.organicStatus}{product.category ? ` · ${product.category}` : ""}</p>
             {product.description && <p>{product.description}</p>}
           </div>

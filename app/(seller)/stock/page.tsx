@@ -8,12 +8,14 @@ import { inventoryApi, productsApi, stockApi } from "@/shared/lib/api";
 import type { ProductDTO } from "@/shared/lib/api/products";
 import type { InventoryBalanceDTO, OfflineStockAdjustmentDTO } from "@/shared/lib/api/inventory";
 import { cardCls, EmptyState, inputCls, primaryBtnCls, SkeletonRows } from "@/shared/components/ui";
-import { formatBaseQuantity, toBaseQuantity, type SaleUnit } from "@/shared/lib/units";
+import { formatProductUnitCount, formatProductUnitEquivalence, toBaseQuantity, type BaseUnit, type SaleUnit } from "@/shared/lib/units";
 
 interface OnHand {
   productId: string;
   name: string;
   saleUnit: SaleUnit;
+  baseUnit: BaseUnit;
+  basePerSaleUnit: number;
   availableBase: number;
   expiry?: string;
 }
@@ -72,6 +74,8 @@ export default function StockPage() {
         productId: key,
         name: b.productName ?? key,
         saleUnit: (b.saleUnit as SaleUnit) ?? "piece",
+        baseUnit: b.baseUnit ?? products.find((product) => product._id === key)?.baseUnit ?? "count",
+        basePerSaleUnit: products.find((product) => product._id === key)?.basePerSaleUnit ?? 1,
         availableBase: 0,
         expiry: undefined,
       };
@@ -80,7 +84,7 @@ export default function StockPage() {
       byProduct.set(key, row);
     }
     return [...byProduct.values()].sort((a, b) => a.availableBase - b.availableBase);
-  }, [balances]);
+  }, [balances, products]);
   const stockPages = Math.max(1, Math.ceil(onHand.length / PAGE_SIZE));
   const visibleStock = onHand.slice((stockPage - 1) * PAGE_SIZE, stockPage * PAGE_SIZE);
   useEffect(() => { setStockPage((current) => Math.min(current, stockPages)); }, [stockPages]);
@@ -101,7 +105,7 @@ export default function StockPage() {
     setBusy(false);
     if (!res.success) return toast.error(res.message);
     if (res.data && selected) {
-      const addedBase = toBaseQuantity(Number(qty.trim()), selected.saleUnit);
+      const addedBase = toBaseQuantity(Number(qty.trim()), selected.saleUnit, selected.basePerSaleUnit);
       setBalances((current) => {
         const next: InventoryBalanceDTO = {
           _id: `${selected._id}:${res.data!.lotId}`,
@@ -116,7 +120,7 @@ export default function StockPage() {
         return [...current, next];
       });
     }
-    toast.success(`Added ${qty.trim()} ${selected?.saleUnit ?? ""} to stock`);
+    toast.success(`Added ${qty.trim()} units to stock`);
     setQty("");
     setExpiry("");
     await load();
@@ -172,7 +176,7 @@ export default function StockPage() {
               <div key={adjustment.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-surface-card px-3 py-3 text-sm">
                 <div>
                   <p className="font-semibold text-foreground-heading">{adjustment.productName ?? adjustment.skuId}</p>
-                  <p className="text-foreground-muted">Extra sold {formatAdjustmentQuantity(adjustment.shortfallQuantity, adjustment.unit)} · {new Date(adjustment.createdAt).toLocaleString()}</p>
+                    <p className="text-foreground-muted">Extra sold {formatAdjustmentQuantity(adjustment.shortfallQuantity, adjustment.unit, adjustment.basePerSaleUnit, adjustment.baseUnit)} · {new Date(adjustment.createdAt).toLocaleString()}</p>
                 </div>
                 <button
                   type="button"
@@ -200,10 +204,10 @@ export default function StockPage() {
           </div>
           <dl className="mt-4 grid gap-3 rounded-xl bg-surface p-4 text-sm sm:grid-cols-2">
             <AdjustmentDetail label="Product" value={reviewAdjustment.productName ?? reviewAdjustment.skuId} />
-            <AdjustmentDetail label="Extra units sold" value={formatAdjustmentQuantity(reviewAdjustment.shortfallQuantity, reviewAdjustment.unit)} />
-            <AdjustmentDetail label="Server stock before sale" value={formatAdjustmentQuantity(reviewAdjustment.serverQuantityBefore, reviewAdjustment.unit)} />
-            <AdjustmentDetail label="Requested offline" value={formatAdjustmentQuantity(reviewAdjustment.requestedQuantity, reviewAdjustment.unit)} />
-            <AdjustmentDetail label="Allocated from server" value={formatAdjustmentQuantity(reviewAdjustment.allocatedQuantity, reviewAdjustment.unit)} />
+            <AdjustmentDetail label="Extra units sold" value={formatAdjustmentQuantity(reviewAdjustment.shortfallQuantity, reviewAdjustment.unit, reviewAdjustment.basePerSaleUnit, reviewAdjustment.baseUnit)} />
+            <AdjustmentDetail label="Server stock before sale" value={formatAdjustmentQuantity(reviewAdjustment.serverQuantityBefore, reviewAdjustment.unit, reviewAdjustment.basePerSaleUnit, reviewAdjustment.baseUnit)} />
+            <AdjustmentDetail label="Requested offline" value={formatAdjustmentQuantity(reviewAdjustment.requestedQuantity, reviewAdjustment.unit, reviewAdjustment.basePerSaleUnit, reviewAdjustment.baseUnit)} />
+            <AdjustmentDetail label="Allocated from server" value={formatAdjustmentQuantity(reviewAdjustment.allocatedQuantity, reviewAdjustment.unit, reviewAdjustment.basePerSaleUnit, reviewAdjustment.baseUnit)} />
             <AdjustmentDetail label="Receipt" value={reviewAdjustment.saleId} />
           </dl>
           <div className="mt-4 flex flex-wrap gap-2">
@@ -248,7 +252,7 @@ export default function StockPage() {
               </select>
             </div>
             <div>
-              <Label>Quantity{selected ? ` (${selected.saleUnit})` : ""}</Label>
+              <Label>Quantity (units)</Label>
               <input
                 type="number"
                 min="0"
@@ -259,6 +263,7 @@ export default function StockPage() {
                 onChange={(e) => setQty(e.target.value)}
                 className={inputCls}
               />
+              {selected ? <p className="mt-1 text-xs text-foreground-muted">{formatProductUnitEquivalence(selected.baseUnit ?? "count", selected.basePerSaleUnit)}</p> : null}
             </div>
             <div>
               <Label>Expires on (optional)</Label>
@@ -292,8 +297,8 @@ export default function StockPage() {
           <ul className="space-y-2 text-sm">
             {visibleStock.map((r) => (
               <li key={r.productId} className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 rounded-xl border border-border/70 bg-surface/40 px-4 py-3 sm:grid-cols-[minmax(0,1fr)_7rem_10rem]">
-                <div className="min-w-0"><p className="truncate font-semibold text-foreground-heading">{r.name}</p><p className="mt-0.5 text-xs text-foreground-muted">{r.saleUnit}</p></div>
-                <span className="text-right text-base font-bold text-primary">{formatBaseQuantity(r.availableBase, r.saleUnit)}</span>
+                <div className="min-w-0"><p className="truncate font-semibold text-foreground-heading">{r.name}</p><p className="mt-0.5 text-xs text-foreground-muted">{formatProductUnitEquivalence(r.baseUnit, r.basePerSaleUnit)}</p></div>
+                <span className="text-right text-base font-bold text-primary">{formatProductUnitCount(r.availableBase, r.basePerSaleUnit)}</span>
                 <span className="col-span-2 flex items-center gap-1.5 text-xs text-foreground-muted sm:col-span-1 sm:justify-end"><CalendarDays className="h-3.5 w-3.5" />{r.expiry ? `Expires ${new Date(r.expiry).toLocaleDateString("en-IN")}` : "No expiry"}</span>
               </li>
             ))}
@@ -319,7 +324,7 @@ export default function StockPage() {
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div>
                     <p className="font-semibold text-foreground-heading">{adjustment.productName ?? adjustment.skuId}</p>
-                    <p className="text-foreground-muted">Extra sold {formatAdjustmentQuantity(adjustment.shortfallQuantity, adjustment.unit)} · {new Date(adjustment.createdAt).toLocaleString()}</p>
+                    <p className="text-foreground-muted">Extra sold {formatAdjustmentQuantity(adjustment.shortfallQuantity, adjustment.unit, adjustment.basePerSaleUnit)} · {new Date(adjustment.createdAt).toLocaleString()}</p>
                   </div>
                   <div className="flex items-center gap-2">
                     <span className={`rounded-full px-3 py-1 text-xs font-semibold capitalize ${adjustment.status === "pending_review" ? "bg-status-warning-surface text-status-warning" : "bg-status-success-surface text-status-success"}`}>{adjustment.status.replaceAll("_", " ")}</span>
@@ -329,9 +334,9 @@ export default function StockPage() {
                   </div>
                 </div>
                 <dl className="mt-3 grid gap-2 border-t border-border/70 pt-3 text-xs sm:grid-cols-4">
-                  <AdjustmentDetail label="Server before" value={formatAdjustmentQuantity(adjustment.serverQuantityBefore, adjustment.unit)} />
-                  <AdjustmentDetail label="Requested" value={formatAdjustmentQuantity(adjustment.requestedQuantity, adjustment.unit)} />
-                  <AdjustmentDetail label="Allocated" value={formatAdjustmentQuantity(adjustment.allocatedQuantity, adjustment.unit)} />
+                  <AdjustmentDetail label="Server before" value={formatAdjustmentQuantity(adjustment.serverQuantityBefore, adjustment.unit, adjustment.basePerSaleUnit, adjustment.baseUnit)} />
+                  <AdjustmentDetail label="Requested" value={formatAdjustmentQuantity(adjustment.requestedQuantity, adjustment.unit, adjustment.basePerSaleUnit, adjustment.baseUnit)} />
+                  <AdjustmentDetail label="Allocated" value={formatAdjustmentQuantity(adjustment.allocatedQuantity, adjustment.unit, adjustment.basePerSaleUnit, adjustment.baseUnit)} />
                   <AdjustmentDetail label={adjustment.reviewedAt ? "Reviewed" : "Created"} value={new Date(adjustment.reviewedAt ?? adjustment.createdAt).toLocaleString()} />
                 </dl>
                 {adjustment.resolutionNote ? <p className="mt-2 text-xs text-foreground-muted">Note: {adjustment.resolutionNote}</p> : null}
@@ -356,11 +361,10 @@ function Label({ children }: { children: React.ReactNode }) {
   return <label className="mb-1 block text-xs font-medium text-foreground-body">{children}</label>;
 }
 
-function formatAdjustmentQuantity(value: string | number, unit?: string): string {
+function formatAdjustmentQuantity(value: string | number, _unit?: string, basePerSaleUnit = 1, _baseUnit?: BaseUnit): string {
   const quantity = Number(value);
   if (!Number.isFinite(quantity)) return String(value);
-  const displayUnit = ["kg", "g", "l", "ml", "piece", "bunch", "pack"].includes(unit ?? "") ? unit as SaleUnit : "piece";
-  return formatBaseQuantity(quantity, displayUnit);
+  return formatProductUnitCount(quantity, basePerSaleUnit);
 }
 
 function AdjustmentDetail({ label, value }: { label: string; value: string }) {

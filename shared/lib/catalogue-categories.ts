@@ -13,6 +13,7 @@ export const CATEGORY_LIST = [
   { name: "Spices & Masala", slug: "spices-masala", sortOrder: 80 },
   { name: "Dairy", slug: "dairy", sortOrder: 90 },
   { name: "Honey & Preserves", slug: "honey-preserves", sortOrder: 100 },
+  { name: "Sweeteners", slug: "sweeteners", sortOrder: 105 },
   { name: "Dry Fruits & Nuts", slug: "dry-fruits-nuts", sortOrder: 110 },
   { name: "Beverages", slug: "beverages", sortOrder: 120 },
   { name: "Snacks", slug: "snacks", sortOrder: 130 },

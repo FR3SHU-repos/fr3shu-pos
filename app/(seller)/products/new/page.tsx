@@ -7,7 +7,7 @@ import { Loader2 } from "lucide-react";
 import { productsApi, suppliersApi } from "@/shared/lib/api";
 import type { Producer, SupplierDTO } from "@/shared/lib/api/products";
 import { CATEGORY_LIST, type CategorySlug } from "@/shared/lib/catalogue-categories";
-import { type SaleUnit } from "@/shared/lib/units";
+import { defaultBaseMetadata, type BaseUnit, type SaleUnit } from "@/shared/lib/units";
 import { rupeesToPaise } from "@/shared/lib/money";
 import {
   cardCls,
@@ -18,7 +18,7 @@ import {
 import { ProducerFields, toProducerPayload } from "@/shared/components/products/ProducerFields";
 import { uploadProductImage } from "@/shared/lib/supabase/product-images";
 
-const SALE_UNITS: SaleUnit[] = ["kg", "g", "l", "ml", "piece", "bunch", "pack"];
+const PRODUCT_UNITS: SaleUnit[] = ["kg", "g", "l", "ml", "piece", "bunch"];
 const ORGANIC = [
   "Verified",
   "InConversion",
@@ -40,6 +40,8 @@ export default function NewProductPage() {
     name: "",
     categorySlug: "" as CategorySlug | "",
     saleUnit: "kg" as SaleUnit,
+    baseUnit: "g" as BaseUnit,
+    basePerSaleUnit: "1000",
     basePriceRupees: "",
     taxRatePct: "0",
     organicStatus: "PendingVerification" as (typeof ORGANIC)[number],
@@ -72,6 +74,11 @@ export default function NewProductPage() {
   const set = <K extends keyof typeof form>(k: K, v: (typeof form)[K]) =>
     setForm((f) => ({ ...f, [k]: v }));
 
+  function selectSaleUnit(unit: SaleUnit) {
+    const defaults = defaultBaseMetadata(unit);
+    setForm((f) => ({ ...f, saleUnit: unit, baseUnit: defaults.baseUnit, basePerSaleUnit: String(defaults.basePerSaleUnit) }));
+  }
+
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (busy) return;
@@ -92,6 +99,8 @@ export default function NewProductPage() {
       name: form.name.trim(),
       categorySlug: form.categorySlug || undefined,
       saleUnit: form.saleUnit,
+      baseUnit: form.baseUnit,
+      basePerSaleUnit: Number(form.basePerSaleUnit),
       taxRateBps: Math.round(Number(form.taxRatePct || 0) * 100),
       basePricePaise: form.basePriceRupees
         ? rupeesToPaise(Number(form.basePriceRupees))
@@ -139,13 +148,13 @@ export default function NewProductPage() {
             </select>
           </div>
           <div>
-            <Label>Sale unit</Label>
+            <Label>Product unit</Label>
             <select
               value={form.saleUnit}
-              onChange={(e) => set("saleUnit", e.target.value as SaleUnit)}
+              onChange={(e) => selectSaleUnit(e.target.value as SaleUnit)}
               className={inputCls}
             >
-              {SALE_UNITS.map((u) => (
+              {PRODUCT_UNITS.map((u) => (
                 <option key={u} value={u}>
                   {u}
                 </option>
@@ -154,9 +163,20 @@ export default function NewProductPage() {
           </div>
         </div>
 
+        <Text
+          label="Weight per unit"
+          type="number"
+          value={form.basePerSaleUnit}
+          onChange={(v) => set("basePerSaleUnit", v)}
+          required
+        />
+        <p className="-mt-2 text-xs text-foreground-muted">
+          Enter how much one product unit represents.
+        </p>
+
         <div className="grid grid-cols-2 gap-3">
           <Text
-            label="Base price (₹ per sale unit)"
+            label="Base price (₹ per unit)"
             type="number"
             value={form.basePriceRupees}
             onChange={(v) => set("basePriceRupees", v)}
@@ -219,12 +239,14 @@ function Text({
   onChange,
   type = "text",
   required,
+  disabled = false,
 }: {
   label: string;
   value: string;
   onChange: (v: string) => void;
   type?: string;
   required?: boolean;
+  disabled?: boolean;
 }) {
   return (
     <div>
@@ -234,6 +256,7 @@ function Text({
         step={type === "number" ? "0.01" : undefined}
         min={type === "number" ? "0" : undefined}
         required={required}
+        disabled={disabled}
         value={value}
         onChange={(e) => onChange(e.target.value)}
         className={inputCls}
