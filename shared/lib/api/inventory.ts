@@ -1,5 +1,6 @@
 import { goRequest, type ApiResult } from "./client";
 import { unitFactor } from "./_map";
+import type { BaseUnit } from "../units";
 import { isOffline, readProducts } from "../offline/products";
 
 export interface InventoryBalanceDTO {
@@ -9,6 +10,8 @@ export interface InventoryBalanceDTO {
   lotId?: string;
   lotCode?: string;
   saleUnit?: string;
+  baseUnit?: BaseUnit;
+  basePerSaleUnit?: number;
   availableBase: number;
   expiryDate?: string;
 }
@@ -27,6 +30,8 @@ export interface OfflineStockAdjustmentDTO {
   status: string;
   createdAt: string;
   unit?: string;
+  baseUnit?: BaseUnit;
+  basePerSaleUnit?: number;
   reviewedAt?: string;
   resolutionNote?: string;
 }
@@ -37,6 +42,8 @@ interface GoInvRow {
   name: string;
   productId: string;
   unit: string;
+  baseUnit?: BaseUnit;
+  basePerSaleUnit?: number;
   availableQty: string;
   lots: Array<{ lotId?: string; lotCode?: string; qty: string; expiresAt?: string }>;
 }
@@ -67,7 +74,7 @@ export const list = async (params?: {
   if (!res.data) return { ...res, data: null };
   const items: InventoryBalanceDTO[] = [];
   for (const row of res.data.items) {
-    const factor = unitFactor(row.unit);
+    const factor = row.basePerSaleUnit && row.basePerSaleUnit > 0 ? row.basePerSaleUnit : unitFactor(row.unit);
     for (const lot of row.lots ?? []) {
       items.push({
         _id: `${row.skuId}:${lot.lotId ?? "none"}`,
@@ -76,6 +83,8 @@ export const list = async (params?: {
         lotId: lot.lotId,
         lotCode: lot.lotCode,
         saleUnit: row.unit,
+        baseUnit: row.baseUnit,
+        basePerSaleUnit: factor,
         availableBase: Math.round(Number(lot.qty || 0) * factor),
         expiryDate: lot.expiresAt,
       });

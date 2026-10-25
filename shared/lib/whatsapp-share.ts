@@ -1,7 +1,7 @@
 import type { SaleDTO } from "@/shared/lib/api/sales";
 import { formatPaise } from "@/shared/lib/money";
 import { normalizeIndianMobile } from "@/shared/lib/auth/phone";
-import { formatBaseQuantity, type SaleUnit } from "@/shared/lib/units";
+import { formatProductQuantity, type SaleUnit } from "@/shared/lib/units";
 
 export function buildWhatsAppReceiptUrl(
   sale: SaleDTO,
@@ -13,7 +13,7 @@ export function buildWhatsAppReceiptUrl(
   const storeName = options.storeName?.trim() || "KOMOLA seller";
   const itemLines = sale.items.map(
     (item) =>
-      `• ${item.name} — ${formatBaseQuantity(item.qtyBase, item.saleUnit as SaleUnit)} — ${formatPaise(item.netPaise)}`,
+      `• ${item.name} — ${formatProductQuantity(item.qtyBase, item.saleUnit as SaleUnit, item.baseUnit, item.basePerSaleUnit)} — ${formatPaise(item.netPaise)}`,
   );
   const message = [
     `Receipt from ${storeName}`,

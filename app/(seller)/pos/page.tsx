@@ -35,7 +35,7 @@ import {
 import { cx } from "@/shared/lib/utils";
 import { printReceipt } from "@/shared/lib/offline/receipt-print";
 import { computeLineTotals, formatPaise, sumCartTotals } from "@/shared/lib/money";
-import { formatBaseQuantity, SALE_UNIT_BASE, toBaseQuantity, type SaleUnit } from "@/shared/lib/units";
+import { defaultBaseMetadata, formatBaseQuantity, formatMeasurementValue, formatProductQuantity, measurementMetadata, measurementValue, MEASUREMENT_UNIT_LABELS, MEASUREMENT_UNITS, preferredMeasurementUnit, toBaseQuantity, type BaseUnit, type MeasurementUnit, type SaleUnit } from "@/shared/lib/units";
 import { clampQuantityToStock, remainingStockBase } from "@/shared/lib/pos-stock";
 import { translator, LOCALES, type Locale } from "@/shared/lib/i18n";
 import { ReceiptView, type ReceiptPaymentLine } from "@/shared/components/pos/ReceiptView";
@@ -59,6 +59,18 @@ import {
 } from "@/shared/lib/offline/sales";
 
 type PayMethod = "cash" | "upi" | "split";
+
+function lineBaseUnit(line: CartLine): BaseUnit {
+  return line.baseUnit ?? line.product.baseUnit ?? defaultBaseMetadata(line.saleUnit).baseUnit;
+}
+
+function lineBasePerSaleUnit(line: CartLine): number {
+  return line.basePerSaleUnit ?? line.product.basePerSaleUnit;
+}
+
+function lineUnitPricePaise(line: CartLine): number {
+  return line.unitPricePaise ?? line.product.basePricePaise ?? 0;
+}
 
 export default function PosPage() {
   const { user } = usePosUser();
@@ -239,7 +251,7 @@ export default function PosPage() {
     () => !online ? lines.map((line) => ({
       name: line.product.name,
       unit: line.saleUnit,
-      shortfallBase: Math.max(0, toBaseQuantity(line.qty, line.saleUnit) - line.product.availableBase),
+      shortfallBase: Math.max(0, toBaseQuantity(line.qty, line.saleUnit, lineBasePerSaleUnit(line)) - line.product.availableBase),
     })).filter((line) => line.shortfallBase > 0) : [],
     [lines, online],
   );
@@ -248,9 +260,9 @@ export default function PosPage() {
     () =>
       lines.map((l) =>
         computeLineTotals({
-          qtyBase: toBaseQuantity(l.qty, l.saleUnit),
-          unitPricePaise: l.product.basePricePaise ?? 0,
-          basePerSaleUnit: l.product.basePerSaleUnit,
+          qtyBase: toBaseQuantity(l.qty, l.saleUnit, lineBasePerSaleUnit(l)),
+          unitPricePaise: lineUnitPricePaise(l),
+          basePerSaleUnit: lineBasePerSaleUnit(l),
           taxRateBps: l.product.taxRateBps ?? 0,
           discountPaise: l.discountPaise,
         }),
@@ -277,7 +289,7 @@ export default function PosPage() {
       const idx = prev.findIndex((l) => l.product._id === p._id);
       if (idx >= 0) {
         const copy = [...prev];
-        const next = offline ? copy[idx].qty + 1 : clampQuantityToStock(copy[idx].qty + 1, copy[idx].saleUnit, p.availableBase);
+        const next = offline ? copy[idx].qty + 1 : clampQuantityToStock(copy[idx].qty + 1, copy[idx].saleUnit, p.availableBase, p.basePerSaleUnit);
         if (!offline && next === copy[idx].qty) {
           toast.error("No more stock is available for this product");
           return prev;
@@ -289,7 +301,7 @@ export default function PosPage() {
         toast.error("This product is out of stock");
         return prev;
       }
-      const initialQty = offline ? 1 : clampQuantityToStock(1, p.saleUnit, p.availableBase);
+      const initialQty = offline ? 1 : clampQuantityToStock(1, p.saleUnit, p.availableBase, p.basePerSaleUnit);
       return [
         ...prev,
         {
@@ -297,6 +309,11 @@ export default function PosPage() {
           product: p,
           qty: initialQty,
           saleUnit: p.saleUnit,
+          baseUnit: p.baseUnit,
+          basePerSaleUnit: p.basePerSaleUnit,
+          measurementUnit: preferredMeasurementUnit(p.baseUnit ?? defaultBaseMetadata(p.saleUnit).baseUnit, p.basePerSaleUnit, p.saleUnit),
+          measurementValue: measurementValue(p.basePerSaleUnit, preferredMeasurementUnit(p.baseUnit ?? defaultBaseMetadata(p.saleUnit).baseUnit, p.basePerSaleUnit, p.saleUnit)),
+          unitPricePaise: p.basePricePaise,
           discountPaise: 0,
         },
       ];
@@ -318,12 +335,36 @@ export default function PosPage() {
   function setQty(key: string, qty: number) {
     const offline = typeof navigator !== "undefined" && !navigator.onLine;
     setLines((prev) =>
-      prev.map((l) => (l.key === key ? { ...l, qty: offline ? Math.max(0, qty) : clampQuantityToStock(qty, l.saleUnit, l.product.availableBase) } : l)),
+      prev.map((l) => (l.key === key ? { ...l, qty: offline ? Math.max(0, qty) : clampQuantityToStock(qty, l.saleUnit, l.product.availableBase, lineBasePerSaleUnit(l)) } : l)),
     );
   }
   function setUnit(key: string, unit: SaleUnit) {
     const offline = typeof navigator !== "undefined" && !navigator.onLine;
-    setLines((prev) => prev.map((l) => (l.key === key ? { ...l, saleUnit: unit, qty: offline ? l.qty : clampQuantityToStock(l.qty, unit, l.product.availableBase) } : l)));
+    setLines((prev) => prev.map((l) => (l.key === key ? { ...l, saleUnit: unit, qty: offline ? l.qty : clampQuantityToStock(l.qty, unit, l.product.availableBase, lineBasePerSaleUnit(l)) } : l)));
+  }
+  function setMeasurementValue(key: string, unit: MeasurementUnit, value: number) {
+    if (!Number.isFinite(value) || value <= 0) return;
+    const metadata = measurementMetadata(unit);
+    const basePerSaleUnit = Math.round(value * metadata.factor);
+    if (!Number.isInteger(basePerSaleUnit) || basePerSaleUnit <= 0) return;
+    setLines((prev) => prev.map((l) => (
+      l.key === key && metadata.baseUnit === lineBaseUnit(l)
+        ? { ...l, baseUnit: metadata.baseUnit, basePerSaleUnit, measurementUnit: unit, measurementValue: value }
+        : l
+    )));
+  }
+
+  function setMeasurementUnit(key: string, unit: MeasurementUnit) {
+    setLines((prev) => prev.map((l) => {
+      if (l.key !== key) return l;
+      const metadata = measurementMetadata(unit);
+      if (metadata.baseUnit !== lineBaseUnit(l)) return l;
+      return { ...l, measurementUnit: unit, measurementValue: measurementValue(lineBasePerSaleUnit(l), unit) };
+    }));
+  }
+  function setLinePrice(key: string, rupees: number) {
+    if (!Number.isFinite(rupees) || rupees < 0) return;
+    setLines((prev) => prev.map((l) => (l.key === key ? { ...l, unitPricePaise: Math.round(rupees * 100), priceOverridden: true } : l)));
   }
   function removeLine(key: string) {
     setLines((prev) => prev.filter((l) => l.key !== key));
@@ -365,6 +406,12 @@ export default function PosPage() {
         productId: l.product._id,
         qty: l.qty,
         saleUnit: l.saleUnit,
+        baseUnit: lineBaseUnit(l),
+        basePerSaleUnit: lineBasePerSaleUnit(l),
+        measurementUnit: l.measurementUnit,
+        measurementValue: l.measurementValue,
+        unitPricePaise: lineUnitPricePaise(l),
+        priceOverridden: l.priceOverridden,
         discountPaise: l.discountPaise,
       })),
     };
@@ -387,7 +434,10 @@ export default function PosPage() {
         toast.error("This held cart cannot be resumed until all of its products are available.");
         return;
       }
-      restored.push({ key: newUuid(), product, qty: l.qty, saleUnit: l.saleUnit, discountPaise: l.discountPaise });
+      const restoredBaseUnit = l.baseUnit ?? product.baseUnit ?? defaultBaseMetadata(l.saleUnit).baseUnit;
+      const restoredFactor = l.basePerSaleUnit ?? product.basePerSaleUnit;
+      const restoredMeasurementUnit = l.measurementUnit ?? preferredMeasurementUnit(restoredBaseUnit, restoredFactor, l.saleUnit);
+      restored.push({ key: newUuid(), product, qty: l.qty, saleUnit: l.saleUnit, baseUnit: restoredBaseUnit, basePerSaleUnit: restoredFactor, measurementUnit: restoredMeasurementUnit, measurementValue: l.measurementValue ?? measurementValue(restoredFactor, restoredMeasurementUnit), unitPricePaise: l.unitPricePaise, priceOverridden: l.priceOverridden, discountPaise: l.discountPaise });
     }
     try {
       await persistHeld(held.filter((h) => h.id !== entry.id));
@@ -511,6 +561,10 @@ export default function PosPage() {
         productId: l.product._id,
         qty: l.qty,
         saleUnit: l.saleUnit,
+        baseUnit: lineBaseUnit(l),
+        basePerSaleUnit: lineBasePerSaleUnit(l),
+        unitPricePaise: lineUnitPricePaise(l),
+        priceOverridden: l.priceOverridden,
         discountPaise: l.discountPaise || undefined,
       })),
       payments,
@@ -737,7 +791,7 @@ export default function PosPage() {
                 {p.saleUnit}
               </span>
               <span className={cx("mt-auto pt-2 text-xs font-medium", p.availableBase > 0 ? "text-status-success" : "text-status-danger")}>
-                {p.availableBase > 0 ? "Stock: " : "Out of stock · "}{formatBaseQuantity(remainingStockBase(p.availableBase, lines.find((line) => line.product._id === p._id)?.qty ?? 0, lines.find((line) => line.product._id === p._id)?.saleUnit ?? p.saleUnit), p.saleUnit)}
+                {p.availableBase > 0 ? "Stock: " : "Out of stock · "}{formatProductQuantity(remainingStockBase(p.availableBase, lines.find((line) => line.product._id === p._id)?.qty ?? 0, lines.find((line) => line.product._id === p._id)?.saleUnit ?? p.saleUnit, p.basePerSaleUnit), p.saleUnit, p.baseUnit, p.basePerSaleUnit)}
               </span>
             </button>
           ))}
@@ -809,9 +863,12 @@ export default function PosPage() {
         ) : (
           <ul className="divide-y divide-border">
             {lines.map((l, i) => {
-              const compatUnits = (["kg", "g", "l", "ml", "piece", "bunch", "pack"] as SaleUnit[]).filter(
-                (u) => SALE_UNIT_BASE[u] === l.product.baseUnit,
-              );
+              const baseUnit = lineBaseUnit(l);
+              const basePerSaleUnit = lineBasePerSaleUnit(l);
+              const selectedMeasurementUnit = l.measurementUnit ?? preferredMeasurementUnit(baseUnit, basePerSaleUnit, l.saleUnit);
+              const selectedMeasurementValue = l.measurementValue ?? measurementValue(basePerSaleUnit, selectedMeasurementUnit);
+              const hasMeasurement = basePerSaleUnit > 0;
+              const compatUnits = [l.product.saleUnit];
               return (
                 <li key={l.key} className="py-2.5">
                   <div className="flex items-start justify-between gap-2">
@@ -849,7 +906,7 @@ export default function PosPage() {
                         className="grid h-11 w-11 place-items-center rounded-r-lg text-foreground-body hover:bg-surface"
                         onClick={() => setQty(l.key, l.qty + 1)}
                         aria-label={`Increase ${l.product.name} quantity`}
-                        disabled={remainingStockBase(l.product.availableBase, l.qty, l.saleUnit) === 0}
+                        disabled={remainingStockBase(l.product.availableBase, l.qty, l.saleUnit, basePerSaleUnit) === 0}
                       >
                         <Plus className="h-4 w-4" />
                       </button>
@@ -869,7 +926,53 @@ export default function PosPage() {
                       {formatPaise(lineTotals[i]?.netPaise ?? 0)}
                     </span>
                   </div>
-                  <p className="mt-1 text-xs text-foreground-muted">Remaining stock: {formatBaseQuantity(remainingStockBase(l.product.availableBase, l.qty, l.saleUnit), l.saleUnit)}</p>
+                  {hasMeasurement ? (
+                    <div className="mt-2 grid grid-cols-3 gap-2">
+                        <label className="text-xs text-foreground-muted">
+                          Weight / unit
+                          <input
+                            type="number"
+                            min="1"
+                            step="0.001"
+                            value={selectedMeasurementValue}
+                            onChange={(e) => setMeasurementValue(l.key, selectedMeasurementUnit, Number(e.target.value))}
+                            className={`${inputCls} mt-1 h-9 px-2 text-xs`}
+                            aria-label={`${l.product.name} weight per unit`}
+                          />
+                        </label>
+                        <label className="text-xs text-foreground-muted">
+                          Metric
+                          <select
+                          value={selectedMeasurementUnit}
+                          onChange={(e) => setMeasurementUnit(l.key, e.target.value as MeasurementUnit)}
+                          className={`${inputCls} mt-1 h-9 px-2 text-xs`}
+                          aria-label={`${l.product.name} metric`}
+                        >
+                          {MEASUREMENT_UNITS.map((unit) => (
+                            <option key={unit} value={unit} disabled={measurementMetadata(unit).baseUnit !== baseUnit}>
+                              {MEASUREMENT_UNIT_LABELS[unit]}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                      <label className="text-xs text-foreground-muted">
+                        Price / unit
+                        <input
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          value={(lineUnitPricePaise(l) / 100).toFixed(2)}
+                          onChange={(e) => setLinePrice(l.key, Number(e.target.value))}
+                          className={`${inputCls} mt-1 h-9 px-2 text-xs`}
+                          aria-label={`${l.product.name} price per unit`}
+                        />
+                      </label>
+                    </div>
+                  ) : null}
+                  <p className="mt-1 text-xs text-foreground-muted">
+                    {hasMeasurement ? `Weight / unit: ${formatMeasurementValue(selectedMeasurementValue)} ${MEASUREMENT_UNIT_LABELS[selectedMeasurementUnit]} · ` : ""}
+                    Remaining stock: {formatProductQuantity(remainingStockBase(l.product.availableBase, l.qty, l.saleUnit, basePerSaleUnit), l.saleUnit, baseUnit, basePerSaleUnit)}
+                  </p>
                 </li>
               );
             })}
@@ -889,7 +992,7 @@ export default function PosPage() {
             disabled={lines.length === 0}
             onClick={() => {
               setShowPay(true);
-              setTendered("");
+              setTendered((cart.netPaise / 100).toFixed(2));
               setCashPart(String((cart.netPaise / 100).toFixed(2)));
               setUpiPart("0");
               setUpiAmount((cart.netPaise / 100).toFixed(2));
@@ -918,7 +1021,12 @@ export default function PosPage() {
               {(["cash", "upi", "split"] as PayMethod[]).map((m) => (
                 <button
                   key={m}
-                  onClick={() => setPayMethod(m)}
+                  onClick={() => {
+                    setPayMethod(m);
+                    if (m === "cash" && !tendered) {
+                      setTendered((cart.netPaise / 100).toFixed(2));
+                    }
+                  }}
                   className={cx(
                     "min-h-11 rounded-lg border px-2 text-sm font-medium capitalize",
                     payMethod === m
@@ -944,6 +1052,9 @@ export default function PosPage() {
                   onChange={(e) => setTendered(e.target.value)}
                   className={inputCls}
                 />
+                <p className="mt-1 text-xs text-foreground-muted">
+                  Pre-filled with the sale total. Edit it if the customer pays more.
+                </p>
                 <p className="mt-1 text-xs text-foreground-muted">
                   {t("pos.change_due")}:{" "}
                   {formatPaise(Math.max(0, Math.round(Number(tendered || 0) * 100) - cart.netPaise))}

@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { identityApi } from "@/shared/lib/api";
 import { normalizeIndianMobile } from "@/shared/lib/auth/phone";
+import { LOCALITIES } from "@/shared/lib/localities";
 import { cardCls, inputCls, primaryBtnCls } from "@/shared/components/ui";
 import { createAuthBrowserClient } from "@/shared/lib/supabase/auth-client";
 
@@ -16,8 +17,7 @@ export default function BuyerSetupPage() {
   const [city, setCity] = useState("Visakhapatnam");
   const [state, setState] = useState("Andhra Pradesh");
   const [postalCode, setPostalCode] = useState("");
-  const [locationCode, setLocationCode] = useState("visakhapatnam");
-  const [locations, setLocations] = useState<Array<{ code: string; name: string }>>([]);
+  const [locationCode, setLocationCode] = useState(LOCALITIES[0]?.code ?? "");
   const [coreServiceConsent, setCoreServiceConsent] = useState(false);
   const [marketIntelligenceConsent, setMarketIntelligenceConsent] = useState(false);
   const [error, setError] = useState("");
@@ -38,25 +38,21 @@ export default function BuyerSetupPage() {
       if (metadataPhone.trim()) setPhone((current) => current || metadataPhone.replace(/^\+91/, "").replace(/\D/g, "").slice(0, 10));
     });
     void identityApi.profile().then((result) => {
-      if (!result.success || !result.data) return;
-      if (result.data.displayName.trim()) setName(result.data.displayName);
-      const existingPhone = result.data.contacts.find((contact) => contact.type === "phone" && contact.primary)
-        ?? result.data.contacts.find((contact) => contact.type === "phone");
+      const profile = result.data;
+      if (!result.success || !profile) return;
+      if (profile.displayName.trim()) setName(profile.displayName);
+      const existingPhone = profile.contacts.find((contact) => contact.type === "phone" && contact.primary)
+        ?? profile.contacts.find((contact) => contact.type === "phone");
       if (existingPhone) setPhone(existingPhone.value.replace(/^\+91/, "").replace(/\D/g, "").slice(0, 10));
-      if (result.data.locationCode) setLocationCode(result.data.locationCode);
-      if (result.data.address) {
-        setLine1(result.data.address.line1 ?? "");
-        setLine2(result.data.address.line2 ?? "");
-        setCity(result.data.address.city ?? "Visakhapatnam");
-        setState(result.data.address.state ?? "Andhra Pradesh");
-        setPostalCode(result.data.address.postalCode ?? "");
+      if (profile.locationCode && LOCALITIES.some((location) => location.code === profile.locationCode)) {
+        setLocationCode(profile.locationCode);
       }
-    });
-    void identityApi.locations().then((result) => {
-      if (result.success && result.data?.items?.length) {
-        const items = result.data.items;
-        setLocations(items);
-        setLocationCode((current) => items.some((location) => location.code === current) ? current : items[0].code);
+      if (profile.address) {
+        setLine1(profile.address.line1 ?? "");
+        setLine2(profile.address.line2 ?? "");
+        setCity(profile.address.city ?? "Visakhapatnam");
+        setState(profile.address.state ?? "Andhra Pradesh");
+        setPostalCode(profile.address.postalCode ?? "");
       }
     });
   }, []);
@@ -112,8 +108,12 @@ export default function BuyerSetupPage() {
       </div>
       <div>
         <label className="block text-sm font-semibold" htmlFor="buyer-location">Location <span className="text-primary">*</span></label>
-        <select id="buyer-location" className={inputCls} value={locationCode} onChange={(event) => setLocationCode(event.target.value)} required>
-          {(locations.length ? locations : [{ code: "visakhapatnam", name: "Visakhapatnam" }]).map((location) => <option key={location.code} value={location.code}>{location.name}</option>)}
+        <select id="buyer-location" className={inputCls} value={locationCode} onChange={(event) => {
+          setLocationCode(event.target.value);
+          const selected = LOCALITIES.find((location) => location.code === event.target.value);
+          if (selected) setCity(selected.name);
+        }} required>
+          {LOCALITIES.map((location) => <option key={location.code} value={location.code}>{location.name}</option>)}
         </select>
         <p className="mt-1.5 text-xs text-foreground-muted">You will see rewards and offers enabled for this location.</p>
       </div>

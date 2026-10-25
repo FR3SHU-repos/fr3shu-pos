@@ -36,6 +36,8 @@ export interface ProductMutation {
   categoryId?: string;
   categorySlug?: string;
   saleUnit: string;
+  baseUnit?: ProductDTO["baseUnit"];
+  basePerSaleUnit?: number;
   basePricePaise?: number;
   taxRateBps: number;
   organicStatus: ProductDTO["organicStatus"];

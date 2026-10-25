@@ -1,7 +1,7 @@
 import React from "react";
 import type { SaleDTO } from "@/shared/lib/api/sales";
 import { formatPaise } from "@/shared/lib/money";
-import { formatBaseQuantity, type SaleUnit } from "@/shared/lib/units";
+import { formatProductQuantity, type SaleUnit } from "@/shared/lib/units";
 
 export interface ReceiptPaymentLine {
   /** Display label, e.g. "Cash", "UPI", "Card". */
@@ -74,7 +74,7 @@ export function ReceiptView({
             <div className="rcpt-item-name">{it.name}</div>
             <div className="rcpt-item-calc">
               <span>
-                {formatBaseQuantity(it.qtyBase, it.saleUnit as SaleUnit)} ×{" "}
+                {formatProductQuantity(it.qtyBase, it.saleUnit as SaleUnit, it.baseUnit, it.basePerSaleUnit)} ×{" "}
                 {formatPaise(it.unitPricePaise)}
               </span>
               <span>{formatPaise(it.netPaise)}</span>

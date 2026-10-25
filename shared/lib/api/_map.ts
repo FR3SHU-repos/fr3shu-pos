@@ -45,6 +45,8 @@ export interface GoProduct {
   name: string;
   category: string;
   unit: string;
+  baseUnit?: BaseUnit;
+  basePerSaleUnit?: number;
   packQuantity?: number;
   unitPriceMinor: number | null;
   taxRateBps: number;
@@ -100,7 +102,7 @@ export interface ProductDTO {
   sku: string;
   barcode?: string;
   saleUnit: SaleUnit;
-  baseUnit: BaseUnit;
+  baseUnit?: BaseUnit;
   basePerSaleUnit: number;
   basePricePaise?: number;
   taxRateBps: number;
@@ -134,8 +136,8 @@ export function mapProduct(p: GoProduct): ProductDTO {
     sku: p.skuCode,
     barcode: p.barcode || undefined,
     saleUnit: (p.unit || "piece") as SaleUnit,
-    baseUnit: unitBase(p.unit),
-    basePerSaleUnit: unitFactor(p.unit),
+    baseUnit: p.baseUnit ?? unitBase(p.unit),
+    basePerSaleUnit: p.basePerSaleUnit && p.basePerSaleUnit > 0 ? p.basePerSaleUnit : unitFactor(p.unit),
     basePricePaise: p.unitPriceMinor ?? undefined,
     taxRateBps: p.taxRateBps ?? 0,
     categoryId: p.categoryId || undefined,
@@ -146,11 +148,11 @@ export function mapProduct(p: GoProduct): ProductDTO {
     // The POS quick-pick grid keys off `isPinned`; use in-stock as the stand-in
     // since the canonical catalogue does not carry a POS pin flag.
     isPinned: p.isPinned ?? false,
-    availableBase: Math.round(Number(p.availableQty ?? 0) * unitFactor(p.unit)),
+    availableBase: Math.round(Number(p.availableQty ?? 0) * (p.basePerSaleUnit && p.basePerSaleUnit > 0 ? p.basePerSaleUnit : unitFactor(p.unit))),
     lots: (p.lots ?? []).map((lot) => ({
       lotId: lot.lotId ?? "",
       lotCode: lot.lotCode ?? "",
-      qty: Number(lot.qty ?? 0),
+      qty: Number(lot.qty ?? 0) * (p.basePerSaleUnit && p.basePerSaleUnit > 0 ? p.basePerSaleUnit : unitFactor(p.unit)),
       expiresAt: lot.expiresAt,
     })).filter((lot) => lot.lotId && Number.isFinite(lot.qty) && lot.qty > 0),
     producer: p.producer ?? undefined,
@@ -274,6 +276,8 @@ export interface GoSaleLine {
   barcode?: string;
   name: string;
   unit: string;
+  baseUnit?: BaseUnit;
+  basePerSaleUnit?: number;
   qty: string;
   unitPriceMinor: number;
   grossMinor: number;
@@ -326,6 +330,7 @@ export interface SaleItemDTO {
   sku: string;
   barcode?: string;
   saleUnit: SaleUnit;
+  baseUnit?: BaseUnit;
   qtyBase: number;
   basePerSaleUnit: number;
   unitPricePaise: number;
@@ -366,9 +371,10 @@ function mapLine(l: GoSaleLine): SaleItemDTO {
     sku: l.skuCode,
     barcode: l.barcode || undefined,
     saleUnit: (l.unit || "piece") as SaleUnit,
+    baseUnit: l.baseUnit ?? unitBase(l.unit),
     // Go returns the quantity already in canonical base units.
     qtyBase: Math.round(Number(l.qty || 0)),
-    basePerSaleUnit: unitFactor(l.unit),
+    basePerSaleUnit: l.basePerSaleUnit && l.basePerSaleUnit > 0 ? l.basePerSaleUnit : unitFactor(l.unit),
     unitPricePaise: l.unitPriceMinor,
     grossPaise: l.grossMinor,
     discountPaise: l.discountMinor,

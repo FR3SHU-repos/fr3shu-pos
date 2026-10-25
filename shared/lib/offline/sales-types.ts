@@ -1,5 +1,6 @@
 import type { SessionDTO } from "@/shared/lib/api/registers";
 import type { CartLine } from "@/shared/components/pos/types";
+import type { BaseUnit } from "@/shared/lib/units";
 
 export type OfflineSaleSyncState = "pending" | "uploading" | "retry_wait" | "synced" | "blocked" | "cancelled" | "needs_review" | "auth_required";
 
@@ -52,10 +53,12 @@ export interface OfflineSaleLine {
   barcode?: string;
   name: string;
   saleUnit: string;
+  baseUnit?: BaseUnit;
   qty: number;
   qtyBase: number;
   basePerSaleUnit: number;
   unitPricePaise: number;
+  priceOverridden?: boolean;
   grossPaise: number;
   discountPaise: number;
   taxablePaise: number;
@@ -143,7 +146,10 @@ export interface OfflineSaleSyncOperation {
     skuId: string;
     qty: string;
     unit: string;
+    baseUnit?: BaseUnit;
+    basePerSaleUnit?: number;
     unitPriceMinor: number;
+    priceOverridden?: boolean;
     grossMinor: number;
     discountMinor: number;
     taxRateBps: number;

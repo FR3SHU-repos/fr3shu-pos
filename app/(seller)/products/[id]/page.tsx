@@ -7,6 +7,7 @@ import { Loader2 } from "lucide-react";
 import { productsApi, suppliersApi } from "@/shared/lib/api";
 import type { Producer, ProductDTO, SupplierDTO } from "@/shared/lib/api/products";
 import { rupeesToPaise, paiseToRupees } from "@/shared/lib/money";
+import { defaultBaseMetadata, type BaseUnit, type SaleUnit } from "@/shared/lib/units";
 import { cardCls, ghostBtnCls, inputCls, primaryBtnCls, Skeleton, StatusBadge } from "@/shared/components/ui";
 import { ProducerFields, toProducerPayload } from "@/shared/components/products/ProducerFields";
 import { uploadProductImage } from "@/shared/lib/supabase/product-images";
@@ -20,6 +21,8 @@ const ORGANIC = [
   "NotOrganic",
 ] as const;
 
+const SALE_UNITS: SaleUnit[] = ["kg", "g", "l", "ml", "piece", "bunch", "pack"];
+
 export default function ProductDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const router = useRouter();
@@ -28,6 +31,9 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [priceRupees, setPriceRupees] = useState("");
+  const [saleUnit, setSaleUnit] = useState<SaleUnit>("piece");
+  const [baseUnit, setBaseUnit] = useState<BaseUnit>("count");
+  const [basePerSaleUnit, setBasePerSaleUnit] = useState("1");
   const [organicStatus, setOrganicStatus] = useState<(typeof ORGANIC)[number]>("PendingVerification");
   const [status, setStatus] = useState<"active" | "inactive" | "archived">("active");
   const [producer, setProducer] = useState<Producer>({ kind: "self" });
@@ -62,6 +68,11 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
               ? String(paiseToRupees(res.data.basePricePaise))
               : "",
           );
+          const loadedSaleUnit = res.data.saleUnit ?? "piece";
+          const defaults = defaultBaseMetadata(loadedSaleUnit);
+          setSaleUnit(loadedSaleUnit);
+          setBaseUnit(res.data.baseUnit ?? defaults.baseUnit);
+          setBasePerSaleUnit(String(res.data.basePerSaleUnit ?? defaults.basePerSaleUnit));
           setOrganicStatus(res.data.organicStatus);
           setStatus(res.data.status ?? "active");
           setProducer(res.data.producer ?? { kind: "self" });
@@ -81,6 +92,13 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
     };
   }, [id, router]);
 
+  function selectSaleUnit(unit: SaleUnit) {
+    const defaults = defaultBaseMetadata(unit);
+    setSaleUnit(unit);
+    setBaseUnit(defaults.baseUnit);
+    setBasePerSaleUnit(String(defaults.basePerSaleUnit));
+  }
+
   async function save(e: React.FormEvent) {
     e.preventDefault();
     if (busy || !product) return;
@@ -96,7 +114,9 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
       name: product.name,
       description: product.description,
       categoryId: product.categoryId,
-      saleUnit: product.saleUnit,
+      saleUnit,
+      baseUnit,
+      basePerSaleUnit: Number(basePerSaleUnit),
       basePricePaise: priceRupees ? rupeesToPaise(Number(priceRupees)) : undefined,
       taxRateBps: product.taxRateBps,
       organicStatus,
@@ -128,7 +148,7 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
           <h1 className="text-xl font-semibold text-foreground-heading">{product.name}</h1>
           <p className="text-xs text-foreground-muted">
             SKU {product.sku}
-            {product.barcode ? ` · barcode ${product.barcode}` : ""} · {product.saleUnit}
+            {product.barcode ? ` · barcode ${product.barcode}` : ""} · {saleUnit}
           </p>
           <p className="mt-1 text-xs text-foreground-muted">Product link: /products/{product.slug}</p>
         </div>
@@ -144,9 +164,25 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
             <p className="mt-1 text-xs text-foreground-muted">Optional · JPG, PNG, or WebP up to 5 MB.</p>
           </div>
         </div>
+
+        <div className="grid gap-4 sm:grid-cols-3">
+          <div>
+            <label className="mb-1 block text-xs font-medium text-foreground-body">Product unit</label>
+            <select value={saleUnit} onChange={(e) => selectSaleUnit(e.target.value as SaleUnit)} className={inputCls}>
+              {SALE_UNITS.map((unit) => (
+                <option key={unit} value={unit}>{unit}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="mb-1 block text-xs font-medium text-foreground-body">Weight per unit</label>
+            <input type="number" min="1" step="1" value={basePerSaleUnit} onChange={(e) => setBasePerSaleUnit(e.target.value)} className={inputCls} />
+          </div>
+        </div>
+        <p className="-mt-2 text-xs text-foreground-muted">Enter how much one product unit represents. Existing stock or sales prevent changing the measurement because it would reinterpret historical quantities.</p>
         <div>
           <label className="mb-1 block text-xs font-medium text-foreground-body">
-            Base price (₹ per {product.saleUnit})
+            Base price (₹ per unit)
           </label>
           <input
             type="number"
