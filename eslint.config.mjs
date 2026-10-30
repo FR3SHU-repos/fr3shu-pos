@@ -7,9 +7,13 @@ import next from "eslint-config-next";
 const eslintConfig = [
   ...next,
   {
-    ignores: [".next/**", "node_modules/**", "next-env.d.ts", "coverage/**"],
+    ignores: [".next/**", ".netlify/**", "node_modules/**", "next-env.d.ts", "coverage/**"],
   },
   {
+    // Scoped to the same files eslint-config-next lints, so the react-hooks
+    // plugin is always defined where this rule applies (a bare rules object
+    // made `eslint .` abort on non-JS/TS files).
+    files: ["**/*.{js,jsx,mjs,ts,tsx,mts,cts}"],
     rules: {
       // Next 16 ships this new rule as an error. Our client pages legitimately
       // fetch-on-mount through the typed API client and setState with the result
