@@ -1,8 +1,10 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import { Pagination } from "@/shared/components/Pagination";
+import Image from "next/image";
+import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Plus, Search } from "lucide-react";
+import { Plus, Search, Share2 } from "lucide-react";
 import { productsApi } from "@/shared/lib/api";
 import type { ProductDTO } from "@/shared/lib/api/products";
 import {
@@ -25,7 +27,8 @@ export default function ProductsPage() {
   const [online, setOnline] = useState(true);
 
   useEffect(() => {
-    const updateOnline = () => setOnline(typeof navigator === "undefined" ? true : navigator.onLine);
+    const updateOnline = () =>
+      setOnline(typeof navigator === "undefined" ? true : navigator.onLine);
     updateOnline();
     window.addEventListener("online", updateOnline);
     window.addEventListener("offline", updateOnline);
@@ -39,10 +42,19 @@ export default function ProductsPage() {
     const ctrl = new AbortController();
     const timer = setTimeout(async () => {
       setLoading(true);
-      const res = await productsApi.list({ q: q || undefined, page, limit: 15, status: "all", signal: ctrl.signal });
+      const res = await productsApi.list({
+        q: q || undefined,
+        page,
+        limit: 10,
+        status: "all",
+        signal: ctrl.signal,
+      });
       if (ctrl.signal.aborted) return;
       setMessage(!res.success || res.code === "offline_cache" ? res.message : "");
-      if (res.success && res.data) { setItems(res.data.items); setPages(res.data.meta.totalPages); }
+      if (res.success && res.data) {
+        setItems(res.data.items);
+        setPages(res.data.meta.totalPages);
+      }
       setLoading(false);
     }, 250);
     return () => {
@@ -50,6 +62,21 @@ export default function ProductsPage() {
       ctrl.abort();
     };
   }, [q, page]);
+
+  const shareProduct = async (product: ProductDTO) => {
+    const url = `${window.location.origin}/products/${product.slug ?? product._id}`;
+    const text = `${product.name}${product.basePricePaise == null ? "" : ` · ${formatPaise(product.basePricePaise)} / ${product.saleUnit}`}`;
+    try {
+      if (navigator.share) await navigator.share({ title: product.name, text, url });
+      else {
+        await navigator.clipboard.writeText(url);
+        setMessage("Product link copied to clipboard.");
+      }
+    } catch (error) {
+      if (error instanceof DOMException && error.name === "AbortError") return;
+      setMessage("Could not share this product link.");
+    }
+  };
 
   return (
     <div className="mx-auto max-w-4xl space-y-5">
@@ -61,25 +88,42 @@ export default function ProductsPage() {
             New product
           </Link>
         ) : (
-          <button type="button" disabled className={`${primaryBtnCls} cursor-not-allowed opacity-50`} title="Connect to the internet to create products">
+          <button
+            type="button"
+            disabled
+            className={`${primaryBtnCls} cursor-not-allowed opacity-50`}
+            title="Connect to the internet to create products"
+          >
             <Plus className="h-4 w-4" />
             New product
           </button>
         )}
       </header>
-      {!online ? <p role="status" className="text-sm text-status-warning">Product creation is disabled offline. Browse saved products and reconnect to create new catalogue items.</p> : null}
+      {!online ? (
+        <p role="status" className="text-sm text-status-warning">
+          Product creation is disabled offline. Browse saved products and reconnect to create new
+          catalogue items.
+        </p>
+      ) : null}
 
       <div className="relative">
         <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-foreground-muted" />
         <input
           value={q}
-          onChange={(e) => { setQ(e.target.value); setPage(1); }}
+          onChange={(e) => {
+            setQ(e.target.value);
+            setPage(1);
+          }}
           placeholder="Search by product name"
           className={`${inputCls} pl-9`}
         />
       </div>
 
-      {message && <p role="status" className="text-sm text-foreground-muted">{message}</p>}
+      {message && (
+        <p role="status" className="text-sm text-foreground-muted">
+          {message}
+        </p>
+      )}
       {loading ? (
         <SkeletonRows rows={6} />
       ) : items.length === 0 ? (
@@ -93,7 +137,12 @@ export default function ProductsPage() {
                 New product
               </Link>
             ) : (
-              <button type="button" disabled className={`${primaryBtnCls} cursor-not-allowed opacity-50`} title="Connect to the internet to create products">
+              <button
+                type="button"
+                disabled
+                className={`${primaryBtnCls} cursor-not-allowed opacity-50`}
+                title="Connect to the internet to create products"
+              >
                 <Plus className="h-4 w-4" />
                 New product
               </button>
@@ -104,9 +153,23 @@ export default function ProductsPage() {
         <div className={`${cardCls} p-3 sm:p-4`}>
           <ul className="space-y-2">
             {items.map((p) => (
-              <li key={p._id} className="group grid grid-cols-[3.5rem_minmax(0,1fr)] items-center gap-3 rounded-xl border border-border/70 bg-white px-3 py-3 transition hover:border-primary/40 hover:shadow-sm sm:grid-cols-[4.5rem_minmax(0,1fr)_auto] sm:gap-4 sm:px-4">
+              <li
+                key={p._id}
+                className="group grid grid-cols-[3.5rem_minmax(0,1fr)] items-center gap-3 rounded-xl border border-border/70 bg-surface-card px-3 py-3 transition hover:border-primary/40 hover:shadow-sm sm:grid-cols-[4.5rem_minmax(0,1fr)_auto] sm:gap-4 sm:px-4"
+              >
                 <div className="flex h-14 w-14 items-center justify-center overflow-hidden rounded-xl bg-surface sm:h-16 sm:w-16">
-                  {p.imageUrl ? <img src={p.imageUrl} alt="" className="h-full w-full object-cover" /> : <span className="text-xs font-medium text-foreground-muted">No image</span>}
+                  {p.imageUrl ? (
+                    <Image
+                      src={p.imageUrl}
+                      alt=""
+                      width={64}
+                      height={64}
+                      unoptimized
+                      className="h-full w-full object-cover"
+                    />
+                  ) : (
+                    <span className="text-xs font-medium text-foreground-muted">No image</span>
+                  )}
                 </div>
                 <div className="min-w-0">
                   <Link
@@ -125,14 +188,34 @@ export default function ProductsPage() {
                     <StatusBadge status={p.organicStatus} />
                     <StatusBadge status={p.status} />
                   </div>
-                  <span className="shrink-0 text-base font-bold text-foreground-heading">
-                    {typeof p.basePricePaise === "number" ? formatPaise(p.basePricePaise) : "—"}
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <span className="shrink-0 text-base font-bold text-foreground-heading">
+                      {typeof p.basePricePaise === "number" ? formatPaise(p.basePricePaise) : "—"}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => void shareProduct(p)}
+                      className="grid h-9 w-9 place-items-center rounded-full bg-surface text-foreground-muted hover:text-primary"
+                      aria-label={`Share ${p.name}`}
+                      title="Share product"
+                    >
+                      <Share2 className="h-4 w-4" />
+                    </button>
+                  </div>
                 </div>
               </li>
             ))}
           </ul>
-          {pages > 1 ? <div className="flex items-center justify-between border-t border-border pt-3 text-sm"><button disabled={page<=1} onClick={()=>setPage((p)=>p-1)}>Previous</button><span>Page {page} of {pages}</span><button disabled={page>=pages} onClick={()=>setPage((p)=>p+1)}>Next</button></div> : null}
+          {pages > 1 ? (
+            <Pagination
+              page={page}
+              pages={pages}
+              onPageChange={setPage}
+              bordered
+              label="Product pages"
+              className="mt-1"
+            />
+          ) : null}
         </div>
       )}
     </div>

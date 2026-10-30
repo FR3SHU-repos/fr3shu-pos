@@ -12,14 +12,7 @@ export const createProductSchema = z.object({
   basePricePaise: paise.optional(),
   certificationId: z.string().optional(),
   organicStatus: z
-    .enum([
-      "Verified",
-      "InConversion",
-      "PendingVerification",
-      "Expired",
-      "Rejected",
-      "NotOrganic",
-    ])
+    .enum(["Verified", "InConversion", "PendingVerification", "Expired", "Rejected", "NotOrganic"])
     .default("PendingVerification"),
   isPinned: z.boolean().default(false),
 });

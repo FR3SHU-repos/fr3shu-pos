@@ -1,7 +1,4 @@
-import {
-  createSupabaseServerClient,
-  supabaseAuthConfigured,
-} from "@/shared/lib/supabase/server";
+import { createSupabaseServerClient, supabaseAuthConfigured } from "@/shared/lib/supabase/server";
 import { Landing } from "@/shared/components/landing/Landing";
 
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://komola.in";
@@ -35,8 +32,7 @@ export default async function Home() {
       applicationCategory: "BusinessApplication",
       operatingSystem: "Web",
       url: siteUrl,
-      description:
-        "Agri-tech POS and rewards software for agricultural sellers and buyers.",
+      description: "Agri-tech POS and rewards software for agricultural sellers and buyers.",
       featureList: [
         "Agri-tech point of sale",
         "Agricultural product sales by weight or piece",
@@ -50,8 +46,7 @@ export default async function Home() {
       "@type": "WebSite",
       name: "KOMOLA",
       url: siteUrl,
-      description:
-        "A rewards-based platform for buying and selling agricultural products.",
+      description: "A rewards-based platform for buying and selling agricultural products.",
     },
   ];
 

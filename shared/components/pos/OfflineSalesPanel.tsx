@@ -24,7 +24,11 @@ import {
 } from "@/shared/lib/offline/sales";
 import { StatusBadge, ghostBtnCls, primaryBtnCls } from "@/shared/components/ui";
 import { ReceiptView } from "@/shared/components/pos/ReceiptView";
-import { OFFLINE_SALES_SYNC_EVENT, offlineSalesLastSyncKey, type OfflineSalesSyncDetail } from "@/shared/components/pos/OfflineSalesSyncWorker";
+import {
+  OFFLINE_SALES_SYNC_EVENT,
+  offlineSalesLastSyncKey,
+  type OfflineSalesSyncDetail,
+} from "@/shared/components/pos/OfflineSalesSyncWorker";
 import { printReceipt } from "@/shared/lib/offline/receipt-print";
 import { syncOfflineMutations } from "@/shared/lib/offline/mutations";
 
@@ -40,7 +44,13 @@ const STATUS_LABEL: Record<OfflineSaleSyncState, string> = {
 };
 
 function statusIcon(status: OfflineSaleSyncState) {
-  if (status === "blocked" || status === "cancelled" || status === "needs_review" || status === "auth_required") return <AlertCircle className="h-4 w-4 text-status-danger" />;
+  if (
+    status === "blocked" ||
+    status === "cancelled" ||
+    status === "needs_review" ||
+    status === "auth_required"
+  )
+    return <AlertCircle className="h-4 w-4 text-status-danger" />;
   return <Clock3 className="h-4 w-4 text-status-warning" />;
 }
 
@@ -77,12 +87,21 @@ export function OfflineSalesPanel({ fullPage = false }: { fullPage?: boolean }) 
   const [lastSyncAt, setLastSyncAt] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [receiptSale, setReceiptSale] = useState<OfflineSaleRecord | null>(null);
-  const [editForm, setEditForm] = useState({ customerName: "", customerPhone: "", buyerCode: "", marketingConsent: false });
+  const [editForm, setEditForm] = useState({
+    customerName: "",
+    customerPhone: "",
+    buyerCode: "",
+    marketingConsent: false,
+  });
   const [repairingId, setRepairingId] = useState<string | null>(null);
-  const [repairLines, setRepairLines] = useState<Record<string, { qty: string; remove: boolean }>>({});
+  const [repairLines, setRepairLines] = useState<Record<string, { qty: string; remove: boolean }>>(
+    {},
+  );
   const [manualReviewSale, setManualReviewSale] = useState<OfflineSaleRecord | null>(null);
   const [manualProducts, setManualProducts] = useState<ProductDTO[]>([]);
-  const [manualLines, setManualLines] = useState<Record<number, { skuId: string; qty: string; unit: string; discountMinor: number }>>({});
+  const [manualLines, setManualLines] = useState<
+    Record<number, { skuId: string; qty: string; unit: string; discountMinor: number }>
+  >({});
   const importInputRef = useRef<HTMLInputElement | null>(null);
 
   const scope = useMemo<OfflineScope | null>(() => {
@@ -116,34 +135,56 @@ export function OfflineSalesPanel({ fullPage = false }: { fullPage?: boolean }) 
     if (mutations.synced > 0) await productsApi.refreshOfflineProducts(undefined, { force: true });
     if (!mutations.salesReady) {
       setOpen(true);
-      setMessage(mutations.messages.join(" ") || "Offline product and stock changes must sync before this sale can be uploaded.");
+      setMessage(
+        mutations.messages.join(" ") ||
+          "Offline product and stock changes must sync before this sale can be uploaded.",
+      );
       setSyncing(false);
       return;
     }
     const result = await salesApi.syncPendingOfflineSales(scope, { forceRetry: true });
     const syncAt = new Date().toISOString();
     try {
-      if (result.synced > 0 || result.attempted > 0) localStorage.setItem(offlineSalesLastSyncKey(scope), syncAt);
-      window.dispatchEvent(new CustomEvent<OfflineSalesSyncDetail>(OFFLINE_SALES_SYNC_EVENT, { detail: { ...result, at: syncAt, automatic: false, message: mutations.messages.join(" ") || result.message } }));
+      if (result.synced > 0 || result.attempted > 0)
+        localStorage.setItem(offlineSalesLastSyncKey(scope), syncAt);
+      window.dispatchEvent(
+        new CustomEvent<OfflineSalesSyncDetail>(OFFLINE_SALES_SYNC_EVENT, {
+          detail: {
+            ...result,
+            at: syncAt,
+            automatic: false,
+            message: mutations.messages.join(" ") || result.message,
+          },
+        }),
+      );
     } catch {
       /* best effort status update */
     }
     if (result.synced > 0) await cleanupOfflineSales(scope, 0);
     await refresh();
     const latestSales = await listOfflineSales(scope);
-    const hasBlockedSale = latestSales.some((sale) => sale.syncState === "blocked" || sale.syncState === "needs_review");
+    const hasBlockedSale = latestSales.some(
+      (sale) => sale.syncState === "blocked" || sale.syncState === "needs_review",
+    );
     if (result.attempted === 0 && mutations.synced > 0) {
       setOpen(false);
       setMessage(`${mutations.synced} offline change${mutations.synced === 1 ? "" : "s"} synced.`);
-      toast.success(`${mutations.synced} offline change${mutations.synced === 1 ? "" : "s"} synced`);
+      toast.success(
+        `${mutations.synced} offline change${mutations.synced === 1 ? "" : "s"} synced`,
+      );
     } else if (result.attempted === 0 && hasBlockedSale) {
       setOpen(true);
-      setMessage("Blocked sales are paused. Open the sale and tap Try again to run automatic checks again.");
+      setMessage(
+        "Blocked sales are paused. Open the sale and tap Try again to run automatic checks again.",
+      );
     } else if (result.attempted === 0) {
       setMessage("No offline sales are waiting to sync.");
     } else if (result.unavailable) {
       setOpen(true);
-      setMessage(result.message ?? "The backend sync endpoint is not available. Restart or update the Go API, then try Sync again.");
+      setMessage(
+        result.message ??
+          "The backend sync endpoint is not available. Restart or update the Go API, then try Sync again.",
+      );
       toast.error("Restart or update the Go API, then try Sync again");
     } else if (result.authRequired) {
       setOpen(true);
@@ -162,9 +203,12 @@ export function OfflineSalesPanel({ fullPage = false }: { fullPage?: boolean }) 
       const adjustmentMessage = result.stockAdjustments
         ? ` ${result.stockAdjustments} stock adjustment${result.stockAdjustments === 1 ? "" : "s"} require manager review.`
         : "";
-      setMessage(`${result.synced} offline sale${result.synced === 1 ? "" : "s"} completed and moved to sales history.${adjustmentMessage}`);
+      setMessage(
+        `${result.synced} offline sale${result.synced === 1 ? "" : "s"} completed and moved to sales history.${adjustmentMessage}`,
+      );
       if (result.stockAdjustments) toast(`Sale completed.${adjustmentMessage}`);
-      else toast.success(`${result.synced} offline sale${result.synced === 1 ? "" : "s"} completed`);
+      else
+        toast.success(`${result.synced} offline sale${result.synced === 1 ? "" : "s"} completed`);
     } else {
       setOpen(true);
       setMessage("Sync did not complete. The sale is still saved locally and will retry.");
@@ -173,22 +217,25 @@ export function OfflineSalesPanel({ fullPage = false }: { fullPage?: boolean }) 
     setSyncing(false);
   }, [refresh, scope, syncing]);
 
-  const trySaleAgain = useCallback(async (operationId: string) => {
-    if (!scope || syncing) return;
-    const queued = await requeueOfflineSale(scope, operationId);
-    await refresh();
-    if (!queued) {
-      setMessage("This offline sale could not be queued again.");
-      toast.error("Offline sale could not be queued again");
-      return;
-    }
-    setMessage("Sale queued for another automatic sync check.");
-    if (typeof navigator !== "undefined" && navigator.onLine) {
-      await syncNow();
-    } else {
-      toast.success("Sale will sync when internet returns");
-    }
-  }, [refresh, scope, syncNow, syncing]);
+  const trySaleAgain = useCallback(
+    async (operationId: string) => {
+      if (!scope || syncing) return;
+      const queued = await requeueOfflineSale(scope, operationId);
+      await refresh();
+      if (!queued) {
+        setMessage("This offline sale could not be queued again.");
+        toast.error("Offline sale could not be queued again");
+        return;
+      }
+      setMessage("Sale queued for another automatic sync check.");
+      if (typeof navigator !== "undefined" && navigator.onLine) {
+        await syncNow();
+      } else {
+        toast.success("Sale will sync when internet returns");
+      }
+    },
+    [refresh, scope, syncNow, syncing],
+  );
 
   const startEditing = useCallback((sale: OfflineSaleRecord) => {
     setEditingId(sale.operationId);
@@ -202,54 +249,70 @@ export function OfflineSalesPanel({ fullPage = false }: { fullPage?: boolean }) 
 
   const startRepairing = useCallback((sale: OfflineSaleRecord) => {
     setRepairingId(sale.operationId);
-    setRepairLines(Object.fromEntries(sale.lines.map((line) => [line.productId, { qty: String(line.qty), remove: false }])));
+    setRepairLines(
+      Object.fromEntries(
+        sale.lines.map((line) => [line.productId, { qty: String(line.qty), remove: false }]),
+      ),
+    );
   }, []);
 
-  const saveLineRepair = useCallback(async (sale: OfflineSaleRecord) => {
-    if (!scope || syncing) return;
-    setSyncing(true);
-    try {
-      const changes = sale.lines.map((line) => {
-        const repair = repairLines[line.productId];
-        return { productId: line.productId, qty: Number(repair?.qty ?? line.qty), remove: Boolean(repair?.remove) };
-      }).filter((change, index) => {
-        const line = sale.lines[index];
-        return change.remove || change.qty !== line.qty;
-      });
-      await repairOfflineSaleLines(scope, sale.operationId, changes);
-      setRepairingId(null);
-      setRepairLines({});
-      await refresh();
-      setMessage("Sale items updated. Syncing again...");
-      toast.success("Sale items updated");
-      if (typeof navigator !== "undefined" && navigator.onLine) await syncNow();
-    } catch (error) {
-      const text = error instanceof Error ? error.message : "Could not update sale items.";
-      setMessage(text);
-      toast.error(text);
-    } finally {
-      setSyncing(false);
-    }
-  }, [refresh, repairLines, scope, syncNow, syncing]);
+  const saveLineRepair = useCallback(
+    async (sale: OfflineSaleRecord) => {
+      if (!scope || syncing) return;
+      setSyncing(true);
+      try {
+        const changes = sale.lines
+          .map((line) => {
+            const repair = repairLines[line.productId];
+            return {
+              productId: line.productId,
+              qty: Number(repair?.qty ?? line.qty),
+              remove: Boolean(repair?.remove),
+            };
+          })
+          .filter((change, index) => {
+            const line = sale.lines[index];
+            return change.remove || change.qty !== line.qty;
+          });
+        await repairOfflineSaleLines(scope, sale.operationId, changes);
+        setRepairingId(null);
+        setRepairLines({});
+        await refresh();
+        setMessage("Sale items updated. Syncing again...");
+        toast.success("Sale items updated");
+        if (typeof navigator !== "undefined" && navigator.onLine) await syncNow();
+      } catch (error) {
+        const text = error instanceof Error ? error.message : "Could not update sale items.";
+        setMessage(text);
+        toast.error(text);
+      } finally {
+        setSyncing(false);
+      }
+    },
+    [refresh, repairLines, scope, syncNow, syncing],
+  );
 
-  const saveCustomerDetails = useCallback(async (operationId: string) => {
-    if (!scope || syncing) return;
-    setSyncing(true);
-    try {
-      await updateOfflineSaleCustomer(scope, operationId, editForm);
-      setEditingId(null);
-      await refresh();
-      setMessage("Customer details updated. Syncing again...");
-      toast.success("Customer details updated");
-      if (typeof navigator !== "undefined" && navigator.onLine) await syncNow();
-    } catch (error) {
-      const text = error instanceof Error ? error.message : "Could not update customer details.";
-      setMessage(text);
-      toast.error(text);
-    } finally {
-      setSyncing(false);
-    }
-  }, [editForm, refresh, scope, syncNow, syncing]);
+  const saveCustomerDetails = useCallback(
+    async (operationId: string) => {
+      if (!scope || syncing) return;
+      setSyncing(true);
+      try {
+        await updateOfflineSaleCustomer(scope, operationId, editForm);
+        setEditingId(null);
+        await refresh();
+        setMessage("Customer details updated. Syncing again...");
+        toast.success("Customer details updated");
+        if (typeof navigator !== "undefined" && navigator.onLine) await syncNow();
+      } catch (error) {
+        const text = error instanceof Error ? error.message : "Could not update customer details.";
+        setMessage(text);
+        toast.error(text);
+      } finally {
+        setSyncing(false);
+      }
+    },
+    [editForm, refresh, scope, syncNow, syncing],
+  );
 
   const startManualResolution = useCallback(async (sale: OfflineSaleRecord) => {
     if (!sale.syncReviewId) {
@@ -258,115 +321,156 @@ export function OfflineSalesPanel({ fullPage = false }: { fullPage?: boolean }) 
     }
     try {
       const response = await productsApi.list({ status: "all", limit: 100 });
-      if (!response.success || !response.data) throw new Error(response.message || "The current product catalogue could not be loaded.");
+      if (!response.success || !response.data)
+        throw new Error(response.message || "The current product catalogue could not be loaded.");
       setManualProducts(response.data.items);
-      setManualLines(Object.fromEntries(sale.lines.map((line, index) => {
-        const match = response.data?.items.find((product) => product._id === line.productId || product.name.trim().toLowerCase() === line.name.trim().toLowerCase());
-        return [index, { skuId: match?._id ?? "", qty: String(line.qty), unit: match?.saleUnit ?? line.saleUnit, discountMinor: line.discountPaise }];
-      })));
+      setManualLines(
+        Object.fromEntries(
+          sale.lines.map((line, index) => {
+            const match = response.data?.items.find(
+              (product) =>
+                product._id === line.productId ||
+                product.name.trim().toLowerCase() === line.name.trim().toLowerCase(),
+            );
+            return [
+              index,
+              {
+                skuId: match?._id ?? "",
+                qty: String(line.qty),
+                unit: match?.saleUnit ?? line.saleUnit,
+                discountMinor: line.discountPaise,
+              },
+            ];
+          }),
+        ),
+      );
       setManualReviewSale(sale);
     } catch (error) {
-      const text = error instanceof Error ? error.message : "The current product catalogue could not be loaded.";
+      const text =
+        error instanceof Error
+          ? error.message
+          : "The current product catalogue could not be loaded.";
       toast.error(text);
       setMessage(text);
     }
   }, []);
 
-  const saveManualResolution = useCallback(async (sale: OfflineSaleRecord) => {
-    if (!scope || syncing || !sale.syncReviewId) return;
-    setSyncing(true);
-    try {
-      const items = sale.lines.map((line, index) => {
-        const value = manualLines[index];
-        if (!value?.skuId || Number(value.qty) <= 0) throw new Error(`Choose a current product and quantity for ${line.name}.`);
-        return { skuId: value.skuId, qty: value.qty, unit: value.unit, discountMinor: value.discountMinor };
-      });
-      const response = await salesApi.resolveOfflineTransactionReview(sale.syncReviewId, {
-        items,
-        tenders: [{ kind: "cash", amountMinor: sale.payment.receivedPaise }],
-        cartDiscountMinor: 0,
-        customerName: sale.customerName,
-        customerPhone: sale.customerPhone,
-        buyerCode: sale.buyerCode,
-        marketingConsent: sale.marketingConsent,
-      });
-      if (!response.success || !response.data) throw new Error(response.message || "The transaction could not be resolved.");
-      await markOfflineSaleSyncState(scope, sale.operationId, "synced", {
-        message: response.data.sale.receiptNo ? `Resolved manually as ${response.data.sale.receiptNo}.` : "Transaction resolved manually.",
-        serverSaleId: response.data.sale._id,
-        serverReceiptNo: response.data.sale.receiptNo,
-        reviewId: sale.syncReviewId,
-      });
-      setManualReviewSale(null);
-      setManualLines({});
-      await cleanupOfflineSales(scope, 0);
-      await refresh();
-      setMessage("Transaction resolved and recorded in sales history.");
-      toast.success("Offline transaction resolved");
-    } catch (error) {
-      const text = error instanceof Error ? error.message : "The transaction could not be resolved.";
-      setMessage(text);
-      toast.error(text);
-    } finally {
-      setSyncing(false);
-    }
-  }, [manualLines, refresh, scope, syncing]);
+  const saveManualResolution = useCallback(
+    async (sale: OfflineSaleRecord) => {
+      if (!scope || syncing || !sale.syncReviewId) return;
+      setSyncing(true);
+      try {
+        const items = sale.lines.map((line, index) => {
+          const value = manualLines[index];
+          if (!value?.skuId || Number(value.qty) <= 0)
+            throw new Error(`Choose a current product and quantity for ${line.name}.`);
+          return {
+            skuId: value.skuId,
+            qty: value.qty,
+            unit: value.unit,
+            discountMinor: value.discountMinor,
+          };
+        });
+        const response = await salesApi.resolveOfflineTransactionReview(sale.syncReviewId, {
+          items,
+          tenders: [{ kind: "cash", amountMinor: sale.payment.receivedPaise }],
+          cartDiscountMinor: 0,
+          customerName: sale.customerName,
+          customerPhone: sale.customerPhone,
+          buyerCode: sale.buyerCode,
+          marketingConsent: sale.marketingConsent,
+        });
+        if (!response.success || !response.data)
+          throw new Error(response.message || "The transaction could not be resolved.");
+        await markOfflineSaleSyncState(scope, sale.operationId, "synced", {
+          message: response.data.sale.receiptNo
+            ? `Resolved manually as ${response.data.sale.receiptNo}.`
+            : "Transaction resolved manually.",
+          serverSaleId: response.data.sale._id,
+          serverReceiptNo: response.data.sale.receiptNo,
+          reviewId: sale.syncReviewId,
+        });
+        setManualReviewSale(null);
+        setManualLines({});
+        await cleanupOfflineSales(scope, 0);
+        await refresh();
+        setMessage("Transaction resolved and recorded in sales history.");
+        toast.success("Offline transaction resolved");
+      } catch (error) {
+        const text =
+          error instanceof Error ? error.message : "The transaction could not be resolved.";
+        setMessage(text);
+        toast.error(text);
+      } finally {
+        setSyncing(false);
+      }
+    },
+    [manualLines, refresh, scope, syncing],
+  );
 
-  const cancelLocalSale = useCallback(async (operationId: string) => {
-    if (!scope || syncing) return;
-    const cancelled = await cancelOfflineSale(scope, operationId);
-    await refresh();
-    if (!cancelled) {
-      setMessage("This offline sale could not be cancelled.");
-      toast.error("Offline sale could not be cancelled");
-      return;
-    }
-    setMessage("Offline sale cancelled locally. It will not sync to the database.");
-    toast.success("Offline sale cancelled locally");
-  }, [refresh, scope, syncing]);
+  const cancelLocalSale = useCallback(
+    async (operationId: string) => {
+      if (!scope || syncing) return;
+      const cancelled = await cancelOfflineSale(scope, operationId);
+      await refresh();
+      if (!cancelled) {
+        setMessage("This offline sale could not be cancelled.");
+        toast.error("Offline sale could not be cancelled");
+        return;
+      }
+      setMessage("Offline sale cancelled locally. It will not sync to the database.");
+      toast.success("Offline sale cancelled locally");
+    },
+    [refresh, scope, syncing],
+  );
 
   const exportBackup = useCallback(async () => {
     if (!scope) return;
     const backup = await exportOfflineSales(scope);
     downloadOfflineSalesBackup(backup);
-    setMessage(`${backup.sales.length} offline sale record${backup.sales.length === 1 ? "" : "s"} exported from this device.`);
+    setMessage(
+      `${backup.sales.length} offline sale record${backup.sales.length === 1 ? "" : "s"} exported from this device.`,
+    );
     toast.success("Offline sales backup downloaded");
   }, [scope]);
 
-  const importBackup = useCallback(async (file: File) => {
-    if (!scope) return;
-    try {
-      const payload = JSON.parse(await file.text()) as unknown;
-      const result = await importOfflineSales(scope, payload);
-      await refresh();
-      const detail = `${result.imported} imported, ${result.skipped} skipped${result.errors.length ? `, ${result.errors.length} rejected` : ""}.`;
-      setOpen(true);
-      setMessage(result.errors.length ? `${detail} ${result.errors[0]}` : detail);
-      if (result.imported > 0) toast.success(`Restored ${result.imported} offline sale${result.imported === 1 ? "" : "s"}`);
-      else toast(detail, { icon: "ℹ️" });
-      if (result.imported > 0 && typeof navigator !== "undefined" && navigator.onLine) await syncNow();
-    } catch (error) {
-      const text = error instanceof Error ? error.message : "The offline backup could not be imported.";
-      setOpen(true);
-      setMessage(text);
-      toast.error(text);
-    } finally {
-      if (importInputRef.current) importInputRef.current.value = "";
-    }
-  }, [refresh, scope, syncNow]);
+  const importBackup = useCallback(
+    async (file: File) => {
+      if (!scope) return;
+      try {
+        const payload = JSON.parse(await file.text()) as unknown;
+        const result = await importOfflineSales(scope, payload);
+        await refresh();
+        const detail = `${result.imported} imported, ${result.skipped} skipped${result.errors.length ? `, ${result.errors.length} rejected` : ""}.`;
+        setOpen(true);
+        setMessage(result.errors.length ? `${detail} ${result.errors[0]}` : detail);
+        if (result.imported > 0)
+          toast.success(
+            `Restored ${result.imported} offline sale${result.imported === 1 ? "" : "s"}`,
+          );
+        else toast(detail, { icon: "ℹ️" });
+        if (result.imported > 0 && typeof navigator !== "undefined" && navigator.onLine)
+          await syncNow();
+      } catch (error) {
+        const text =
+          error instanceof Error ? error.message : "The offline backup could not be imported.";
+        setOpen(true);
+        setMessage(text);
+        toast.error(text);
+      } finally {
+        if (importInputRef.current) importInputRef.current.value = "";
+      }
+    },
+    [refresh, scope, syncNow],
+  );
 
-  const onImportBackup = useCallback((event: ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (file) void importBackup(file);
-  }, [importBackup]);
-
-  const clearOldSynced = useCallback(async () => {
-    if (!scope || syncing) return;
-    await exportBackup();
-    const removed = await cleanupOfflineSales(scope);
-    await refresh();
-    setMessage(removed > 0 ? `${removed} old synced or cancelled offline sale${removed === 1 ? "" : "s"} cleared after backup download.` : "Backup downloaded. No old synced or cancelled offline sales were ready to clear.");
-  }, [exportBackup, refresh, scope, syncing]);
+  const onImportBackup = useCallback(
+    (event: ChangeEvent<HTMLInputElement>) => {
+      const file = event.target.files?.[0];
+      if (file) void importBackup(file);
+    },
+    [importBackup],
+  );
 
   useEffect(() => {
     void Promise.resolve().then(refresh);
@@ -376,7 +480,9 @@ export function OfflineSalesPanel({ fullPage = false }: { fullPage?: boolean }) 
       if (detail?.at) setLastSyncAt(detail.at);
       if (detail?.failed) {
         setOpen(true);
-        setMessage(detail.message ?? "Offline sync failed. The sale is still saved locally and will retry.");
+        setMessage(
+          detail.message ?? "Offline sync failed. The sale is still saved locally and will retry.",
+        );
       }
       void refresh().catch(() => {
         setOpen(true);
@@ -391,15 +497,28 @@ export function OfflineSalesPanel({ fullPage = false }: { fullPage?: boolean }) 
     };
   }, [refresh]);
 
-  const active = sales.filter((sale) => sale.syncState !== "synced" && sale.syncState !== "cancelled");
-  const waitingCount = active.filter((sale) => sale.syncState === "pending" || sale.syncState === "uploading").length;
+  const active = sales.filter(
+    (sale) => sale.syncState !== "synced" && sale.syncState !== "cancelled",
+  );
+  const waitingCount = active.filter(
+    (sale) => sale.syncState === "pending" || sale.syncState === "uploading",
+  ).length;
   const retryCount = active.filter((sale) => sale.syncState === "retry_wait").length;
-  const blockedCount = active.filter((sale) => sale.syncState === "blocked" || sale.syncState === "needs_review").length;
+  const blockedCount = active.filter(
+    (sale) => sale.syncState === "blocked" || sale.syncState === "needs_review",
+  ).length;
   const authCount = active.filter((sale) => sale.syncState === "auth_required").length;
   if (!user) return null;
 
   return (
-    <section className={fullPage ? "rounded-[26px] border border-border bg-surface-card p-5 text-sm" : "mb-4 rounded-xl border border-border bg-surface-card p-3 text-sm"} aria-label="Pending offline sales">
+    <section
+      className={
+        fullPage
+          ? "rounded-[26px] border border-border bg-surface-card p-5 text-sm"
+          : "mb-4 rounded-xl border border-border bg-surface-card p-3 text-sm"
+      }
+      aria-label="Pending offline sales"
+    >
       <div className="flex flex-wrap items-center justify-between gap-2">
         <button
           type="button"
@@ -410,17 +529,39 @@ export function OfflineSalesPanel({ fullPage = false }: { fullPage?: boolean }) 
           {statusIcon(active[0]?.syncState ?? "pending")}
           {fullPage ? "Pending offline sales" : "Offline sales"}
           <span className="text-foreground-muted">
-            {active.length === 0 ? "no pending records" : `${waitingCount} waiting · ${retryCount} retry · ${blockedCount + authCount} issue${blockedCount + authCount === 1 ? "" : "s"}`}
+            {active.length === 0
+              ? "no pending records"
+              : `${waitingCount} waiting · ${retryCount} retry · ${blockedCount + authCount} issue${blockedCount + authCount === 1 ? "" : "s"}`}
           </span>
         </button>
         <div className="flex items-center gap-3">
-          <button type="button" className="font-semibold text-primary" onClick={() => void exportBackup()}>Export backup</button>
-          <button type="button" className="font-semibold text-primary" onClick={() => importInputRef.current?.click()}>
+          <button
+            type="button"
+            className="font-semibold text-primary"
+            onClick={() => void exportBackup()}
+          >
+            Export backup
+          </button>
+          <button
+            type="button"
+            className="font-semibold text-primary"
+            onClick={() => importInputRef.current?.click()}
+          >
             <Upload className="mr-1 inline h-4 w-4" />
             Import backup
           </button>
-          <input ref={importInputRef} type="file" accept="application/json,.json" className="hidden" onChange={onImportBackup} />
-          <button type="button" className="font-semibold text-primary" onClick={() => setOpen((value) => !value)}>
+          <input
+            ref={importInputRef}
+            type="file"
+            accept="application/json,.json"
+            className="hidden"
+            onChange={onImportBackup}
+          />
+          <button
+            type="button"
+            className="font-semibold text-primary"
+            onClick={() => setOpen((value) => !value)}
+          >
             {open ? "Hide" : "View"}
           </button>
           <button
@@ -435,8 +576,16 @@ export function OfflineSalesPanel({ fullPage = false }: { fullPage?: boolean }) 
         </div>
       </div>
       {message ? <p className="mt-2 text-xs text-foreground-muted">{message}</p> : null}
-      <p className="mt-2 text-xs text-foreground-muted">Offline sales sync automatically when internet is available. Completed sales move out of this list and appear in sales history. Backups are scope-bound and never overwrite existing records.</p>
-      {lastSyncAt ? <p className="mt-1 text-xs text-foreground-muted">Last sync check: {new Date(lastSyncAt).toLocaleString()}</p> : null}
+      <p className="mt-2 text-xs text-foreground-muted">
+        Offline sales sync automatically when internet is available. Completed sales move out of
+        this list and appear in sales history. Backups are scope-bound and never overwrite existing
+        records.
+      </p>
+      {lastSyncAt ? (
+        <p className="mt-1 text-xs text-foreground-muted">
+          Last sync check: {new Date(lastSyncAt).toLocaleString()}
+        </p>
+      ) : null}
       {open ? (
         <div className={`mt-3 divide-y divide-border ${fullPage ? "" : "max-h-80 overflow-auto"}`}>
           {active.slice(0, 25).map((sale) => (
@@ -445,14 +594,20 @@ export function OfflineSalesPanel({ fullPage = false }: { fullPage?: boolean }) 
                 <div className="min-w-0">
                   <p className="truncate font-medium text-foreground-heading">{sale.receiptNo}</p>
                   <p className="text-xs text-foreground-muted">
-                    {new Date(sale.createdAt).toLocaleString()} · {sale.customerName || "Customer"} · {sale.lines.length} item{sale.lines.length === 1 ? "" : "s"}
+                    {new Date(sale.createdAt).toLocaleString()} · {sale.customerName || "Customer"}{" "}
+                    · {sale.lines.length} item{sale.lines.length === 1 ? "" : "s"}
                   </p>
-                  {(sale.syncState === "blocked" || sale.syncState === "needs_review") && sale.syncMessage ? (
-                    <p className="mt-1 text-xs font-medium text-status-danger">{sale.syncMessage}</p>
+                  {(sale.syncState === "blocked" || sale.syncState === "needs_review") &&
+                  sale.syncMessage ? (
+                    <p className="mt-1 text-xs font-medium text-status-danger">
+                      {sale.syncMessage}
+                    </p>
                   ) : null}
                 </div>
                 <div className="shrink-0 text-right">
-                  <p className="font-semibold text-foreground-heading">{formatPaise(sale.totalPaise)}</p>
+                  <p className="font-semibold text-foreground-heading">
+                    {formatPaise(sale.totalPaise)}
+                  </p>
                   <StatusBadge status={STATUS_LABEL[sale.syncState]} />
                   {sale.syncState === "blocked" || sale.syncState === "needs_review" ? (
                     <div className="mt-2 flex flex-col gap-2">
@@ -537,46 +692,95 @@ export function OfflineSalesPanel({ fullPage = false }: { fullPage?: boolean }) 
                 <dl className="grid gap-2 sm:grid-cols-2">
                   <Detail label="Status" value={STATUS_LABEL[sale.syncState]} />
                   <Detail label="Operation ID" value={sale.operationId} />
-                  <Detail label="Customer" value={sale.customerPhone ? `${sale.customerName} · ${sale.customerPhone}` : sale.customerName} />
+                  <Detail
+                    label="Customer"
+                    value={
+                      sale.customerPhone
+                        ? `${sale.customerName} · ${sale.customerPhone}`
+                        : sale.customerName
+                    }
+                  />
                   <Detail label="Cash received" value={formatPaise(sale.payment.receivedPaise)} />
                   <Detail label="Sale total" value={formatPaise(sale.payment.amountPaise)} />
                   <Detail label="Change" value={formatPaise(sale.payment.changePaise)} />
-                  {sale.lastSyncAttemptAt ? <Detail label="Last sync try" value={new Date(sale.lastSyncAttemptAt).toLocaleString()} /> : null}
-                  {syncFailureStageLabel(sale.syncFailureStage) ? <Detail label="What failed" value={syncFailureStageLabel(sale.syncFailureStage) ?? ""} /> : null}
-                  {sale.syncFailureDetail ? <Detail label="Failure reason" value={sale.syncFailureDetail} /> : null}
-                  {sale.syncFailureCode ? <Detail label="Failure code" value={sale.syncFailureCode} /> : null}
-                  {sale.syncMessage ? <Detail label="Sync detail" value={sale.syncMessage} /> : null}
-                  {sale.syncRequestId ? <Detail label="Support request ID" value={sale.syncRequestId} /> : null}
+                  {sale.lastSyncAttemptAt ? (
+                    <Detail
+                      label="Last sync try"
+                      value={new Date(sale.lastSyncAttemptAt).toLocaleString()}
+                    />
+                  ) : null}
+                  {syncFailureStageLabel(sale.syncFailureStage) ? (
+                    <Detail
+                      label="What failed"
+                      value={syncFailureStageLabel(sale.syncFailureStage) ?? ""}
+                    />
+                  ) : null}
+                  {sale.syncFailureDetail ? (
+                    <Detail label="Failure reason" value={sale.syncFailureDetail} />
+                  ) : null}
+                  {sale.syncFailureCode ? (
+                    <Detail label="Failure code" value={sale.syncFailureCode} />
+                  ) : null}
+                  {sale.syncMessage ? (
+                    <Detail label="Sync detail" value={sale.syncMessage} />
+                  ) : null}
+                  {sale.syncRequestId ? (
+                    <Detail label="Support request ID" value={sale.syncRequestId} />
+                  ) : null}
                   {sale.syncTraceId ? <Detail label="Trace ID" value={sale.syncTraceId} /> : null}
                 </dl>
                 <div className="flex flex-wrap gap-2">
-                  <button type="button" className={ghostBtnCls} onClick={() => setReceiptSale(sale)}>
+                  <button
+                    type="button"
+                    className={ghostBtnCls}
+                    onClick={() => setReceiptSale(sale)}
+                  >
                     <ReceiptText className="h-4 w-4" />
                     View receipt
                   </button>
                 </div>
                 {sale.syncState === "blocked" || sale.syncState === "needs_review" ? (
                   <div className="flex flex-wrap gap-2">
-                    <button type="button" className={ghostBtnCls} disabled={syncing} onClick={() => void trySaleAgain(sale.operationId)}>
+                    <button
+                      type="button"
+                      className={ghostBtnCls}
+                      disabled={syncing}
+                      onClick={() => void trySaleAgain(sale.operationId)}
+                    >
                       <RefreshCw className="h-4 w-4" />
                       Try again
                     </button>
-                    <button type="button" className="rounded-lg border border-border bg-surface-card px-3 py-2 text-xs font-semibold text-status-danger hover:bg-surface" disabled={syncing} onClick={() => void cancelLocalSale(sale.operationId)}>
+                    <button
+                      type="button"
+                      className="rounded-lg border border-border bg-surface-card px-3 py-2 text-xs font-semibold text-status-danger hover:bg-surface"
+                      disabled={syncing}
+                      onClick={() => void cancelLocalSale(sale.operationId)}
+                    >
                       Cancel local sale
                     </button>
                   </div>
                 ) : null}
                 {repairingId === sale.operationId ? (
                   <div className="rounded-lg border border-border bg-surface-card p-3">
-                    <p className="mb-2 font-medium text-foreground-body">Repair product lines before syncing</p>
+                    <p className="mb-2 font-medium text-foreground-body">
+                      Repair product lines before syncing
+                    </p>
                     <div className="space-y-2">
                       {sale.lines.map((line) => {
-                        const value = repairLines[line.productId] ?? { qty: String(line.qty), remove: false };
+                        const value = repairLines[line.productId] ?? {
+                          qty: String(line.qty),
+                          remove: false,
+                        };
                         return (
-                          <div key={line.productId} className="grid gap-2 rounded-lg bg-surface p-2 sm:grid-cols-[1fr_auto_auto] sm:items-center">
+                          <div
+                            key={line.productId}
+                            className="grid gap-2 rounded-lg bg-surface p-2 sm:grid-cols-[1fr_auto_auto] sm:items-center"
+                          >
                             <div>
                               <p className="font-medium text-foreground-heading">{line.name}</p>
-                              <p className="text-foreground-muted">Original {line.qty} {line.saleUnit} · {formatPaise(line.netPaise)}</p>
+                              <p className="text-foreground-muted">
+                                Original {line.qty} {line.saleUnit} · {formatPaise(line.netPaise)}
+                              </p>
                             </div>
                             <label className="text-xs font-medium text-foreground-body">
                               New qty
@@ -588,14 +792,24 @@ export function OfflineSalesPanel({ fullPage = false }: { fullPage?: boolean }) 
                                 step="0.001"
                                 disabled={value.remove}
                                 value={value.qty}
-                                onChange={(event) => setRepairLines((lines) => ({ ...lines, [line.productId]: { ...value, qty: event.target.value } }))}
+                                onChange={(event) =>
+                                  setRepairLines((lines) => ({
+                                    ...lines,
+                                    [line.productId]: { ...value, qty: event.target.value },
+                                  }))
+                                }
                               />
                             </label>
                             <label className="flex items-center gap-2 text-xs font-medium text-foreground-body">
                               <input
                                 type="checkbox"
                                 checked={value.remove}
-                                onChange={(event) => setRepairLines((lines) => ({ ...lines, [line.productId]: { ...value, remove: event.target.checked } }))}
+                                onChange={(event) =>
+                                  setRepairLines((lines) => ({
+                                    ...lines,
+                                    [line.productId]: { ...value, remove: event.target.checked },
+                                  }))
+                                }
                               />
                               Remove
                             </label>
@@ -604,10 +818,20 @@ export function OfflineSalesPanel({ fullPage = false }: { fullPage?: boolean }) 
                       })}
                     </div>
                     <div className="mt-3 flex gap-2">
-                      <button type="button" className={ghostBtnCls} disabled={syncing} onClick={() => void saveLineRepair(sale)}>
+                      <button
+                        type="button"
+                        className={ghostBtnCls}
+                        disabled={syncing}
+                        onClick={() => void saveLineRepair(sale)}
+                      >
                         Save and sync
                       </button>
-                      <button type="button" className="text-xs font-semibold text-foreground-muted" disabled={syncing} onClick={() => setRepairingId(null)}>
+                      <button
+                        type="button"
+                        className="text-xs font-semibold text-foreground-muted"
+                        disabled={syncing}
+                        onClick={() => setRepairingId(null)}
+                      >
                         Cancel
                       </button>
                     </div>
@@ -615,14 +839,18 @@ export function OfflineSalesPanel({ fullPage = false }: { fullPage?: boolean }) 
                 ) : null}
                 {editingId === sale.operationId ? (
                   <div className="rounded-lg border border-border bg-surface-card p-3">
-                    <p className="mb-2 font-medium text-foreground-body">Edit customer before syncing</p>
+                    <p className="mb-2 font-medium text-foreground-body">
+                      Edit customer before syncing
+                    </p>
                     <div className="grid gap-2 sm:grid-cols-2">
                       <label className="text-xs font-medium text-foreground-body">
                         Name
                         <input
                           className="mt-1 w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-foreground-heading"
                           value={editForm.customerName}
-                          onChange={(event) => setEditForm((form) => ({ ...form, customerName: event.target.value }))}
+                          onChange={(event) =>
+                            setEditForm((form) => ({ ...form, customerName: event.target.value }))
+                          }
                         />
                       </label>
                       <label className="text-xs font-medium text-foreground-body">
@@ -632,7 +860,12 @@ export function OfflineSalesPanel({ fullPage = false }: { fullPage?: boolean }) 
                           inputMode="numeric"
                           placeholder="9876543210"
                           value={editForm.customerPhone}
-                          onChange={(event) => setEditForm((form) => ({ ...form, customerPhone: event.target.value.replace(/\D/g, "").slice(0, 10) }))}
+                          onChange={(event) =>
+                            setEditForm((form) => ({
+                              ...form,
+                              customerPhone: event.target.value.replace(/\D/g, "").slice(0, 10),
+                            }))
+                          }
                         />
                       </label>
                       <label className="text-xs font-medium text-foreground-body">
@@ -641,23 +874,43 @@ export function OfflineSalesPanel({ fullPage = false }: { fullPage?: boolean }) 
                           className="mt-1 w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-foreground-heading"
                           placeholder="BYR-XXXXXXXXXX"
                           value={editForm.buyerCode}
-                          onChange={(event) => setEditForm((form) => ({ ...form, buyerCode: event.target.value.toUpperCase() }))}
+                          onChange={(event) =>
+                            setEditForm((form) => ({
+                              ...form,
+                              buyerCode: event.target.value.toUpperCase(),
+                            }))
+                          }
                         />
                       </label>
                       <label className="flex items-center gap-2 self-end text-xs font-medium text-foreground-body">
                         <input
                           type="checkbox"
                           checked={editForm.marketingConsent}
-                          onChange={(event) => setEditForm((form) => ({ ...form, marketingConsent: event.target.checked }))}
+                          onChange={(event) =>
+                            setEditForm((form) => ({
+                              ...form,
+                              marketingConsent: event.target.checked,
+                            }))
+                          }
                         />
                         Marketing consent
                       </label>
                     </div>
                     <div className="mt-3 flex gap-2">
-                      <button type="button" className={ghostBtnCls} disabled={syncing} onClick={() => void saveCustomerDetails(sale.operationId)}>
+                      <button
+                        type="button"
+                        className={ghostBtnCls}
+                        disabled={syncing}
+                        onClick={() => void saveCustomerDetails(sale.operationId)}
+                      >
                         Save and sync
                       </button>
-                      <button type="button" className="text-xs font-semibold text-foreground-muted" disabled={syncing} onClick={() => setEditingId(null)}>
+                      <button
+                        type="button"
+                        className="text-xs font-semibold text-foreground-muted"
+                        disabled={syncing}
+                        onClick={() => setEditingId(null)}
+                      >
                         Cancel
                       </button>
                     </div>
@@ -665,25 +918,51 @@ export function OfflineSalesPanel({ fullPage = false }: { fullPage?: boolean }) 
                 ) : null}
                 {manualReviewSale?.operationId === sale.operationId ? (
                   <div className="rounded-lg border border-primary/40 bg-surface-card p-3">
-                    <p className="mb-1 font-medium text-foreground-body">Resolve incompatible transaction</p>
-                    <p className="mb-3 text-xs text-foreground-muted">Choose the current catalogue product for each saved line. The original local receipt remains preserved until this correction succeeds.</p>
+                    <p className="mb-1 font-medium text-foreground-body">
+                      Resolve incompatible transaction
+                    </p>
+                    <p className="mb-3 text-xs text-foreground-muted">
+                      Choose the current catalogue product for each saved line. The original local
+                      receipt remains preserved until this correction succeeds.
+                    </p>
                     <div className="space-y-2">
                       {sale.lines.map((line, index) => {
-                        const value = manualLines[index] ?? { skuId: "", qty: String(line.qty), unit: line.saleUnit, discountMinor: line.discountPaise };
+                        const value = manualLines[index] ?? {
+                          skuId: "",
+                          qty: String(line.qty),
+                          unit: line.saleUnit,
+                          discountMinor: line.discountPaise,
+                        };
                         return (
-                          <div key={`${sale.operationId}:manual:${index}`} className="grid gap-2 rounded-lg bg-surface p-2 sm:grid-cols-[1fr_auto] sm:items-end">
+                          <div
+                            key={`${sale.operationId}:manual:${index}`}
+                            className="grid gap-2 rounded-lg bg-surface p-2 sm:grid-cols-[1fr_auto] sm:items-end"
+                          >
                             <label className="text-xs font-medium text-foreground-body">
                               {line.name}
                               <select
                                 className="mt-1 w-full rounded-lg border border-border bg-surface-card px-3 py-2 text-sm text-foreground-heading"
                                 value={value.skuId}
                                 onChange={(event) => {
-                                  const product = manualProducts.find((item) => item._id === event.target.value);
-                                  setManualLines((lines) => ({ ...lines, [index]: { ...value, skuId: event.target.value, unit: product?.saleUnit ?? value.unit } }));
+                                  const product = manualProducts.find(
+                                    (item) => item._id === event.target.value,
+                                  );
+                                  setManualLines((lines) => ({
+                                    ...lines,
+                                    [index]: {
+                                      ...value,
+                                      skuId: event.target.value,
+                                      unit: product?.saleUnit ?? value.unit,
+                                    },
+                                  }));
                                 }}
                               >
                                 <option value="">Select current product</option>
-                                {manualProducts.map((product) => <option key={product._id} value={product._id}>{product.name} · {product.saleUnit}</option>)}
+                                {manualProducts.map((product) => (
+                                  <option key={product._id} value={product._id}>
+                                    {product.name} · {product.saleUnit}
+                                  </option>
+                                ))}
                               </select>
                             </label>
                             <label className="text-xs font-medium text-foreground-body">
@@ -694,7 +973,12 @@ export function OfflineSalesPanel({ fullPage = false }: { fullPage?: boolean }) 
                                 min="0.001"
                                 step="0.001"
                                 value={value.qty}
-                                onChange={(event) => setManualLines((lines) => ({ ...lines, [index]: { ...value, qty: event.target.value } }))}
+                                onChange={(event) =>
+                                  setManualLines((lines) => ({
+                                    ...lines,
+                                    [index]: { ...value, qty: event.target.value },
+                                  }))
+                                }
                               />
                             </label>
                           </div>
@@ -702,8 +986,22 @@ export function OfflineSalesPanel({ fullPage = false }: { fullPage?: boolean }) 
                       })}
                     </div>
                     <div className="mt-3 flex gap-2">
-                      <button type="button" className={primaryBtnCls} disabled={syncing} onClick={() => void saveManualResolution(sale)}>Save correction and record sale</button>
-                      <button type="button" className="text-xs font-semibold text-foreground-muted" disabled={syncing} onClick={() => setManualReviewSale(null)}>Cancel</button>
+                      <button
+                        type="button"
+                        className={primaryBtnCls}
+                        disabled={syncing}
+                        onClick={() => void saveManualResolution(sale)}
+                      >
+                        Save correction and record sale
+                      </button>
+                      <button
+                        type="button"
+                        className="text-xs font-semibold text-foreground-muted"
+                        disabled={syncing}
+                        onClick={() => setManualReviewSale(null)}
+                      >
+                        Cancel
+                      </button>
                     </div>
                   </div>
                 ) : null}
@@ -711,9 +1009,16 @@ export function OfflineSalesPanel({ fullPage = false }: { fullPage?: boolean }) 
                   <p className="mb-1 font-medium text-foreground-body">Items</p>
                   <ul className="space-y-1">
                     {sale.lines.map((line) => (
-                      <li key={`${sale.id}:${line.productId}:${line.qtyBase}`} className="flex justify-between gap-3">
-                        <span>{line.name} · {line.qty} {line.saleUnit}</span>
-                        <span className="shrink-0 text-foreground-body">{formatPaise(line.netPaise)}</span>
+                      <li
+                        key={`${sale.id}:${line.productId}:${line.qtyBase}`}
+                        className="flex justify-between gap-3"
+                      >
+                        <span>
+                          {line.name} · {line.qty} {line.saleUnit}
+                        </span>
+                        <span className="shrink-0 text-foreground-body">
+                          {formatPaise(line.netPaise)}
+                        </span>
                       </li>
                     ))}
                   </ul>
@@ -723,26 +1028,54 @@ export function OfflineSalesPanel({ fullPage = false }: { fullPage?: boolean }) 
           ))}
         </div>
       ) : null}
-    {receiptSale ? <OfflineReceiptDialog sale={receiptSale} onClose={() => setReceiptSale(null)} onEditCustomer={() => { startEditing(receiptSale); setReceiptSale(null); }} /> : null}
+      {receiptSale ? (
+        <OfflineReceiptDialog
+          sale={receiptSale}
+          onClose={() => setReceiptSale(null)}
+          onEditCustomer={() => {
+            startEditing(receiptSale);
+            setReceiptSale(null);
+          }}
+        />
+      ) : null}
     </section>
   );
 }
 
-function OfflineReceiptDialog({ sale, onClose, onEditCustomer }: { sale: OfflineSaleRecord; onClose: () => void; onEditCustomer: () => void }) {
+function OfflineReceiptDialog({
+  sale,
+  onClose,
+  onEditCustomer,
+}: {
+  sale: OfflineSaleRecord;
+  onClose: () => void;
+  onEditCustomer: () => void;
+}) {
   const receipt = offlineSaleToDTO(sale);
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto bg-black/40 p-4">
       <div className="mx-auto max-w-md rounded-2xl bg-surface-card p-4 shadow-xl">
         <div className="no-print mb-4 flex items-start justify-between gap-3">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-wide text-foreground-muted">Offline receipt</p>
+            <p className="text-xs font-semibold uppercase tracking-wide text-foreground-muted">
+              Offline receipt
+            </p>
             <h2 className="text-lg font-semibold text-foreground-heading">{sale.receiptNo}</h2>
             <p className="mt-1 text-xs text-foreground-muted">
               {sale.syncState === "synced" ? "Synced" : "Saved locally until sync completes"}
-              {sale.serverReceiptNo ? ` · Server receipt ${sale.serverReceiptNo}` : sale.serverSaleId ? ` · Server sale ${sale.serverSaleId}` : ""}
+              {sale.serverReceiptNo
+                ? ` · Server receipt ${sale.serverReceiptNo}`
+                : sale.serverSaleId
+                  ? ` · Server sale ${sale.serverSaleId}`
+                  : ""}
             </p>
           </div>
-          <button type="button" className="rounded-full p-2 text-foreground-muted hover:bg-surface" onClick={onClose} aria-label="Close receipt">
+          <button
+            type="button"
+            className="rounded-full p-2 text-foreground-muted hover:bg-surface"
+            onClick={onClose}
+            aria-label="Close receipt"
+          >
             <X className="h-5 w-5" />
           </button>
         </div>
@@ -753,22 +1086,39 @@ function OfflineReceiptDialog({ sale, onClose, onEditCustomer }: { sale: Offline
         />
         <div className="no-print mt-4 grid gap-2 rounded-xl border border-border bg-surface p-3 text-xs text-foreground-muted">
           <Detail label="Sync status" value={STATUS_LABEL[sale.syncState]} />
-          {syncFailureStageLabel(sale.syncFailureStage) ? <Detail label="What failed" value={syncFailureStageLabel(sale.syncFailureStage) ?? ""} /> : null}
-          {sale.syncFailureDetail ? <Detail label="Failure reason" value={sale.syncFailureDetail} /> : null}
-          {sale.syncFailureCode ? <Detail label="Failure code" value={sale.syncFailureCode} /> : null}
+          {syncFailureStageLabel(sale.syncFailureStage) ? (
+            <Detail
+              label="What failed"
+              value={syncFailureStageLabel(sale.syncFailureStage) ?? ""}
+            />
+          ) : null}
+          {sale.syncFailureDetail ? (
+            <Detail label="Failure reason" value={sale.syncFailureDetail} />
+          ) : null}
+          {sale.syncFailureCode ? (
+            <Detail label="Failure code" value={sale.syncFailureCode} />
+          ) : null}
           {sale.syncMessage ? <Detail label="Sync detail" value={sale.syncMessage} /> : null}
           <Detail label="Local receipt" value={sale.receiptNo} />
-          {sale.serverReceiptNo ? <Detail label="Server receipt" value={sale.serverReceiptNo} /> : null}
+          {sale.serverReceiptNo ? (
+            <Detail label="Server receipt" value={sale.serverReceiptNo} />
+          ) : null}
           {sale.serverSaleId ? <Detail label="Server sale ID" value={sale.serverSaleId} /> : null}
           <Detail label="Operation ID" value={sale.operationId} />
-          {sale.syncRequestId ? <Detail label="Support request ID" value={sale.syncRequestId} /> : null}
+          {sale.syncRequestId ? (
+            <Detail label="Support request ID" value={sale.syncRequestId} />
+          ) : null}
           {sale.syncTraceId ? <Detail label="Trace ID" value={sale.syncTraceId} /> : null}
           <Detail label="Cash received" value={formatPaise(sale.payment.receivedPaise)} />
           <Detail label="Change" value={formatPaise(sale.payment.changePaise)} />
         </div>
         <div className="no-print mt-4 flex flex-wrap justify-end gap-2">
-          <button type="button" className={ghostBtnCls} onClick={onClose}>Close</button>
-          <button type="button" className={ghostBtnCls} onClick={onEditCustomer}>Edit customer phone</button>
+          <button type="button" className={ghostBtnCls} onClick={onClose}>
+            Close
+          </button>
+          <button type="button" className={ghostBtnCls} onClick={onEditCustomer}>
+            Edit customer phone
+          </button>
           <button type="button" className={primaryBtnCls} onClick={() => printReceipt()}>
             <Printer className="h-4 w-4" />
             Print / save PDF

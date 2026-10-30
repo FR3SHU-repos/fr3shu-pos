@@ -8,7 +8,12 @@ import {
 } from "@/shared/lib/api/sellerOrgs";
 
 const body: RegisterSellerBody = {
-  organization: { legalName: "Green Harvest FPO", contactName: "Test Owner", type: "FPO", phoneE164: "+919876543210" },
+  organization: {
+    legalName: "Green Harvest FPO",
+    contactName: "Test Owner",
+    type: "FPO",
+    phoneE164: "+919876543210",
+  },
   location: { code: "GHMVP", name: "MVP Stall" },
 };
 
@@ -47,13 +52,23 @@ describe("sellerOrgs client", () => {
   it("detects the link-pending retry signal from status or code", () => {
     expect(isLinkPending({ success: false, message: "", data: null, status: 202 })).toBe(true);
     expect(
-      isLinkPending({ success: false, message: "", data: null, status: 200, code: "onboarding_link_pending" }),
+      isLinkPending({
+        success: false,
+        message: "",
+        data: null,
+        status: 200,
+        code: "onboarding_link_pending",
+      }),
     ).toBe(true);
     expect(isLinkPending({ success: true, message: "", data: null, status: 201 })).toBe(false);
   });
 
   it("builds the nested locations path with an encoded org id", async () => {
-    const fetchMock = mockFetchOnce(201, { success: true, message: "ok", data: { id: "l1", code: "GHBR1" } });
+    const fetchMock = mockFetchOnce(201, {
+      success: true,
+      message: "ok",
+      data: { id: "l1", code: "GHBR1" },
+    });
 
     await createLocation("org/1", { code: "GHBR1", name: "Branch 1" });
 

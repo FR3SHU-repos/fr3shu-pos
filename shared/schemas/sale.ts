@@ -33,7 +33,10 @@ export const createSaleSchema = z.object({
     .string()
     .min(1, "Customer mobile number is required")
     .regex(/^[0-9+\-\s]{6,20}$/, "Invalid phone"),
-  buyerCode: z.string().regex(/^BYR-[A-F0-9]{10}$/).optional(),
+  buyerCode: z
+    .string()
+    .regex(/^BYR-[A-F0-9]{10}$/)
+    .optional(),
   marketingConsent: z.boolean().optional(),
   deviceId: z.string().max(120).optional(),
 });

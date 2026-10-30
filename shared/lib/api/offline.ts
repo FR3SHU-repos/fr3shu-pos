@@ -10,14 +10,19 @@ export interface OfflinePreparationDTO {
   expiresAt: string;
 }
 
-export const prepare = (body: { registerId: string; deviceId: string }): Promise<ApiResult<OfflinePreparationDTO>> =>
+export const prepare = (body: {
+  registerId: string;
+  deviceId: string;
+}): Promise<ApiResult<OfflinePreparationDTO>> =>
   goRequest<OfflinePreparationDTO>("offline/prepare", {
     method: "POST",
     body,
     idempotencyKey: `offline-prepare:${body.registerId}:${body.deviceId}`,
   });
 
-export const revoke = (grantId: string): Promise<ApiResult<{ grantId: string; revoked: boolean }>> =>
+export const revoke = (
+  grantId: string,
+): Promise<ApiResult<{ grantId: string; revoked: boolean }>> =>
   goRequest<{ grantId: string; revoked: boolean }>(`offline/grants/${grantId}/revoke`, {
     method: "POST",
   });

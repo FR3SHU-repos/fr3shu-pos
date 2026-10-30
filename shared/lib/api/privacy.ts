@@ -22,7 +22,10 @@ export interface AdminPrivacyRequestPage {
   meta: { page: number; limit: number; total: number; totalPages: number };
 }
 
-export function listAdminPrivacyRequests(status = "", page = 1): Promise<ApiResult<AdminPrivacyRequestPage>> {
+export function listAdminPrivacyRequests(
+  status = "",
+  page = 1,
+): Promise<ApiResult<AdminPrivacyRequestPage>> {
   return request<AdminPrivacyRequestPage>("admin/privacy/requests", {
     query: { status: status || undefined, page: Math.max(1, page), limit: 25 },
   });
@@ -30,7 +33,17 @@ export function listAdminPrivacyRequests(status = "", page = 1): Promise<ApiResu
 
 export function updateAdminPrivacyRequest(
   id: string,
-  body: { status?: Exclude<PrivacyOpsStatus, "submitted">; identityVerified?: boolean; responseNote?: string; resolutionAction?: "export_ready" | "correction_recorded" | "anonymize_identity" | "grievance_responded" | "nomination_recorded" },
+  body: {
+    status?: Exclude<PrivacyOpsStatus, "submitted">;
+    identityVerified?: boolean;
+    responseNote?: string;
+    resolutionAction?:
+      | "export_ready"
+      | "correction_recorded"
+      | "anonymize_identity"
+      | "grievance_responded"
+      | "nomination_recorded";
+  },
 ): Promise<ApiResult<{ id: string; requestType: PrivacyRequestType; status: PrivacyOpsStatus }>> {
   return request(`admin/privacy/requests/${encodeURIComponent(id)}`, { method: "PATCH", body });
 }

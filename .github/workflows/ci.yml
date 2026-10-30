@@ -1,0 +1,54 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [staging, main]
+  push:
+    branches: [staging, main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  web:
+    name: Lint, typecheck, test, build
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Formatting
+        run: npm run format:check
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Unit tests
+        run: npm test
+
+      - name: Build
+        run: npm run build
+        env:
+          # Placeholders only: the build needs the variables to exist, not to work.
+          # No real secrets belong in CI for this job.
+          NEXT_PUBLIC_SUPABASE_URL: https://ci-placeholder.supabase.co
+          NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ci-placeholder
+          NEXT_PUBLIC_KOMOLA_SUPABASE_URL: https://ci-placeholder.supabase.co
+          NEXT_PUBLIC_KOMOLA_SUPABASE_PUBLISHABLE_KEY: ci-placeholder
+          NEXT_PUBLIC_SITE_URL: http://localhost:3000
+          GO_API_BASE_URL: http://localhost:8080
+          NEXT_TELEMETRY_DISABLED: "1"

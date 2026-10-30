@@ -82,21 +82,15 @@ export function StrengthMeter({ password }: { password: string }) {
         ))}
       </div>
       <p className="mt-1 text-xs text-foreground-muted">
-        Password strength: <span className="font-medium">{label}</span>. Use at least
-        8 characters with a mix of cases, a number and a symbol.
+        Password strength: <span className="font-medium">{label}</span>. Use at least 8 characters
+        with a mix of cases, a number and a symbol.
       </p>
     </div>
   );
 }
 
 /** "Continue with Google" — gated by NEXT_PUBLIC_AUTH_GOOGLE_ENABLED. */
-export function GoogleButton({
-  onClick,
-  loading,
-}: {
-  onClick: () => void;
-  loading?: boolean;
-}) {
+export function GoogleButton({ onClick, loading }: { onClick: () => void; loading?: boolean }) {
   const enabled = googleAuthEnabled();
   return (
     <button

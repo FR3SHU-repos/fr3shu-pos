@@ -39,7 +39,7 @@ export function BuyerCodeQr({ code }: { code: string }) {
             if (event.target === event.currentTarget) setOpen(false);
           }}
         >
-          <div className="w-full max-w-sm rounded-2xl bg-white p-6 text-center shadow-xl">
+          <div className="w-full max-w-sm rounded-2xl bg-surface-card p-6 text-center shadow-xl">
             <div className="flex items-center justify-between gap-4">
               <h2 id="buyer-qr-title" className="text-xl font-semibold text-foreground-heading">
                 My buyer QR code
@@ -56,7 +56,9 @@ export function BuyerCodeQr({ code }: { code: string }) {
             <div className="mx-auto mt-5 w-fit rounded-2xl border border-border bg-white p-4">
               <QRCodeSVG value={code} size={240} level="M" marginSize={2} />
             </div>
-            <p className="mt-4 font-mono text-xl font-bold tracking-wider text-foreground-heading">{code}</p>
+            <p className="mt-4 font-mono text-xl font-bold tracking-wider text-foreground-heading">
+              {code}
+            </p>
             <p className="mt-2 text-sm text-foreground-muted">
               Ask the seller to scan this code while entering customer details.
             </p>

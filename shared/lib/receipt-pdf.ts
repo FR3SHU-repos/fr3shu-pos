@@ -11,7 +11,10 @@ function money(minor: number): string {
 }
 
 function safeFilename(value: string): string {
-  const normalized = value.trim().replace(/[^A-Za-z0-9_-]+/g, "-").replace(/^-+|-+$/g, "");
+  const normalized = value
+    .trim()
+    .replace(/[^A-Za-z0-9_-]+/g, "-")
+    .replace(/^-+|-+$/g, "");
   return normalized || "KOMOLA-receipt";
 }
 
@@ -101,8 +104,13 @@ export async function createBuyerReceiptPdf(receipt: BuyerReceiptDetail) {
     pdf.setFont("helvetica", "normal");
     pdf.setFontSize(9);
     pdf.setTextColor(...MUTED);
-    pdf.text(`${formatBaseQuantity(Number(line.quantity), line.unit as SaleUnit)} x ${money(line.unitPriceMinor)}`, left, y);
-    if (line.discountMinor > 0) pdf.text(`Discount ${money(line.discountMinor)}`, right, y, { align: "right" });
+    pdf.text(
+      `${formatBaseQuantity(Number(line.quantity), line.unit as SaleUnit)} x ${money(line.unitPriceMinor)}`,
+      left,
+      y,
+    );
+    if (line.discountMinor > 0)
+      pdf.text(`Discount ${money(line.discountMinor)}`, right, y, { align: "right" });
     y += 6;
     pdf.setDrawColor(239, 232, 228);
     pdf.line(left, y, right, y);
@@ -131,8 +139,13 @@ export async function createBuyerReceiptPdf(receipt: BuyerReceiptDetail) {
     pdf.text("Payment", left, y);
     y += 6;
     for (const payment of receipt.payments) {
-      const method = payment.method ? payment.method[0].toUpperCase() + payment.method.slice(1) : "Payment";
-      totalRow(`${method}${payment.reference ? ` - ${payment.reference}` : ""}`, money(payment.amountMinor));
+      const method = payment.method
+        ? payment.method[0].toUpperCase() + payment.method.slice(1)
+        : "Payment";
+      totalRow(
+        `${method}${payment.reference ? ` - ${payment.reference}` : ""}`,
+        money(payment.amountMinor),
+      );
     }
   }
 
@@ -143,7 +156,12 @@ export async function createBuyerReceiptPdf(receipt: BuyerReceiptDetail) {
   pdf.setTextColor(21, 128, 61);
   pdf.setFont("helvetica", "bold");
   pdf.setFontSize(11);
-  pdf.text(`${receipt.coinsEarned} Komola Coin${receipt.coinsEarned === 1 ? "" : "s"} earned`, width / 2, y + 8, { align: "center" });
+  pdf.text(
+    `${receipt.coinsEarned} Komola Coin${receipt.coinsEarned === 1 ? "" : "s"} earned`,
+    width / 2,
+    y + 8,
+    { align: "center" },
+  );
   pdf.setFont("helvetica", "normal");
   pdf.setFontSize(8);
   pdf.text("Completed KOMOLA purchase", width / 2, y + 13, { align: "center" });

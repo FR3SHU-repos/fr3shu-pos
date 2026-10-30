@@ -60,39 +60,71 @@ export function Landing({ signedIn }: { signedIn: boolean }) {
           </div>
 
           <div className="relative flex min-h-[21rem] items-center justify-center sm:min-h-[25rem]">
-            <Komo action={content.action} size="hero" alt="Komo mascot" priority className="z-10 scale-110 drop-shadow-[0_18px_8px_rgba(123,36,12,0.18)] sm:scale-125" />
+            <Komo
+              action={content.action}
+              size="hero"
+              alt="Komo mascot"
+              priority
+              className="z-10 scale-110 drop-shadow-[0_18px_8px_rgba(123,36,12,0.18)] sm:scale-125"
+            />
             <div className="absolute left-0 top-12 z-20 rounded-2xl bg-white px-4 py-3 text-left text-foreground-heading shadow-lg sm:left-2">
-              <p className="text-[10px] font-bold uppercase tracking-wider text-primary">{content.badge}</p>
+              <p className="text-[10px] font-bold uppercase tracking-wider text-primary">
+                {content.badge}
+              </p>
               <p className="mt-1 text-sm font-bold">{content.badgeDetail}</p>
             </div>
             <div className="absolute bottom-6 right-0 z-20 flex items-center gap-2 rounded-2xl bg-white px-4 py-3 text-left text-foreground-heading shadow-lg sm:right-2">
               <span className="grid h-9 w-9 place-items-center rounded-xl bg-surface text-primary">
-                {isSeller ? <ReceiptText className="h-5 w-5" aria-hidden="true" /> : <Gift className="h-5 w-5" aria-hidden="true" />}
+                {isSeller ? (
+                  <ReceiptText className="h-5 w-5" aria-hidden="true" />
+                ) : (
+                  <Gift className="h-5 w-5" aria-hidden="true" />
+                )}
               </span>
               <span>
-                <span className="block text-[10px] font-bold uppercase tracking-wider text-foreground-muted">{isSeller ? "Every sale" : "Every reward"}</span>
+                <span className="block text-[10px] font-bold uppercase tracking-wider text-foreground-muted">
+                  {isSeller ? "Every sale" : "Every reward"}
+                </span>
                 <span className="block text-sm font-bold">Counts with KOMOLA</span>
               </span>
             </div>
           </div>
 
           <p className="max-w-sm text-lg font-semibold leading-snug text-foreground-heading sm:text-xl">
-            {isSeller ? "A brighter way to run the counter." : "A brighter way to shop local agri products."}
+            {isSeller
+              ? "A brighter way to run the counter."
+              : "A brighter way to shop local agri products."}
           </p>
         </div>
 
         <div className="flex flex-col justify-center py-2 lg:py-6">
-          <p className="text-sm font-bold uppercase tracking-[0.18em] text-primary">{content.eyebrow}</p>
+          <p className="text-sm font-bold uppercase tracking-[0.18em] text-primary">
+            {content.eyebrow}
+          </p>
           <h1 className="mt-4 max-w-xl text-4xl font-black leading-[1.04] tracking-tight text-foreground-heading sm:text-5xl lg:text-6xl">
             {content.title}
           </h1>
-          <p className="mt-5 max-w-lg text-lg leading-relaxed text-foreground-body">{content.description}</p>
+          <p className="mt-5 max-w-lg text-lg leading-relaxed text-foreground-body">
+            {content.description}
+          </p>
 
-          <div role="tablist" aria-label="Choose your KOMOLA experience" className="mt-8 grid max-w-lg grid-cols-2 rounded-2xl border border-border bg-surface-card p-1.5 shadow-sm">
-            <AudienceTab selected={isSeller} onClick={() => setAudience("seller")} icon={<Store className="h-5 w-5" aria-hidden="true" />}>
+          <div
+            role="tablist"
+            aria-label="Choose your KOMOLA experience"
+            className="mt-8 grid max-w-lg grid-cols-2 rounded-2xl border border-border bg-surface-card p-1.5 shadow-sm"
+          >
+            <AudienceTab
+              selected={isSeller}
+              onClick={() => setAudience("seller")}
+              icon={<Store className="h-5 w-5" aria-hidden="true" />}
+            >
               Agri seller
             </AudienceTab>
-            <AudienceTab selected={!isSeller} onClick={() => setAudience("buyer")} icon={<ShoppingBag className="h-5 w-5" aria-hidden="true" />}>
+            <AudienceTab
+              selected={!isSeller}
+              onClick={() => setAudience("buyer")}
+              icon={<ShoppingBag className="h-5 w-5" aria-hidden="true" />}
+            >
               Agri buyer
             </AudienceTab>
           </div>
@@ -102,37 +134,71 @@ export function Landing({ signedIn }: { signedIn: boolean }) {
               {content.primaryLabel}
               <ArrowRight className="h-5 w-5" aria-hidden="true" />
             </Link>
-            <button type="button" onClick={() => setAudience(isSeller ? "buyer" : "seller")} className={`${ghostBtnCls} min-h-14 px-6 text-base`}>
+            <button
+              type="button"
+              onClick={() => setAudience(isSeller ? "buyer" : "seller")}
+              className={`${ghostBtnCls} min-h-14 px-6 text-base`}
+            >
               {content.secondaryLabel}
             </button>
           </div>
 
           <div className="mt-8 flex flex-wrap gap-x-6 gap-y-3 text-sm font-semibold text-foreground-muted">
-            <span className="inline-flex items-center gap-2"><BadgeCheck className="h-5 w-5 text-secondary" aria-hidden="true" />Clear receipts</span>
-            <span className="inline-flex items-center gap-2"><Gift className="h-5 w-5 text-secondary" aria-hidden="true" />Earn Komola Coins</span>
+            <span className="inline-flex items-center gap-2">
+              <BadgeCheck className="h-5 w-5 text-secondary" aria-hidden="true" />
+              Clear receipts
+            </span>
+            <span className="inline-flex items-center gap-2">
+              <Gift className="h-5 w-5 text-secondary" aria-hidden="true" />
+              Earn Komola Coins
+            </span>
           </div>
-        </div>
-      </section>
-
-      <section aria-labelledby="how-it-works-title" className="mx-auto w-full max-w-6xl px-4 pb-12 sm:px-6 lg:px-8 lg:pb-16">
-        <div className="mb-5 flex items-end justify-between gap-4">
-          <div>
-            <p className="text-sm font-bold uppercase tracking-[0.18em] text-primary">Simple by design</p>
-            <h2 id="how-it-works-title" className="mt-2 text-2xl font-black text-foreground-heading sm:text-3xl">One happy loop</h2>
-          </div>
-          <p className="hidden max-w-xs text-right text-sm text-foreground-muted sm:block">Sell well. Buy confidently. Keep the good feeling going.</p>
-        </div>
-        <div className="grid gap-4 md:grid-cols-3">
-          <Step number="01" icon={<ScanLine className="h-5 w-5" aria-hidden="true" />} title="Sell or shop" text="Complete a clear agri purchase with a KOMOLA seller." />
-          <Step number="02" icon={<ReceiptText className="h-5 w-5" aria-hidden="true" />} title="Keep the receipt" text="Every purchase stays connected to the right account." />
-          <Step number="03" icon={<Gift className="h-5 w-5" aria-hidden="true" />} title="Get rewarded" text="Earn points and discover offers made for your area." />
         </div>
       </section>
 
       <section
-        aria-labelledby="agri-tech-title"
-        className="border-y border-border bg-surface-card"
+        aria-labelledby="how-it-works-title"
+        className="mx-auto w-full max-w-6xl px-4 pb-12 sm:px-6 lg:px-8 lg:pb-16"
       >
+        <div className="mb-5 flex items-end justify-between gap-4">
+          <div>
+            <p className="text-sm font-bold uppercase tracking-[0.18em] text-primary">
+              Simple by design
+            </p>
+            <h2
+              id="how-it-works-title"
+              className="mt-2 text-2xl font-black text-foreground-heading sm:text-3xl"
+            >
+              One happy loop
+            </h2>
+          </div>
+          <p className="hidden max-w-xs text-right text-sm text-foreground-muted sm:block">
+            Sell well. Buy confidently. Keep the good feeling going.
+          </p>
+        </div>
+        <div className="grid gap-4 md:grid-cols-3">
+          <Step
+            number="01"
+            icon={<ScanLine className="h-5 w-5" aria-hidden="true" />}
+            title="Sell or shop"
+            text="Complete a clear agri purchase with a KOMOLA seller."
+          />
+          <Step
+            number="02"
+            icon={<ReceiptText className="h-5 w-5" aria-hidden="true" />}
+            title="Keep the receipt"
+            text="Every purchase stays connected to the right account."
+          />
+          <Step
+            number="03"
+            icon={<Gift className="h-5 w-5" aria-hidden="true" />}
+            title="Get rewarded"
+            text="Earn points and discover offers made for your area."
+          />
+        </div>
+      </section>
+
+      <section aria-labelledby="agri-tech-title" className="border-y border-border bg-surface-card">
         <div className="mx-auto w-full max-w-6xl px-4 py-12 sm:px-6 lg:px-8 lg:py-16">
           <div className="max-w-3xl">
             <p className="text-sm font-bold uppercase tracking-[0.18em] text-primary">
@@ -145,12 +211,10 @@ export function Landing({ signedIn }: { signedIn: boolean }) {
               Agri-tech that connects every purchase to a better relationship.
             </h2>
             <p className="mt-4 leading-relaxed text-foreground-body">
-              KOMOLA is a rewards-based platform for agricultural purchases. It
-              gives agri sellers a simple point of sale and gives buyers a
-              wallet for receipts, points, and local offers. Over time,
-              permissioned purchase data can help sellers understand what
-              customers buy, where demand is growing, and how agricultural
-              markets are changing.
+              KOMOLA is a rewards-based platform for agricultural purchases. It gives agri sellers a
+              simple point of sale and gives buyers a wallet for receipts, points, and local offers.
+              Over time, permissioned purchase data can help sellers understand what customers buy,
+              where demand is growing, and how agricultural markets are changing.
             </p>
           </div>
           <div className="mt-8 grid gap-4 md:grid-cols-3">
@@ -177,10 +241,7 @@ export function Landing({ signedIn }: { signedIn: boolean }) {
         <p className="text-sm font-bold uppercase tracking-[0.18em] text-primary">
           Frequently asked questions
         </p>
-        <h2
-          id="faq-title"
-          className="mt-2 text-2xl font-black text-foreground-heading sm:text-3xl"
-        >
+        <h2 id="faq-title" className="mt-2 text-2xl font-black text-foreground-heading sm:text-3xl">
           A practical agri-tech platform for everyday purchases.
         </h2>
         <div className="mt-6 grid gap-4 md:grid-cols-3">
@@ -202,20 +263,53 @@ export function Landing({ signedIn }: { signedIn: boolean }) {
   );
 }
 
-function AudienceTab({ selected, onClick, icon, children }: { selected: boolean; onClick: () => void; icon: React.ReactNode; children: React.ReactNode }) {
+function AudienceTab({
+  selected,
+  onClick,
+  icon,
+  children,
+}: {
+  selected: boolean;
+  onClick: () => void;
+  icon: React.ReactNode;
+  children: React.ReactNode;
+}) {
   return (
-    <button type="button" role="tab" aria-selected={selected} onClick={onClick} className={cx("inline-flex min-h-12 items-center justify-center gap-2 rounded-xl px-3 text-sm font-bold transition sm:text-base", selected ? "bg-primary text-primary-foreground shadow-sm" : "text-foreground-body hover:bg-surface")}>
+    <button
+      type="button"
+      role="tab"
+      aria-selected={selected}
+      onClick={onClick}
+      className={cx(
+        "inline-flex min-h-12 items-center justify-center gap-2 rounded-xl px-3 text-sm font-bold transition sm:text-base",
+        selected
+          ? "bg-primary text-primary-foreground shadow-sm"
+          : "text-foreground-body hover:bg-surface",
+      )}
+    >
       {icon}
       {children}
     </button>
   );
 }
 
-function Step({ number, icon, title, text }: { number: string; icon: React.ReactNode; title: string; text: string }) {
+function Step({
+  number,
+  icon,
+  title,
+  text,
+}: {
+  number: string;
+  icon: React.ReactNode;
+  title: string;
+  text: string;
+}) {
   return (
     <div className="group rounded-2xl border border-border bg-surface-card p-5 transition hover:-translate-y-1 hover:shadow-lg">
       <div className="flex items-center justify-between">
-        <span className="grid h-10 w-10 place-items-center rounded-xl bg-surface text-primary transition group-hover:bg-primary group-hover:text-primary-foreground">{icon}</span>
+        <span className="grid h-10 w-10 place-items-center rounded-xl bg-surface text-primary transition group-hover:bg-primary group-hover:text-primary-foreground">
+          {icon}
+        </span>
         <span className="text-sm font-black tracking-widest text-border">{number}</span>
       </div>
       <h3 className="mt-5 text-lg font-bold text-foreground-heading">{title}</h3>
@@ -228,9 +322,7 @@ function SeoCard({ title, text }: { title: string; text: string }) {
   return (
     <article className="rounded-2xl border border-border bg-surface p-5">
       <h3 className="text-lg font-bold text-foreground-heading">{title}</h3>
-      <p className="mt-2 text-sm leading-relaxed text-foreground-muted">
-        {text}
-      </p>
+      <p className="mt-2 text-sm leading-relaxed text-foreground-muted">{text}</p>
     </article>
   );
 }
@@ -238,12 +330,8 @@ function SeoCard({ title, text }: { title: string; text: string }) {
 function Faq({ question, answer }: { question: string; answer: string }) {
   return (
     <details className="rounded-2xl border border-border bg-surface-card p-5">
-      <summary className="cursor-pointer font-bold text-foreground-heading">
-        {question}
-      </summary>
-      <p className="mt-3 text-sm leading-relaxed text-foreground-muted">
-        {answer}
-      </p>
+      <summary className="cursor-pointer font-bold text-foreground-heading">{question}</summary>
+      <p className="mt-3 text-sm leading-relaxed text-foreground-muted">{answer}</p>
     </details>
   );
 }

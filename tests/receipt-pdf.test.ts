@@ -16,8 +16,24 @@ export const receiptFixture: BuyerReceiptDetail = {
   coinsEarned: 2,
   purchasedAt: "2026-09-09T10:00:00.000Z",
   lines: [
-    { name: "Organic Brown Rice", quantity: "2", unit: "kg", unitPriceMinor: 8000, discountMinor: 0, taxMinor: 800, totalMinor: 16000 },
-    { name: "Cold Pressed Groundnut Oil", quantity: "1", unit: "litre", unitPriceMinor: 10000, discountMinor: 550, taxMinor: 412, totalMinor: 9450 },
+    {
+      name: "Organic Brown Rice",
+      quantity: "2",
+      unit: "kg",
+      unitPriceMinor: 8000,
+      discountMinor: 0,
+      taxMinor: 800,
+      totalMinor: 16000,
+    },
+    {
+      name: "Cold Pressed Groundnut Oil",
+      quantity: "1",
+      unit: "litre",
+      unitPriceMinor: 10000,
+      discountMinor: 550,
+      taxMinor: 412,
+      totalMinor: 9450,
+    },
   ],
   payments: [{ method: "upi", amountMinor: 25450, reference: "TEST-REFERENCE" }],
 };

@@ -1,5 +1,9 @@
 import type { HeldCart } from "@/shared/components/pos/types";
-import { offlineScopeKey, openOfflineDatabase, type OfflineScope } from "@/shared/lib/offline/sales";
+import {
+  offlineScopeKey,
+  openOfflineDatabase,
+  type OfflineScope,
+} from "@/shared/lib/offline/sales";
 
 const STORE = "heldCarts";
 const LEGACY_KEY = "fr3shu-pos:held-carts";
@@ -26,15 +30,20 @@ function requestResult<T>(request: IDBRequest<T>): Promise<T> {
 export function isHeldCart(value: unknown): value is HeldCart {
   if (!value || typeof value !== "object") return false;
   const cart = value as Partial<HeldCart>;
-  return typeof cart.id === "string"
-    && typeof cart.label === "string"
-    && typeof cart.savedAt === "string"
-    && Array.isArray(cart.lines)
-    && cart.lines.every((line) => Boolean(line)
-      && typeof line.productId === "string"
-      && typeof line.qty === "number"
-      && typeof line.saleUnit === "string"
-      && typeof line.discountPaise === "number");
+  return (
+    typeof cart.id === "string" &&
+    typeof cart.label === "string" &&
+    typeof cart.savedAt === "string" &&
+    Array.isArray(cart.lines) &&
+    cart.lines.every(
+      (line) =>
+        Boolean(line) &&
+        typeof line.productId === "string" &&
+        typeof line.qty === "number" &&
+        typeof line.saleUnit === "string" &&
+        typeof line.discountPaise === "number",
+    )
+  );
 }
 
 function readLegacyCarts(): HeldCart[] {
@@ -52,10 +61,12 @@ export async function saveHeldCarts(scope: OfflineScope, carts: HeldCart[]): Pro
   const db = await openOfflineDatabase();
   try {
     const transaction = db.transaction(STORE, "readwrite");
-    transaction.objectStore(STORE).put(
-      { carts: carts.slice(0, 10), updatedAt: new Date().toISOString() } satisfies HeldCartRecord,
-      offlineScopeKey(scope),
-    );
+    transaction
+      .objectStore(STORE)
+      .put(
+        { carts: carts.slice(0, 10), updatedAt: new Date().toISOString() } satisfies HeldCartRecord,
+        offlineScopeKey(scope),
+      );
     await transactionDone(transaction);
   } finally {
     db.close();
@@ -86,13 +97,18 @@ export async function loadHeldCarts(scope: OfflineScope): Promise<HeldCart[]> {
   return legacy;
 }
 
-export async function cleanupExpiredHeldCarts(scope: OfflineScope, olderThanMs = 24 * 60 * 60 * 1000): Promise<boolean> {
+export async function cleanupExpiredHeldCarts(
+  scope: OfflineScope,
+  olderThanMs = 24 * 60 * 60 * 1000,
+): Promise<boolean> {
   if (typeof indexedDB === "undefined") return false;
   const db = await openOfflineDatabase();
   try {
     const transaction = db.transaction(STORE, "readwrite");
     const store = transaction.objectStore(STORE);
-    const record = await requestResult<HeldCartRecord | undefined>(store.get(offlineScopeKey(scope)));
+    const record = await requestResult<HeldCartRecord | undefined>(
+      store.get(offlineScopeKey(scope)),
+    );
     if (record && Date.now() - new Date(record.updatedAt).getTime() > olderThanMs) {
       store.delete(offlineScopeKey(scope));
       await transactionDone(transaction);

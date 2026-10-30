@@ -1,6 +1,14 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { ProductDTO } from "@/shared/lib/api/products";
-import { createProductSnapshot, lookupProduct, productSnapshotIsStale, searchProducts, setProductScope, productScope, readProducts } from "@/shared/lib/offline/products";
+import {
+  createProductSnapshot,
+  lookupProduct,
+  productSnapshotIsStale,
+  searchProducts,
+  setProductScope,
+  productScope,
+  readProducts,
+} from "@/shared/lib/offline/products";
 
 const items = [
   { _id: "1", name: "Organic Rice", sku: "RICE-1", barcode: "123456", status: "active" },
@@ -24,7 +32,9 @@ describe("saved catalogue search", () => {
     expect(snapshot.snapshotVersion).toMatch(/^catalogue-v1-[0-9a-f]{8}$/);
     expect(snapshot.effectiveAt).toBe("2026-10-20T10:00:00.000Z");
     expect(snapshot.pricingPolicyVersion).toBe("pos-price-tax-manual-discount-v1");
-    expect(createProductSnapshot([...items].reverse(), snapshot.savedAt).snapshotVersion).toBe(snapshot.snapshotVersion);
+    expect(createProductSnapshot([...items].reverse(), snapshot.savedAt).snapshotVersion).toBe(
+      snapshot.snapshotVersion,
+    );
   });
   it("uses a bounded freshness window for catalogue downloads", () => {
     const saved = createProductSnapshot(items, 1_000);
@@ -48,20 +58,34 @@ describe("saved catalogue search", () => {
   });
 });
 
-const mocks = vi.hoisted(() => ({ request: vi.fn(), read: vi.fn(), write: vi.fn(), offline: false, scope: "seller" }));
+const mocks = vi.hoisted(() => ({
+  request: vi.fn(),
+  read: vi.fn(),
+  write: vi.fn(),
+  offline: false,
+  scope: "seller",
+}));
 vi.mock("@/shared/lib/api/client", () => ({ goRequest: mocks.request }));
 // Keep the pure helpers real, replace browser persistence at the API boundary.
-vi.mock("@/shared/lib/offline/products", async importOriginal => {
+vi.mock("@/shared/lib/offline/products", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/shared/lib/offline/products")>();
   return { ...actual, isOffline: () => mocks.offline };
 });
 
 import * as products from "@/shared/lib/api/products";
-beforeEach(() => { mocks.offline = false; mocks.request.mockReset(); });
+beforeEach(() => {
+  mocks.offline = false;
+  mocks.request.mockReset();
+});
 describe("offline product API", () => {
   it("blocks product creation while offline", async () => {
     mocks.offline = true;
-    const result = await products.create({ name: "Rice", saleUnit: "kg", taxRateBps: 0, organicStatus: "Verified" });
+    const result = await products.create({
+      name: "Rice",
+      saleUnit: "kg",
+      taxRateBps: 0,
+      organicStatus: "Verified",
+    });
     expect(result.success).toBe(false);
     expect(result.code).toBe("offline_unavailable");
     expect(result.message).toContain("creation is disabled");
@@ -78,18 +102,32 @@ describe("offline product API", () => {
   });
   it("does not silently queue or report offline edits as saved", async () => {
     mocks.offline = true;
-    const result = await products.update("1", { name: "Rice", saleUnit: "kg", taxRateBps: 0, organicStatus: "Verified" });
+    const result = await products.update("1", {
+      name: "Rice",
+      saleUnit: "kg",
+      taxRateBps: 0,
+      organicStatus: "Verified",
+    });
     expect(result.success).toBe(false);
     expect(result.message).toContain("not been saved");
     expect(mocks.request).not.toHaveBeenCalled();
   });
   it("does not substitute cache for permission errors", async () => {
-    mocks.request.mockResolvedValue({ success: false, data: null, status: 403, message: "Forbidden" });
+    mocks.request.mockResolvedValue({
+      success: false,
+      data: null,
+      status: 403,
+      message: "Forbidden",
+    });
     expect((await products.list()).status).toBe(403);
   });
   it("does not publish an incomplete catalogue download", async () => {
     setProductScope({ id: "a", orgId: "org", locationId: "1" });
-    mocks.request.mockResolvedValueOnce({ success: true, data: { items: [], meta: { totalPages: 2 } }, status: 200 });
+    mocks.request.mockResolvedValueOnce({
+      success: true,
+      data: { items: [], meta: { totalPages: 2 } },
+      status: 200,
+    });
     expect(await products.syncOfflineProducts()).toBe(false);
   });
 });

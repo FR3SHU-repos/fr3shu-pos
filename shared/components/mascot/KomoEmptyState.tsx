@@ -21,8 +21,11 @@ export function KomoEmptyState({
       <Komo action={action} size="lg" alt="" decorative />
       <p className="mt-3 text-sm font-semibold text-foreground-heading">{title}</p>
       <p className="mt-1 max-w-sm text-sm text-foreground-muted">{description}</p>
-      {buttonLabel && buttonHref ? <Link href={buttonHref} className={`${primaryBtnCls} mt-4`}>{buttonLabel}</Link> : null}
+      {buttonLabel && buttonHref ? (
+        <Link href={buttonHref} className={`${primaryBtnCls} mt-4`}>
+          {buttonLabel}
+        </Link>
+      ) : null}
     </div>
   );
 }
-

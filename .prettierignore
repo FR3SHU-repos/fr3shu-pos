@@ -1,0 +1,13 @@
+.next
+.netlify
+node_modules
+coverage
+playwright-report
+test-results
+public
+docs
+*.md
+package-lock.json
+tsconfig.tsbuildinfo
+next-env.d.ts
+.prettier-tool.tgz

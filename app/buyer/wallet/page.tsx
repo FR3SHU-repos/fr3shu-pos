@@ -2,20 +2,10 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import {
-  CheckCircle2,
-  Coins,
-  Gift,
-  LockKeyhole,
-  Share2,
-  WalletCards,
-} from "lucide-react";
+import { CheckCircle2, Coins, Gift, LockKeyhole, Share2, WalletCards } from "lucide-react";
 import toast from "react-hot-toast";
 import { campaignsApi, rewardsApi } from "@/shared/lib/api";
-import type {
-  BuyerRewardClaim,
-  BuyerCampaign,
-} from "@/shared/lib/api/campaigns";
+import type { BuyerRewardClaim, BuyerCampaign } from "@/shared/lib/api/campaigns";
 import type { RewardSummary } from "@/shared/lib/api/rewards";
 import { cardCls, Skeleton } from "@/shared/components/ui";
 import { copyText } from "@/shared/lib/clipboard";
@@ -29,24 +19,21 @@ export default function BuyerWalletPage() {
   const [confirmingClaim, setConfirmingClaim] = useState<string | null>(null);
 
   useEffect(() => {
-    void Promise.all([
-      rewardsApi.summary(),
-      campaignsApi.wallet(),
-      campaignsApi.list(),
-    ]).then(([summaryResult, walletResult, campaignsResult]) => {
-      if (summaryResult.success) setSummary(summaryResult.data);
-      else setError(summaryResult.message);
-      if (walletResult.success) setClaims(walletResult.data?.items ?? []);
-      else setError(walletResult.message);
-      if (campaignsResult.success)
-        setAvailable(campaignsResult.data?.items ?? []);
-      setLoading(false);
-    });
+    void Promise.all([rewardsApi.summary(), campaignsApi.wallet(), campaignsApi.list()]).then(
+      ([summaryResult, walletResult, campaignsResult]) => {
+        if (summaryResult.success) setSummary(summaryResult.data);
+        else setError(summaryResult.message);
+        if (walletResult.success) setClaims(walletResult.data?.items ?? []);
+        else setError(walletResult.message);
+        if (campaignsResult.success) setAvailable(campaignsResult.data?.items ?? []);
+        setLoading(false);
+      },
+    );
   }, []);
 
   if (loading)
     return (
-      <main className="mx-auto min-h-screen max-w-5xl space-y-4 bg-surface p-4 pb-28 sm:p-8 sm:pb-28 xl:pb-8">
+      <main className="mx-auto min-h-screen max-w-5xl space-y-4 bg-background p-4 pb-32 sm:p-8 sm:pb-32 xl:pb-8">
         <Skeleton className="h-12 w-72" />
         <Skeleton className="h-44 w-full" />
         <Skeleton className="h-64 w-full" />
@@ -54,28 +41,21 @@ export default function BuyerWalletPage() {
     );
 
   return (
-    <main className="mx-auto min-h-screen max-w-5xl bg-surface p-4 pb-28 sm:p-8 sm:pb-28 xl:pb-8">
-      <header className="mb-6">
-        <p className="font-semibold text-primary">KOMOLA Buyer</p>
-        <h1 className="text-3xl font-bold text-foreground-heading">
-          My wallet
-        </h1>
-        <p className="mt-1 text-foreground-muted">
-          Your points, claimed rewards, and rewards available in your location.
-        </p>
+    <main className="mx-auto min-h-screen max-w-5xl bg-background p-4 pb-32 sm:p-8 sm:pb-32 xl:pb-8">
+      <header className="mb-5">
+        <h1 className="text-3xl font-bold tracking-[-0.03em] text-foreground-heading">Wallet</h1>
+        <p className="mt-1 text-sm text-foreground-muted">Your points and claimed rewards.</p>
       </header>
       {error ? (
-        <p role="alert" className="mb-4 rounded-lg bg-red-50 p-4 text-red-700">
+        <p role="alert" className="mb-4 rounded-lg bg-status-danger-surface p-4 text-status-danger">
           {error}
         </p>
       ) : null}
-      <section
-        className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4"
-        aria-label="Wallet balances"
-      >
+      <section className="grid grid-cols-2 gap-3 lg:grid-cols-4" aria-label="Wallet balances">
         <WalletMetric
           icon={<Coins />}
           label="Available points"
+          hero
           value={(summary?.availableCoins ?? 0).toLocaleString("en-IN")}
         />
         <WalletMetric
@@ -83,24 +63,17 @@ export default function BuyerWalletPage() {
           label="Locked points"
           value={(summary?.reservedCampaignCoins ?? 0).toLocaleString("en-IN")}
         />
-        <WalletMetric
-          icon={<Gift />}
-          label="Rewards claimed"
-          value={String(claims.length)}
-        />
+        <WalletMetric icon={<Gift />} label="Rewards claimed" value={String(claims.length)} />
         <WalletMetric
           icon={<CheckCircle2 />}
           label="Points redeemed"
           value={(summary?.lifetimeRedeemedCoins ?? 0).toLocaleString("en-IN")}
         />
       </section>
-      <section className={`${cardCls} mt-6`} aria-labelledby="claimed-title">
+      <section className={`${cardCls} mt-4`} aria-labelledby="claimed-title">
         <div className="mb-4 flex items-center gap-2">
           <WalletCards className="h-6 w-6 text-primary" />
-          <h2
-            id="claimed-title"
-            className="text-xl font-semibold text-foreground-heading"
-          >
+          <h2 id="claimed-title" className="text-xl font-semibold text-foreground-heading">
             Claimed rewards
           </h2>
         </div>
@@ -120,9 +93,7 @@ export default function BuyerWalletPage() {
                   const result = await campaignsApi.confirmReceipt(claim.id);
                   setConfirmingClaim(null);
                   if (!result.success || !result.data) {
-                    setError(
-                      result.message || "Could not confirm reward receipt.",
-                    );
+                    setError(result.message || "Could not confirm reward receipt.");
                     return;
                   }
                   setClaims((current) =>
@@ -142,13 +113,10 @@ export default function BuyerWalletPage() {
           </ul>
         )}
       </section>
-      <section className={`${cardCls} mt-6`} aria-labelledby="available-title">
+      <section className={`${cardCls} mt-4`} aria-labelledby="available-title">
         <div className="mb-4 flex items-center justify-between gap-3">
           <div>
-            <h2
-              id="available-title"
-              className="text-xl font-semibold text-foreground-heading"
-            >
+            <h2 id="available-title" className="text-xl font-semibold text-foreground-heading">
               Available rewards
             </h2>
             <p className="mt-1 text-sm text-foreground-muted">
@@ -163,16 +131,11 @@ export default function BuyerWalletPage() {
           </Link>
         </div>
         {available.length === 0 ? (
-          <p className="text-sm text-foreground-muted">
-            There are no available rewards right now.
-          </p>
+          <p className="text-sm text-foreground-muted">There are no available rewards right now.</p>
         ) : (
           <ul className="grid gap-3 sm:grid-cols-2">
             {available.slice(0, 6).map((campaign) => (
-              <li
-                key={campaign.id}
-                className="rounded-xl border border-border bg-surface p-4"
-              >
+              <li key={campaign.id} className="rounded-2xl bg-surface-muted bg-surface p-4">
                 <Link
                   href={`/buyer/campaigns/${campaign.slug}`}
                   className="font-bold text-foreground-heading hover:text-primary"
@@ -180,13 +143,11 @@ export default function BuyerWalletPage() {
                   {campaign.title}
                 </Link>
                 <p className="mt-1 text-sm text-foreground-muted">
-                  Offered by {campaign.providerName} ·{" "}
-                  {campaign.points.toLocaleString("en-IN")} points
+                  Offered by {campaign.providerName} · {campaign.points.toLocaleString("en-IN")}{" "}
+                  points
                 </p>
                 {campaign.buyerClaim ? (
-                  <p className="mt-2 text-xs font-semibold text-primary">
-                    Already applied
-                  </p>
+                  <p className="mt-2 text-xs font-semibold text-primary">Already applied</p>
                 ) : (
                   <p className="mt-2 text-xs text-foreground-muted">
                     {campaign.claimsRemaining} remaining
@@ -205,20 +166,22 @@ function WalletMetric({
   icon,
   label,
   value,
+  hero = false,
 }: {
   icon: React.ReactNode;
   label: string;
   value: string;
+  hero?: boolean;
 }) {
   return (
-    <div className="rounded-2xl border border-border bg-surface-card p-5">
+    <div className={`rounded-3xl bg-surface-card p-5 ${hero ? "col-span-2 lg:col-span-1" : ""}`}>
       <div className="flex items-center gap-2 text-primary">
         {icon}
-        <p className="m-0 text-sm font-semibold text-foreground-muted">
-          {label}
-        </p>
+        <p className="m-0 text-sm font-semibold text-foreground-muted">{label}</p>
       </div>
-      <p className="m-0 mt-3 text-3xl font-black text-foreground-heading">
+      <p
+        className={`m-0 mt-3 font-bold tracking-[-0.02em] text-foreground-heading ${hero ? "text-5xl" : "text-3xl"}`}
+      >
         {value}
       </p>
     </div>
@@ -289,8 +252,7 @@ function ClaimRow({
             {claim.campaign.title}
           </Link>
           <p className="mt-1 text-sm text-foreground-muted">
-            Offered by {claim.campaign.providerName} ·{" "}
-            {claim.points.toLocaleString("en-IN")} points
+            Offered by {claim.campaign.providerName} · {claim.points.toLocaleString("en-IN")} points
           </p>
         </div>
         <span className="rounded-full border border-border bg-surface px-3 py-1 text-xs font-bold text-primary">
@@ -299,8 +261,7 @@ function ClaimRow({
       </div>
       <div className="mt-3 rounded-xl bg-surface p-3 text-sm">
         <p className="font-bold text-foreground-heading">
-          Claim code:{" "}
-          <span className="font-mono text-primary">{claim.claimCode}</span>
+          Claim code: <span className="font-mono text-primary">{claim.claimCode}</span>
         </p>
         <p className="mt-1 text-foreground-muted">
           Buyer mobile: {claim.buyerPhone || "Not available"}
@@ -309,7 +270,7 @@ function ClaimRow({
         <button
           type="button"
           onClick={() => void shareVerificationDetails()}
-          className="mt-3 inline-flex items-center gap-2 rounded-lg border border-border bg-surface-card px-3 py-2 text-xs font-bold text-foreground-heading hover:border-primary hover:text-primary"
+          className="mt-3 inline-flex items-center gap-2 rounded-2xl bg-surface-muted bg-surface-card px-3 py-2 text-xs font-bold text-foreground-heading hover:border-primary hover:text-primary"
         >
           <Share2 className="h-4 w-4" />
           Share verification details
@@ -331,13 +292,7 @@ function ClaimRow({
 
 function formatAddress(address: Record<string, string>): string {
   return (
-    [
-      address.line1,
-      address.line2,
-      address.city,
-      address.state,
-      address.postalCode,
-    ]
+    [address.line1, address.line2, address.city, address.state, address.postalCode]
       .filter(Boolean)
       .join(", ") || "Address not available"
   );

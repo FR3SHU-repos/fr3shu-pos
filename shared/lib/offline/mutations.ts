@@ -5,7 +5,13 @@ import type { AddStockBody, AddStockResult } from "../api/stock";
 import { newUuid } from "../uuid";
 import { unitFactor, unitBase } from "../api/_map";
 import { productScope, readProducts, writeProducts, isOffline } from "./products";
-import { applyOfflineMutationMappings, listOfflineSales, offlineScopeKey, type OfflineReferenceMappings, type OfflineScope } from "./sales";
+import {
+  applyOfflineMutationMappings,
+  listOfflineSales,
+  offlineScopeKey,
+  type OfflineReferenceMappings,
+  type OfflineScope,
+} from "./sales";
 
 type MutationKind = "product.create" | "stock.receipt";
 type MutationStatus = "pending" | "syncing" | "blocked" | "synced";
@@ -53,7 +59,8 @@ function openDb(): Promise<IDBDatabase> {
       db.onversionchange = () => db.close();
       resolve(db);
     };
-    request.onerror = () => reject(request.error ?? new Error("Offline mutation storage is unavailable."));
+    request.onerror = () =>
+      reject(request.error ?? new Error("Offline mutation storage is unavailable."));
   });
 }
 
@@ -121,13 +128,22 @@ function localProduct(body: ProductMutation, scope: OfflineScope): ProductDTO {
     _id: id,
     id,
     productId: id,
-    slug: `${body.name.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "product"}-${id.slice(-8)}`,
+    slug: `${
+      body.name
+        .trim()
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/^-|-$/g, "") || "product"
+    }-${id.slice(-8)}`,
     locationId: scope.locationId,
     name: body.name.trim(),
     sku: `LOCAL-${id.slice(-8).toUpperCase()}`,
     saleUnit,
     baseUnit: body.baseUnit ?? unitBase(saleUnit),
-    basePerSaleUnit: body.basePerSaleUnit && body.basePerSaleUnit > 0 ? body.basePerSaleUnit : unitFactor(saleUnit),
+    basePerSaleUnit:
+      body.basePerSaleUnit && body.basePerSaleUnit > 0
+        ? body.basePerSaleUnit
+        : unitFactor(saleUnit),
     basePricePaise: body.basePricePaise,
     taxRateBps: body.taxRateBps,
     categoryId: body.categoryId,
@@ -147,13 +163,20 @@ export async function queueOfflineProductCreate(body: ProductMutation): Promise<
   const product = localProduct(body, scope);
   const snapshot = await readProducts();
   const items = snapshot ? [...snapshot.items, product] : [product];
-  if (!await writeProducts(items, productScope() ?? undefined)) {
+  if (!(await writeProducts(items, productScope() ?? undefined))) {
     throw new Error("Offline catalogue storage could not save this product.");
   }
   const now = new Date().toISOString();
   await putMutation({
-    id: newUuid(), scope, kind: "product.create", status: "pending", payload: body,
-    localProductId: product._id, attempts: 0, createdAt: now, updatedAt: now,
+    id: newUuid(),
+    scope,
+    kind: "product.create",
+    status: "pending",
+    payload: body,
+    localProductId: product._id,
+    attempts: 0,
+    createdAt: now,
+    updatedAt: now,
   });
   notifyMutationChange();
   return product;
@@ -173,31 +196,50 @@ export async function queueOfflineStockReceipt(body: AddStockBody): Promise<AddS
     availableBase: product.availableBase + quantity * product.basePerSaleUnit,
     lots: [...(product.lots ?? []), { lotId, lotCode, qty: quantity, expiresAt: body.expiresAt }],
   };
-  const items = snapshot!.items.map((item) => item._id === product._id ? nextProduct : item);
-  if (!await writeProducts(items, productScope() ?? undefined)) {
+  const items = snapshot!.items.map((item) => (item._id === product._id ? nextProduct : item));
+  if (!(await writeProducts(items, productScope() ?? undefined))) {
     throw new Error("Offline catalogue storage could not save this stock receipt.");
   }
   const now = new Date().toISOString();
   await putMutation({
-    id: newUuid(), scope, kind: "stock.receipt", status: "pending", payload: body,
-    localProductId: product._id, localLotId: lotId, attempts: 0, createdAt: now, updatedAt: now,
+    id: newUuid(),
+    scope,
+    kind: "stock.receipt",
+    status: "pending",
+    payload: body,
+    localProductId: product._id,
+    localLotId: lotId,
+    attempts: 0,
+    createdAt: now,
+    updatedAt: now,
   });
   notifyMutationChange();
-  return { lotId, lotCode, skuId: product._id, unit: product.saleUnit, quantity: body.quantity, expiresAt: body.expiresAt };
+  return {
+    lotId,
+    lotCode,
+    skuId: product._id,
+    unit: product.saleUnit,
+    quantity: body.quantity,
+    expiresAt: body.expiresAt,
+  };
 }
 
 async function replaceLocalProduct(localProductId: string, product: ProductDTO): Promise<void> {
   const snapshot = await readProducts();
   if (!snapshot) return;
   const local = snapshot.items.find((item) => item._id === localProductId);
-  const merged = local ? { ...product, availableBase: local.availableBase, lots: local.lots } : product;
-  await writeProducts(snapshot.items.map((item) => item._id === localProductId ? merged : item));
+  const merged = local
+    ? { ...product, availableBase: local.availableBase, lots: local.lots }
+    : product;
+  await writeProducts(snapshot.items.map((item) => (item._id === localProductId ? merged : item)));
 }
 
-function productPayload(res: { data?: GoProduct | { product?: GoProduct } | null }): GoProduct | null {
+function productPayload(res: {
+  data?: GoProduct | { product?: GoProduct } | null;
+}): GoProduct | null {
   if (!res.data) return null;
   const value = res.data as GoProduct | { product?: GoProduct };
-  return "product" in value ? value.product ?? null : value as GoProduct;
+  return "product" in value ? (value.product ?? null) : (value as GoProduct);
 }
 
 export interface OfflineMutationSyncResult {
@@ -218,14 +260,16 @@ async function salesHaveUnresolvedMutationReferences(
   const sales = await listOfflineSales(scope);
   return sales.some((sale) => {
     if (["synced", "cancelled"].includes(sale.syncState)) return false;
-    return sale.lines.some((line) =>
-      productIds.has(line.productId) || line.lotEvidence.some((lot) => lotIds.has(lot.lotId)),
+    return sale.lines.some(
+      (line) =>
+        productIds.has(line.productId) || line.lotEvidence.some((lot) => lotIds.has(lot.lotId)),
     );
   });
 }
 
 export async function syncOfflineMutations(): Promise<OfflineMutationSyncResult> {
-  if (isOffline() || typeof indexedDB === "undefined") return { synced: 0, pending: 0, blocked: 0, messages: [], salesReady: true };
+  if (isOffline() || typeof indexedDB === "undefined")
+    return { synced: 0, pending: 0, blocked: 0, messages: [], salesReady: true };
   const scope = currentScope();
   const all = await listAllMutations(scope);
   const pending = all.filter((item) => item.status !== "synced");
@@ -253,7 +297,10 @@ export async function syncOfflineMutations(): Promise<OfflineMutationSyncResult>
     }
     await updateMutation(mutation.id, { status: "syncing", attempts: mutation.attempts + 1 });
     if (mutation.kind === "product.create") {
-      const res = await goRequest<GoProduct | { product?: GoProduct }>("catalogue/products", { method: "POST", body: mutation.payload });
+      const res = await goRequest<GoProduct | { product?: GoProduct }>("catalogue/products", {
+        method: "POST",
+        body: mutation.payload,
+      });
       const mapped = productPayload(res);
       if (!res.success || !mapped) {
         if (res.status >= 400 && res.status < 500) {
@@ -271,7 +318,11 @@ export async function syncOfflineMutations(): Promise<OfflineMutationSyncResult>
         mappings.productIds[mutation.localProductId] = product._id;
         await replaceLocalProduct(mutation.localProductId, product);
       }
-      await updateMutation(mutation.id, { status: "synced", serverProductId: product._id, message: `Product ${product.name} synced.` });
+      await updateMutation(mutation.id, {
+        status: "synced",
+        serverProductId: product._id,
+        message: `Product ${product.name} synced.`,
+      });
       synced += 1;
       messages.push(`Product ${product.name} synced.`);
       continue;
@@ -279,7 +330,8 @@ export async function syncOfflineMutations(): Promise<OfflineMutationSyncResult>
     const payload = mutation.payload as AddStockBody;
     const skuId = mappings.productIds[payload.skuId] ?? payload.skuId;
     const res = await goRequest<AddStockResult>("inventory/receipts", {
-      method: "POST", body: { ...payload, skuId },
+      method: "POST",
+      body: { ...payload, skuId },
     });
     if (!res.success || !res.data) {
       if (res.status >= 400 && res.status < 500) {
@@ -306,14 +358,21 @@ export async function syncOfflineMutations(): Promise<OfflineMutationSyncResult>
   }
   await applyOfflineMutationMappings(scope, mappings);
   const remaining = await listMutations(scope);
-  const salesReady = !(await salesHaveUnresolvedMutationReferences(scope, unresolvedProductIds, unresolvedLotIds));
+  const salesReady = !(await salesHaveUnresolvedMutationReferences(
+    scope,
+    unresolvedProductIds,
+    unresolvedLotIds,
+  ));
   return { synced, pending: remaining.length, blocked, messages, salesReady };
 }
 
-export async function offlineMutationSummary(scope: OfflineScope): Promise<{ pending: number; blocked: number }> {
+export async function offlineMutationSummary(
+  scope: OfflineScope,
+): Promise<{ pending: number; blocked: number }> {
   const mutations = await listMutations(scope);
   return {
-    pending: mutations.filter((item) => item.status === "pending" || item.status === "syncing").length,
+    pending: mutations.filter((item) => item.status === "pending" || item.status === "syncing")
+      .length,
     blocked: mutations.filter((item) => item.status === "blocked").length,
   };
 }

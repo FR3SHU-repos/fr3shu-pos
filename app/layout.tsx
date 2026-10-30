@@ -48,8 +48,7 @@ export const metadata: Metadata = {
   twitter: {
     card: "summary",
     title: "KOMOLA | Agri-tech POS and rewards platform",
-    description:
-      "Agri-tech tools for sellers and rewards for buyers of agricultural products.",
+    description: "Agri-tech tools for sellers and rewards for buyers of agricultural products.",
     images: ["/komola-logo.png"],
   },
   robots: {
@@ -71,15 +70,20 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#ff5733",
+  themeColor: "#0e0f11",
   width: "device-width",
   initialScale: 1,
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en">
+    <html lang="en" data-theme="dark" suppressHydrationWarning>
       <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `try{var t=localStorage.getItem("komola-theme");if(t==="light"||t==="dark")document.documentElement.setAttribute("data-theme",t)}catch(e){}`,
+          }}
+        />
         <link rel="alternate" type="text/markdown" href="/llms.txt" />
         <link rel="ai-catalog" href="/.well-known/ai-catalog.json" />
         <link rel="ard" href="/.well-known/ard.json" />
@@ -99,13 +103,23 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           toastOptions={{
             duration: 3500,
             style: {
-              background: "#fff",
-              color: "#1c1917",
-              border: "1px solid #f4c8bb",
+              background: "var(--color-surface-raised)",
+              color: "var(--color-foreground-heading)",
+              border: "1px solid var(--color-border)",
               fontSize: "14px",
             },
-            success: { iconTheme: { primary: "#15803d", secondary: "#fff" } },
-            error: { iconTheme: { primary: "#b91c1c", secondary: "#fff" } },
+            success: {
+              iconTheme: {
+                primary: "var(--color-status-success)",
+                secondary: "var(--color-background)",
+              },
+            },
+            error: {
+              iconTheme: {
+                primary: "var(--color-status-danger)",
+                secondary: "var(--color-background)",
+              },
+            },
           }}
         />
       </body>

@@ -1,6 +1,11 @@
 import type { SessionDTO } from "@/shared/lib/api/registers";
 import { newUuid } from "@/shared/lib/uuid";
-import { offlineScopeKey, type OfflineReadiness, type OfflineScope, type OfflineStorageReadiness } from "@/shared/lib/offline/sales-types";
+import {
+  offlineScopeKey,
+  type OfflineReadiness,
+  type OfflineScope,
+  type OfflineStorageReadiness,
+} from "@/shared/lib/offline/sales-types";
 
 export const DB_NAME = "komola-offline-pos-v1";
 export const DB_VERSION = 3;
@@ -16,7 +21,8 @@ const ACTIVE_SCOPE_KEY = "komola:offline-active-scope";
 const MIN_OFFLINE_HEADROOM_BYTES = 10 * 1024 * 1024;
 
 export function notifyOfflineSalesChanged(): void {
-  if (typeof window !== "undefined") window.dispatchEvent(new Event("komola:offline-sales-changed"));
+  if (typeof window !== "undefined")
+    window.dispatchEvent(new Event("komola:offline-sales-changed"));
 }
 
 function sessionStorageSafe(): Storage | null {
@@ -38,7 +44,8 @@ export function setOfflineActiveScope(scope: OfflineScope | null): void {
 export function lockOfflineScope(scope: OfflineScope): void {
   const storage = sessionStorageSafe();
   if (!storage) return;
-  if (storage.getItem(ACTIVE_SCOPE_KEY) === offlineScopeKey(scope)) storage.removeItem(ACTIVE_SCOPE_KEY);
+  if (storage.getItem(ACTIVE_SCOPE_KEY) === offlineScopeKey(scope))
+    storage.removeItem(ACTIVE_SCOPE_KEY);
 }
 
 export function offlineScopeIsActive(scope: OfflineScope): boolean {
@@ -51,20 +58,28 @@ export async function openOfflineDatabase(): Promise<IDBDatabase> {
     const request = indexedDB.open(DB_NAME, DB_VERSION);
     request.onupgradeneeded = () => {
       const db = request.result;
-      if (!db.objectStoreNames.contains(SALE_STORE)) db.createObjectStore(SALE_STORE, { keyPath: "id" });
-      if (!db.objectStoreNames.contains(OUTBOX_STORE)) db.createObjectStore(OUTBOX_STORE, { keyPath: "id" });
+      if (!db.objectStoreNames.contains(SALE_STORE))
+        db.createObjectStore(SALE_STORE, { keyPath: "id" });
+      if (!db.objectStoreNames.contains(OUTBOX_STORE))
+        db.createObjectStore(OUTBOX_STORE, { keyPath: "id" });
       if (!db.objectStoreNames.contains(CONTEXT_STORE)) db.createObjectStore(CONTEXT_STORE);
       if (!db.objectStoreNames.contains(META_STORE)) db.createObjectStore(META_STORE);
       if (!db.objectStoreNames.contains(HELD_CART_STORE)) db.createObjectStore(HELD_CART_STORE);
       if (!db.objectStoreNames.contains(READINESS_STORE)) db.createObjectStore(READINESS_STORE);
     };
-    request.onblocked = () => reject(new Error("Offline storage is waiting for another KOMOLA tab to close before it can update. Close older tabs and try again."));
+    request.onblocked = () =>
+      reject(
+        new Error(
+          "Offline storage is waiting for another KOMOLA tab to close before it can update. Close older tabs and try again.",
+        ),
+      );
     request.onsuccess = () => {
       const db = request.result;
       db.onversionchange = () => db.close();
       resolve(db);
     };
-    request.onerror = () => reject(request.error ?? new Error("Offline storage could not be opened."));
+    request.onerror = () =>
+      reject(request.error ?? new Error("Offline storage could not be opened."));
   });
 }
 
@@ -93,28 +108,40 @@ export async function assessOfflineStorage(): Promise<OfflineStorageReadiness> {
   let persisted = false;
   let availableBytes: number | undefined;
   try {
-    if (typeof navigator !== "undefined" && navigator.storage?.persisted) persisted = await navigator.storage.persisted();
+    if (typeof navigator !== "undefined" && navigator.storage?.persisted)
+      persisted = await navigator.storage.persisted();
     if (typeof navigator !== "undefined" && navigator.storage?.estimate) {
       const estimate = await navigator.storage.estimate();
-      if (typeof estimate.quota === "number" && typeof estimate.usage === "number") availableBytes = Math.max(0, estimate.quota - estimate.usage);
+      if (typeof estimate.quota === "number" && typeof estimate.usage === "number")
+        availableBytes = Math.max(0, estimate.quota - estimate.usage);
     }
   } catch {
     return { status: "unknown", persisted, checkedAt };
   }
-  if (availableBytes !== undefined && availableBytes < MIN_OFFLINE_HEADROOM_BYTES) return { status: "unsafe", persisted, availableBytes, checkedAt };
-  return { status: availableBytes === undefined ? "unknown" : "ready", persisted, availableBytes, checkedAt };
+  if (availableBytes !== undefined && availableBytes < MIN_OFFLINE_HEADROOM_BYTES)
+    return { status: "unsafe", persisted, availableBytes, checkedAt };
+  return {
+    status: availableBytes === undefined ? "unknown" : "ready",
+    persisted,
+    availableBytes,
+    checkedAt,
+  };
 }
 
 export async function requestPersistentOfflineStorage(): Promise<OfflineStorageReadiness> {
   try {
-    if (typeof navigator !== "undefined" && navigator.storage?.persist) await navigator.storage.persist();
+    if (typeof navigator !== "undefined" && navigator.storage?.persist)
+      await navigator.storage.persist();
   } catch {
     // Persistence is a browser policy decision; the quota check below remains authoritative.
   }
   return assessOfflineStorage();
 }
 
-export async function saveOfflineReadiness(scope: OfflineScope, readiness: OfflineReadiness): Promise<boolean> {
+export async function saveOfflineReadiness(
+  scope: OfflineScope,
+  readiness: OfflineReadiness,
+): Promise<boolean> {
   if (typeof indexedDB === "undefined") return false;
   try {
     const db = await openOfflineDatabase();
@@ -133,7 +160,9 @@ export async function readOfflineReadiness(scope: OfflineScope): Promise<Offline
   try {
     const db = await openOfflineDatabase();
     const tx = db.transaction(READINESS_STORE, "readonly");
-    const readiness = await requestResult<OfflineReadiness | undefined>(tx.objectStore(READINESS_STORE).get(`${offlineScopeKey(scope)}:readiness`));
+    const readiness = await requestResult<OfflineReadiness | undefined>(
+      tx.objectStore(READINESS_STORE).get(`${offlineScopeKey(scope)}:readiness`),
+    );
     await txDone(tx);
     db.close();
     return readiness ?? null;
@@ -142,7 +171,10 @@ export async function readOfflineReadiness(scope: OfflineScope): Promise<Offline
   }
 }
 
-export async function saveOfflineSessionContext(scope: OfflineScope, session: SessionDTO): Promise<boolean> {
+export async function saveOfflineSessionContext(
+  scope: OfflineScope,
+  session: SessionDTO,
+): Promise<boolean> {
   if (typeof indexedDB === "undefined") return false;
   try {
     const db = await openOfflineDatabase();
@@ -156,7 +188,9 @@ export async function saveOfflineSessionContext(scope: OfflineScope, session: Se
   }
 }
 
-export async function readOfflineSessionContext(scope: OfflineScope): Promise<{ session: SessionDTO; savedAt: number } | null> {
+export async function readOfflineSessionContext(
+  scope: OfflineScope,
+): Promise<{ session: SessionDTO; savedAt: number } | null> {
   if (typeof indexedDB === "undefined") return null;
   try {
     const db = await openOfflineDatabase();
@@ -187,11 +221,24 @@ export function txDone(tx: IDBTransaction): Promise<void> {
 }
 
 export function storageError(error: unknown): Error | unknown {
-  const name = error instanceof DOMException ? error.name : error && typeof error === "object" && "name" in error ? String((error as { name?: unknown }).name) : "";
+  const name =
+    error instanceof DOMException
+      ? error.name
+      : error && typeof error === "object" && "name" in error
+        ? String((error as { name?: unknown }).name)
+        : "";
   if (["QuotaExceededError", "InvalidStateError", "AbortError", "VersionError"].includes(name)) {
-    if (name === "QuotaExceededError") return new Error("Offline storage is full. Export a backup or free device storage before continuing.");
-    if (name === "VersionError") return new Error("Offline storage needs another KOMOLA tab to close before it can be upgraded. Close older tabs and try again.");
-    return new Error("Offline storage could not complete this operation. Keep the local receipt and try again.");
+    if (name === "QuotaExceededError")
+      return new Error(
+        "Offline storage is full. Export a backup or free device storage before continuing.",
+      );
+    if (name === "VersionError")
+      return new Error(
+        "Offline storage needs another KOMOLA tab to close before it can be upgraded. Close older tabs and try again.",
+      );
+    return new Error(
+      "Offline storage could not complete this operation. Keep the local receipt and try again.",
+    );
   }
   return error;
 }

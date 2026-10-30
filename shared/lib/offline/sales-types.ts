@@ -2,7 +2,15 @@ import type { SessionDTO } from "@/shared/lib/api/registers";
 import type { CartLine } from "@/shared/components/pos/types";
 import type { BaseUnit } from "@/shared/lib/units";
 
-export type OfflineSaleSyncState = "pending" | "uploading" | "retry_wait" | "synced" | "blocked" | "cancelled" | "needs_review" | "auth_required";
+export type OfflineSaleSyncState =
+  | "pending"
+  | "uploading"
+  | "retry_wait"
+  | "synced"
+  | "blocked"
+  | "cancelled"
+  | "needs_review"
+  | "auth_required";
 
 export interface OfflineScope {
   userId: string;

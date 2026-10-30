@@ -1,5 +1,12 @@
 import { goRequest, type ApiResult } from "./client";
-import { mapRegister, mapShift, type GoRegisterRow, type GoShift, type RegisterDTO, type SessionDTO } from "./_map";
+import {
+  mapRegister,
+  mapShift,
+  type GoRegisterRow,
+  type GoShift,
+  type RegisterDTO,
+  type SessionDTO,
+} from "./_map";
 
 export type { RegisterDTO, SessionDTO };
 

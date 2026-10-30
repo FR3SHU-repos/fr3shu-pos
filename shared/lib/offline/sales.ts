@@ -33,10 +33,7 @@ export {
   saveOfflineSessionContext,
 } from "@/shared/lib/offline/sales-storage";
 import { offlineScopeKey } from "@/shared/lib/offline/sales-types";
-import {
-  buildOfflineSaleRecord,
-  localStockDeductions,
-} from "@/shared/lib/offline/sales-domain";
+import { buildOfflineSaleRecord, localStockDeductions } from "@/shared/lib/offline/sales-domain";
 import { requeueOfflineSale } from "@/shared/lib/offline/sales-sync-state";
 export {
   assessOfflineStorage,
@@ -86,13 +83,19 @@ export async function applyOfflineMutationMappings(
         if (!product) continue;
         for (const evidence of line.lotEvidence) {
           if (!evidence.lotId.startsWith("offline-lot-") || !evidence.lotCode) continue;
-          const matchingLot = product.lots?.find((lot) => lot.lotCode === evidence.lotCode && !lot.lotId.startsWith("offline-lot-"));
+          const matchingLot = product.lots?.find(
+            (lot) => lot.lotCode === evidence.lotCode && !lot.lotId.startsWith("offline-lot-"),
+          );
           if (matchingLot?.lotId) effectiveMappings.lotIds[evidence.lotId] = matchingLot.lotId;
         }
       }
     }
   }
-  if (Object.keys(effectiveMappings.productIds).length === 0 && Object.keys(effectiveMappings.lotIds).length === 0) return 0;
+  if (
+    Object.keys(effectiveMappings.productIds).length === 0 &&
+    Object.keys(effectiveMappings.lotIds).length === 0
+  )
+    return 0;
   const db = await openOfflineDatabase();
   try {
     const tx = db.transaction(SALE_STORE, "readwrite");
@@ -115,12 +118,15 @@ export async function applyOfflineMutationMappings(
 }
 
 async function validateOfflineWorkspace(input: OfflineSaleInput): Promise<OfflineReadiness | null> {
-  if (!offlineScopeIsActive(input.scope)) throw new Error("This offline workspace is locked after account switching. Sign in again before using it.");
+  if (!offlineScopeIsActive(input.scope))
+    throw new Error(
+      "This offline workspace is locked after account switching. Sign in again before using it.",
+    );
   const storage = await assessOfflineStorage();
-  if (storage.status === "unsafe") throw new Error("Offline storage is too full. Free device storage before continuing.");
+  if (storage.status === "unsafe")
+    throw new Error("Offline storage is too full. Free device storage before continuing.");
   return readOfflineReadiness(input.scope);
 }
-
 
 export {
   applyLocalStockDeductions,
@@ -135,7 +141,8 @@ export {
 export { applyOfflineSaleLineRepair } from "@/shared/lib/offline/sales-domain";
 export { importOfflineSales } from "@/shared/lib/offline/sales-import";
 export async function commitOfflineCashSale(input: OfflineSaleInput): Promise<OfflineSaleRecord> {
-  if (typeof indexedDB === "undefined") throw new Error("Offline storage is not available in this browser.");
+  if (typeof indexedDB === "undefined")
+    throw new Error("Offline storage is not available in this browser.");
   const readiness = await validateOfflineWorkspace(input);
   const catalogue = await readProducts();
   input = {
@@ -161,11 +168,14 @@ export async function commitOfflineCashSale(input: OfflineSaleInput): Promise<Of
       await txDone(tx);
       return existing;
     }
-    const existingSales = await requestResult<OfflineSaleRecord[]>(tx.objectStore(SALE_STORE).getAll());
+    const existingSales = await requestResult<OfflineSaleRecord[]>(
+      tx.objectStore(SALE_STORE).getAll(),
+    );
     const deductions = localStockDeductions(
       existingSales.filter((sale) => offlineScopeKey(sale.scope) === key),
     );
-    const current = (await requestResult<number | undefined>(metaStore.get(`${key}:receipt-sequence`))) ?? 0;
+    const current =
+      (await requestResult<number | undefined>(metaStore.get(`${key}:receipt-sequence`))) ?? 0;
     const next = current + 1;
     const sale = buildOfflineSaleRecord(input, next, new Date(), deductions);
     const now = sale.createdAt;
@@ -218,7 +228,13 @@ export async function listPendingOfflineSales(scope: OfflineScope): Promise<Offl
     );
     return allSales
       .filter((sale) => offlineScopeKey(sale.scope) === key)
-      .filter((sale) => sale.syncState !== "synced" && sale.syncState !== "blocked" && sale.syncState !== "cancelled" && sale.syncState !== "needs_review")
+      .filter(
+        (sale) =>
+          sale.syncState !== "synced" &&
+          sale.syncState !== "blocked" &&
+          sale.syncState !== "cancelled" &&
+          sale.syncState !== "needs_review",
+      )
       .filter((sale) => syncableOperationIds.has(sale.operationId))
       .sort((a, b) => a.createdAt.localeCompare(b.createdAt));
   } catch {
@@ -250,11 +266,19 @@ export async function claimPendingOfflineSales(
     const claimed: OfflineSaleRecord[] = [];
     for (const entry of outboxes
       .filter((item) => offlineScopeKey(item.scope) === key)
-      .filter((item) => item.status !== "blocked" && item.status !== "needs_review" && item.status !== "cancelled")
+      .filter(
+        (item) =>
+          item.status !== "blocked" &&
+          item.status !== "needs_review" &&
+          item.status !== "cancelled",
+      )
       .filter((item) => new Date(item.nextAttemptAt).getTime() <= nowMs)
       .sort((a, b) => a.createdAt.localeCompare(b.createdAt))) {
       if (claimed.length >= limit) break;
-      const leaseActive = entry.status === "uploading" && entry.leaseExpiresAt && new Date(entry.leaseExpiresAt).getTime() > nowMs;
+      const leaseActive =
+        entry.status === "uploading" &&
+        entry.leaseExpiresAt &&
+        new Date(entry.leaseExpiresAt).getTime() > nowMs;
       if (leaseActive) continue;
       const sale = salesById.get(entry.operationId);
       if (!sale || sale.syncState === "synced" || sale.syncState === "cancelled") continue;
@@ -305,7 +329,6 @@ export async function requeueRetryableOfflineSales(scope: OfflineScope): Promise
   return queued;
 }
 
-
 export async function exportOfflineSales(scope: OfflineScope): Promise<OfflineSalesExport> {
   return {
     exportedAt: new Date().toISOString(),
@@ -321,10 +344,7 @@ export {
   updateOfflineSaleCustomer,
 } from "@/shared/lib/offline/sales-sync-state";
 
-export {
-  cancelOfflineSale,
-  cleanupOfflineSales,
-} from "@/shared/lib/offline/sales-sync-state";
+export { cancelOfflineSale, cleanupOfflineSales } from "@/shared/lib/offline/sales-sync-state";
 
 export { requeueBlockedOfflineSalesWithAvailableStock } from "@/shared/lib/offline/sales-sync-state";
 
@@ -351,7 +371,13 @@ export function offlineSaleToSyncOperation(sale: OfflineSaleRecord): OfflineSale
     marketingConsent: sale.marketingConsent,
     lines: sale.lines.map((line) => ({
       skuId: line.productId,
-      qty: String(fromBaseQuantity(line.qtyBase, line.saleUnit as Parameters<typeof fromBaseQuantity>[1], line.basePerSaleUnit)),
+      qty: String(
+        fromBaseQuantity(
+          line.qtyBase,
+          line.saleUnit as Parameters<typeof fromBaseQuantity>[1],
+          line.basePerSaleUnit,
+        ),
+      ),
       unit: line.saleUnit,
       baseUnit: line.baseUnit,
       basePerSaleUnit: line.basePerSaleUnit,

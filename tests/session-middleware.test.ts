@@ -28,14 +28,12 @@ describe("session middleware network boundary", () => {
     "/privacy/requests",
     "/support",
     "/terms",
-  ])(
-    "does not contact Supabase before serving %s", async (path) => {
-      const { updateSession } = await import("@/shared/lib/supabase/middleware");
-      const response = await updateSession(new NextRequest(`https://example.com${path}`));
-      expect(response.status).toBe(200);
-      expect(createServerClient).not.toHaveBeenCalled();
-    },
-  );
+  ])("does not contact Supabase before serving %s", async (path) => {
+    const { updateSession } = await import("@/shared/lib/supabase/middleware");
+    const response = await updateSession(new NextRequest(`https://example.com${path}`));
+    expect(response.status).toBe(200);
+    expect(createServerClient).not.toHaveBeenCalled();
+  });
 
   it("still verifies authentication on protected pages", async () => {
     getUser.mockResolvedValue({ data: { user: null } });
@@ -47,7 +45,9 @@ describe("session middleware network boundary", () => {
 
   it("preserves fallback OAuth code exchange before route gating", async () => {
     const { updateSession } = await import("@/shared/lib/supabase/middleware");
-    const response = await updateSession(new NextRequest("https://example.com/dashboard?code=12345678-1234-1234-1234-123456789012"));
+    const response = await updateSession(
+      new NextRequest("https://example.com/dashboard?code=12345678-1234-1234-1234-123456789012"),
+    );
     expect(new URL(response.headers.get("location")!).pathname).toBe("/auth/callback");
     expect(createServerClient).not.toHaveBeenCalled();
   });

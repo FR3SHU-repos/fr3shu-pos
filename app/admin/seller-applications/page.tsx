@@ -2,10 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { authApi } from "@/shared/lib/api";
-import {
-  listSellerApplications,
-  type SellerOrganization,
-} from "@/shared/lib/api/sellerOrgs";
+import { listSellerApplications, type SellerOrganization } from "@/shared/lib/api/sellerOrgs";
 import { cardCls, SkeletonRows, StatusBadge } from "@/shared/components/ui";
 
 export default function SellerApplicationsPage() {
@@ -34,20 +31,41 @@ export default function SellerApplicationsPage() {
             <h1 className="text-xl font-semibold text-foreground-heading">Seller access</h1>
             <p className="text-sm text-foreground-muted">Platform administrator dashboard</p>
           </div>
-          <div className="flex items-center gap-4 text-sm"><a className="font-semibold text-primary hover:underline" href="/admin/privacy-requests">Privacy requests</a><button className="font-medium text-primary" onClick={signOut}>Sign out</button></div>
+          <div className="flex items-center gap-4 text-sm">
+            <a
+              className="font-semibold text-primary hover:underline"
+              href="/admin/privacy-requests"
+            >
+              Privacy requests
+            </a>
+            <button className="font-medium text-primary" onClick={signOut}>
+              Sign out
+            </button>
+          </div>
         </header>
-        {loading ? <SkeletonRows rows={4} /> : error ? (
-          <section className={cardCls}><p className="text-sm text-red-700">{error}</p></section>
+        {loading ? (
+          <SkeletonRows rows={4} />
+        ) : error ? (
+          <section className={cardCls}>
+            <p className="text-sm text-status-danger">{error}</p>
+          </section>
         ) : (
           <section className={cardCls}>
             <ul className="divide-y divide-border">
               {items.map((org) => (
                 <li key={org.id} className="flex items-center justify-between gap-4 py-3">
-                  <div><p className="font-medium text-foreground-heading">{org.displayName}</p><p className="text-xs text-foreground-muted">{org.type}</p></div>
+                  <div>
+                    <p className="font-medium text-foreground-heading">{org.displayName}</p>
+                    <p className="text-xs text-foreground-muted">{org.type}</p>
+                  </div>
                   <StatusBadge status={org.status} />
                 </li>
               ))}
-              {items.length === 0 ? <li className="py-8 text-center text-sm text-foreground-muted">No seller organizations yet.</li> : null}
+              {items.length === 0 ? (
+                <li className="py-8 text-center text-sm text-foreground-muted">
+                  No seller organizations yet.
+                </li>
+              ) : null}
             </ul>
           </section>
         )}

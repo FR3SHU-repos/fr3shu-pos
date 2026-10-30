@@ -1,5 +1,10 @@
 import type { ProductDTO } from "@/shared/lib/api/products";
-import { applyOfflineSaleLineRepair, localStockDeductions, saleCanUseProducts, stockRecheckCandidate } from "@/shared/lib/offline/sales-domain";
+import {
+  applyOfflineSaleLineRepair,
+  localStockDeductions,
+  saleCanUseProducts,
+  stockRecheckCandidate,
+} from "@/shared/lib/offline/sales-domain";
 import {
   OUTBOX_STORE,
   SALE_STORE,
@@ -22,7 +27,19 @@ export async function markOfflineSaleSyncState(
   scope: OfflineScope,
   operationId: string,
   syncState: OfflineSaleSyncState,
-  detail?: { message?: string; failureStage?: string; failureCode?: string; failureDetail?: string; requestId?: string; traceId?: string; reviewId?: string; serverSaleId?: string; serverReceiptNo?: string; inventoryCoveredAt?: string; serverInventoryCursor?: string },
+  detail?: {
+    message?: string;
+    failureStage?: string;
+    failureCode?: string;
+    failureDetail?: string;
+    requestId?: string;
+    traceId?: string;
+    reviewId?: string;
+    serverSaleId?: string;
+    serverReceiptNo?: string;
+    inventoryCoveredAt?: string;
+    serverInventoryCursor?: string;
+  },
 ): Promise<boolean> {
   if (typeof indexedDB === "undefined") return false;
   try {
@@ -53,9 +70,16 @@ export async function markOfflineSaleSyncState(
     if (syncState === "synced") {
       outboxStore.delete(operationId);
     } else {
-      const outbox = await requestResult<OfflineOutboxEntry | undefined>(outboxStore.get(operationId));
+      const outbox = await requestResult<OfflineOutboxEntry | undefined>(
+        outboxStore.get(operationId),
+      );
       if (outbox) {
-        outbox.status = syncState === "auth_required" ? "auth_required" : syncState === "blocked" || syncState === "cancelled" || syncState === "needs_review" ? syncState : "retry_wait";
+        outbox.status =
+          syncState === "auth_required"
+            ? "auth_required"
+            : syncState === "blocked" || syncState === "cancelled" || syncState === "needs_review"
+              ? syncState
+              : "retry_wait";
         outbox.leaseId = undefined;
         outbox.leaseExpiresAt = undefined;
         outbox.attempts += 1;
@@ -108,7 +132,9 @@ export async function repairOfflineSaleLines(
     repaired.syncMessage = "Sale items updated. Queued for another automatic sync check.";
     repaired.lastSyncAttemptAt = now;
     saleStore.put(repaired);
-    const existing = await requestResult<OfflineOutboxEntry | undefined>(outboxStore.get(operationId));
+    const existing = await requestResult<OfflineOutboxEntry | undefined>(
+      outboxStore.get(operationId),
+    );
     outboxStore.put({
       id: operationId,
       saleId: repaired.id,
@@ -139,7 +165,8 @@ export async function updateOfflineSaleCustomer(
   if (!customerName) throw new Error("Customer name is required.");
   const customerPhone = normalizeOfflinePhone(patch.customerPhone);
   const buyerCode = patch.buyerCode?.trim().toUpperCase();
-  if (buyerCode && !/^BYR-[A-F0-9]{10}$/.test(buyerCode)) throw new Error("Enter a valid buyer code.");
+  if (buyerCode && !/^BYR-[A-F0-9]{10}$/.test(buyerCode))
+    throw new Error("Enter a valid buyer code.");
   const db = await openOfflineDatabase();
   try {
     const tx = db.transaction([SALE_STORE, OUTBOX_STORE], "readwrite");
@@ -163,7 +190,9 @@ export async function updateOfflineSaleCustomer(
     sale.syncMessage = "Customer details updated. Queued for another automatic sync check.";
     sale.lastSyncAttemptAt = now;
     saleStore.put(sale);
-    const existing = await requestResult<OfflineOutboxEntry | undefined>(outboxStore.get(operationId));
+    const existing = await requestResult<OfflineOutboxEntry | undefined>(
+      outboxStore.get(operationId),
+    );
     outboxStore.put({
       id: operationId,
       saleId: sale.id,
@@ -184,7 +213,10 @@ export async function updateOfflineSaleCustomer(
   }
 }
 
-export async function cancelOfflineSale(scope: OfflineScope, operationId: string): Promise<boolean> {
+export async function cancelOfflineSale(
+  scope: OfflineScope,
+  operationId: string,
+): Promise<boolean> {
   if (typeof indexedDB === "undefined") return false;
   try {
     const db = await openOfflineDatabase();
@@ -192,7 +224,11 @@ export async function cancelOfflineSale(scope: OfflineScope, operationId: string
     const saleStore = tx.objectStore(SALE_STORE);
     const outboxStore = tx.objectStore(OUTBOX_STORE);
     const sale = await requestResult<OfflineSaleRecord | undefined>(saleStore.get(operationId));
-    if (!sale || offlineScopeKey(sale.scope) !== offlineScopeKey(scope) || sale.syncState === "synced") {
+    if (
+      !sale ||
+      offlineScopeKey(sale.scope) !== offlineScopeKey(scope) ||
+      sale.syncState === "synced"
+    ) {
       tx.abort();
       db.close();
       return false;
@@ -211,7 +247,10 @@ export async function cancelOfflineSale(scope: OfflineScope, operationId: string
   }
 }
 
-export async function cleanupOfflineSales(scope: OfflineScope, olderThanMs = 7 * 24 * 60 * 60 * 1000): Promise<number> {
+export async function cleanupOfflineSales(
+  scope: OfflineScope,
+  olderThanMs = 7 * 24 * 60 * 60 * 1000,
+): Promise<number> {
   if (typeof indexedDB === "undefined") return 0;
   try {
     const db = await openOfflineDatabase();
@@ -258,7 +297,10 @@ export async function requeueBlockedOfflineSalesWithAvailableStock(
     let queued = 0;
     for (const sale of scopedSales) {
       if (!stockRecheckCandidate(sale)) continue;
-      const otherDeductions = localStockDeductions(scopedSales.filter((other) => other.operationId !== sale.operationId), snapshotSavedAt);
+      const otherDeductions = localStockDeductions(
+        scopedSales.filter((other) => other.operationId !== sale.operationId),
+        snapshotSavedAt,
+      );
       const check = saleCanUseProducts(sale, products, otherDeductions);
       if (!check.ok) {
         sale.syncMessage = check.reason;
@@ -270,7 +312,9 @@ export async function requeueBlockedOfflineSalesWithAvailableStock(
       sale.syncMessage = "Refreshed stock is available. Queued for another automatic sync check.";
       sale.lastSyncAttemptAt = now;
       saleStore.put(sale);
-      const existing = await requestResult<OfflineOutboxEntry | undefined>(outboxStore.get(sale.operationId));
+      const existing = await requestResult<OfflineOutboxEntry | undefined>(
+        outboxStore.get(sale.operationId),
+      );
       outboxStore.put({
         id: sale.operationId,
         saleId: sale.id,
@@ -294,7 +338,10 @@ export async function requeueBlockedOfflineSalesWithAvailableStock(
   }
 }
 
-export async function requeueOfflineSale(scope: OfflineScope, operationId: string): Promise<boolean> {
+export async function requeueOfflineSale(
+  scope: OfflineScope,
+  operationId: string,
+): Promise<boolean> {
   if (typeof indexedDB === "undefined") return false;
   try {
     const db = await openOfflineDatabase();
@@ -302,7 +349,11 @@ export async function requeueOfflineSale(scope: OfflineScope, operationId: strin
     const saleStore = tx.objectStore(SALE_STORE);
     const outboxStore = tx.objectStore(OUTBOX_STORE);
     const sale = await requestResult<OfflineSaleRecord | undefined>(saleStore.get(operationId));
-    if (!sale || offlineScopeKey(sale.scope) !== offlineScopeKey(scope) || sale.syncState === "synced") {
+    if (
+      !sale ||
+      offlineScopeKey(sale.scope) !== offlineScopeKey(scope) ||
+      sale.syncState === "synced"
+    ) {
       tx.abort();
       db.close();
       return false;
@@ -312,7 +363,9 @@ export async function requeueOfflineSale(scope: OfflineScope, operationId: strin
     sale.syncMessage = "Queued for another automatic sync check.";
     sale.lastSyncAttemptAt = now;
     saleStore.put(sale);
-    const existing = await requestResult<OfflineOutboxEntry | undefined>(outboxStore.get(operationId));
+    const existing = await requestResult<OfflineOutboxEntry | undefined>(
+      outboxStore.get(operationId),
+    );
     outboxStore.put({
       id: operationId,
       saleId: sale.id,
@@ -334,7 +387,13 @@ export async function requeueOfflineSale(scope: OfflineScope, operationId: strin
   }
 }
 
-export async function incrementOfflineSaleAttempt(scope: OfflineScope, operationId: string, retryInMs: number, message?: string, diagnostic?: OfflineSaleSyncDiagnostic): Promise<void> {
+export async function incrementOfflineSaleAttempt(
+  scope: OfflineScope,
+  operationId: string,
+  retryInMs: number,
+  message?: string,
+  diagnostic?: OfflineSaleSyncDiagnostic,
+): Promise<void> {
   if (typeof indexedDB === "undefined") return;
   try {
     const db = await openOfflineDatabase();

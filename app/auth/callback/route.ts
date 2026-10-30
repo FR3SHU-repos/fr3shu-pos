@@ -13,7 +13,8 @@ export async function GET(request: NextRequest) {
       ? rawNext
       : "/dashboard";
   const origin = requestOrigin(request);
-  const requestedIntent = url.searchParams.get("as") ?? request.cookies.get("komola_auth_intent")?.value;
+  const requestedIntent =
+    url.searchParams.get("as") ?? request.cookies.get("komola_auth_intent")?.value;
 
   if (errorParam || !code) {
     return NextResponse.redirect(`${origin}/login?error=oauth_denied`);
@@ -27,7 +28,9 @@ export async function GET(request: NextRequest) {
     // single-use and exchangeCodeForSession fails, while the session itself is
     // already valid. Only reject the login when neither exchange nor session
     // authentication succeeded.
-    const { data: { user } } = await supabase.auth.getUser();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
     if (!user) return NextResponse.redirect(`${origin}/login?error=oauth_denied`);
   }
 
@@ -35,11 +38,16 @@ export async function GET(request: NextRequest) {
   // first protected request. Do not wait for reconciliation, bootstrap, and
   // role queries here: the dashboard loads bootstrap once on the client and
   // can render its shell while those data requests complete.
-  const { data: { session } } = await supabase.auth.getSession();
-  const metadataIntent = typeof session?.user.user_metadata?.account_type === "string"
-    ? session.user.user_metadata.account_type
-    : undefined;
-  const intent = authIntent(requestedIntent ?? metadataIntent ?? (next.startsWith("/buyer") ? "buyer" : "seller"));
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+  const metadataIntent =
+    typeof session?.user.user_metadata?.account_type === "string"
+      ? session.user.user_metadata.account_type
+      : undefined;
+  const intent = authIntent(
+    requestedIntent ?? metadataIntent ?? (next.startsWith("/buyer") ? "buyer" : "seller"),
+  );
   const destination = intent === "buyer" && next === "/dashboard" ? "/buyer" : next;
   return NextResponse.redirect(`${origin}${destination}`);
 }

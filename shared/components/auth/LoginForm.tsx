@@ -14,18 +14,12 @@ import { reconcileIdentity } from "@/shared/lib/auth/gin";
 import { ADMIN_HOME, isPlatformAdmin } from "@/shared/lib/auth/routing";
 import { getMyOrganization, sellerDestination } from "@/shared/lib/api/sellerOrgs";
 import { destinationForCapabilities, type AuthIntent } from "@/shared/lib/auth/intent";
-import {
-  Divider,
-  GoogleButton,
-  PasswordField,
-} from "@/shared/components/auth/parts";
+import { Divider, GoogleButton, PasswordField } from "@/shared/components/auth/parts";
 import { authCallbackRedirect, rememberAuthIntent } from "@/shared/lib/auth/providers";
 import { normalizeAuthIdentifier } from "@/shared/lib/auth/identifier";
 
 function safeNext(n: string | null): string {
-  return n && n.startsWith("/") && !n.startsWith("//") && !n.includes("://")
-    ? n
-    : "/dashboard";
+  return n && n.startsWith("/") && !n.startsWith("//") && !n.includes("://") ? n : "/dashboard";
 }
 
 export function LoginForm({ intent }: { intent: AuthIntent }) {
@@ -51,9 +45,10 @@ export function LoginForm({ intent }: { intent: AuthIntent }) {
     if (busy) return;
     setBusy(true);
     const normalized = normalizeAuthIdentifier(identifier);
-    const credentials = normalized.kind === "phone"
-      ? { phone: normalized.value, password }
-      : { email: normalized.value, password };
+    const credentials =
+      normalized.kind === "phone"
+        ? { phone: normalized.value, password }
+        : { email: normalized.value, password };
     const { data, error } = await supabase.auth.signInWithPassword(credentials);
     if (error) {
       setBusy(false);
@@ -103,7 +98,11 @@ export function LoginForm({ intent }: { intent: AuthIntent }) {
     }
     const org = await getMyOrganization(accessToken);
     setBusy(false);
-    router.replace(org.status === 404 ? "/seller/onboarding" : sellerDestination(org.data?.approvalStatus) || next);
+    router.replace(
+      org.status === 404
+        ? "/seller/onboarding"
+        : sellerDestination(org.data?.approvalStatus) || next,
+    );
   }
 
   async function onGoogle() {
@@ -125,22 +124,42 @@ export function LoginForm({ intent }: { intent: AuthIntent }) {
     <div className="flex min-h-screen items-center justify-center bg-surface px-4">
       <div className={`${cardCls} w-full max-w-sm`}>
         <div className="mb-6 flex flex-col items-center text-center">
-          <span className="grid h-12 w-12 place-items-center rounded-xl bg-primary text-primary-foreground">
+          <span className="grid h-12 w-12 place-items-center rounded-2xl bg-primary text-primary-foreground">
             <Lock className="h-6 w-6" />
           </span>
-          <h1 className="mt-3 text-lg font-semibold text-foreground-heading">
-            KOMOLA POS
-          </h1>
+          <h1 className="mt-3 text-lg font-semibold text-foreground-heading">KOMOLA POS</h1>
           <p className="text-sm text-foreground-muted">One account for buying and selling</p>
         </div>
 
-        <div className="mb-5 rounded-xl bg-surface px-4 py-3 text-center">
-          <p className="font-semibold capitalize text-foreground-heading">{intent} login</p>
-          <Link href="/login" className="mt-1 inline-block text-xs font-medium text-primary hover:underline">Choose a different portal</Link>
+        <div
+          role="tablist"
+          aria-label="Account type"
+          className="mb-5 grid grid-cols-2 rounded-full bg-surface-muted p-1"
+        >
+          {(
+            [
+              ["seller", "Seller"],
+              ["buyer", "Buyer"],
+            ] as const
+          ).map(([key, label]) => (
+            <Link
+              key={key}
+              role="tab"
+              aria-selected={intent === key}
+              href={`/login/${key}`}
+              className={`flex min-h-11 items-center justify-center rounded-full text-sm font-semibold transition ${
+                intent === key
+                  ? "bg-primary text-primary-foreground"
+                  : "text-foreground-muted hover:text-foreground-heading"
+              }`}
+            >
+              {label}
+            </Link>
+          ))}
         </div>
 
         {params.get("error") === "oauth_denied" && (
-          <p className="mb-3 rounded-lg bg-red-50 px-3 py-2 text-xs text-red-700">
+          <p className="mb-3 rounded-lg bg-status-danger-surface px-3 py-2 text-xs text-status-danger">
             Google sign-in was cancelled.
           </p>
         )}
@@ -168,11 +187,7 @@ export function LoginForm({ intent }: { intent: AuthIntent }) {
               />
             </div>
             <PasswordField label="Password" value={password} onChange={setPassword} />
-            <button
-              type="submit"
-              disabled={busy}
-              className={`${primaryBtnCls} w-full`}
-            >
+            <button type="submit" disabled={busy} className={`${primaryBtnCls} w-full`}>
               {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
               Sign in
             </button>

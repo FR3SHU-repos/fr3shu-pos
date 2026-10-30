@@ -8,7 +8,13 @@ export function missingBuyerDetails(profile: PersonProfile | null): string[] {
   if (!profile.displayName.trim()) missing.push("your name");
   if (!phone) missing.push("mobile number");
   if (!profile.locationCode) missing.push("buyer location");
-  if (!address?.line1?.trim() || !address.city?.trim() || !address.state?.trim() || !/^\d{6}$/.test(address.postalCode?.trim() ?? "")) missing.push("complete address");
+  if (
+    !address?.line1?.trim() ||
+    !address.city?.trim() ||
+    !address.state?.trim() ||
+    !/^\d{6}$/.test(address.postalCode?.trim() ?? "")
+  )
+    missing.push("complete address");
   return missing;
 }
 

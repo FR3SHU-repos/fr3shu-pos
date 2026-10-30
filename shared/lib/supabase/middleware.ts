@@ -12,7 +12,9 @@ function validSupabaseUrl(value: string | undefined): string {
   }
 }
 
-const URL = validSupabaseUrl(process.env.NEXT_PUBLIC_KOMOLA_SUPABASE_URL ?? process.env.NEXT_PUBLIC_SUPABASE_URL);
+const URL = validSupabaseUrl(
+  process.env.NEXT_PUBLIC_KOMOLA_SUPABASE_URL ?? process.env.NEXT_PUBLIC_SUPABASE_URL,
+);
 const KEY =
   process.env.NEXT_PUBLIC_KOMOLA_SUPABASE_PUBLISHABLE_KEY ??
   process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ??
@@ -43,15 +45,23 @@ function redirectTo(request: NextRequest, pathname: string): URL {
 }
 
 function isAuthLandingPath(pathname: string): boolean {
-  return pathname === "/buyer/setup" || pathname === "/seller/onboarding" || pathname === "/dashboard";
+  return (
+    pathname === "/buyer/setup" || pathname === "/seller/onboarding" || pathname === "/dashboard"
+  );
 }
 
 function isTransientAuthError(error: { name?: string; message?: string } | null): boolean {
-  return Boolean(error && (error.name === "AuthRetryableFetchError" || /network|fetch|timeout/i.test(error.message ?? "")));
+  return Boolean(
+    error &&
+    (error.name === "AuthRetryableFetchError" ||
+      /network|fetch|timeout/i.test(error.message ?? "")),
+  );
 }
 
 function hasSupabaseSessionCookie(request: NextRequest): boolean {
-  return request.cookies.getAll().some(({ name }) => name.startsWith("sb-") && name.includes("-auth-token"));
+  return request.cookies
+    .getAll()
+    .some(({ name }) => name.startsWith("sb-") && name.includes("-auth-token"));
 }
 
 /** Refresh the Supabase session; gate everything except the public auth pages. */
@@ -76,7 +86,12 @@ export async function updateSession(request: NextRequest): Promise<NextResponse>
 
   // A fresh OAuth callback has no auth cookie yet. Redirect directly to the
   // exchange route instead of making a redundant Supabase request first.
-  if (isAuthLandingPath(pathname) && authCode && /^[0-9a-f-]{36}$/i.test(authCode) && !hasSupabaseSessionCookie(request)) {
+  if (
+    isAuthLandingPath(pathname) &&
+    authCode &&
+    /^[0-9a-f-]{36}$/i.test(authCode) &&
+    !hasSupabaseSessionCookie(request)
+  ) {
     const callback = redirectTo(request, "/auth/callback");
     callback.searchParams.set("code", authCode);
     callback.searchParams.set("next", safe(pathname) ? pathname : "/dashboard");
@@ -92,9 +107,7 @@ export async function updateSession(request: NextRequest): Promise<NextResponse>
       setAll(list) {
         list.forEach(({ name, value }) => request.cookies.set(name, value));
         response = NextResponse.next({ request });
-        list.forEach(({ name, value, options }) =>
-          response.cookies.set(name, value, options),
-        );
+        list.forEach(({ name, value, options }) => response.cookies.set(name, value, options));
       },
     },
   });

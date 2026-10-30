@@ -1,18 +1,33 @@
 "use client";
 
+import { Pagination } from "@/shared/components/Pagination";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import toast from "react-hot-toast";
 import { Loader2 } from "lucide-react";
 import { registersApi } from "@/shared/lib/api";
 import { usePosUser } from "@/shared/context/PosUserContext";
 import type { RegisterDTO, SessionDTO } from "@/shared/lib/api/registers";
-import { cardCls, ghostBtnCls, inputCls, primaryBtnCls, SkeletonRows, StatusBadge } from "@/shared/components/ui";
+import {
+  cardCls,
+  ghostBtnCls,
+  inputCls,
+  primaryBtnCls,
+  SkeletonRows,
+  StatusBadge,
+} from "@/shared/components/ui";
 import { formatPaise, rupeesToPaise } from "@/shared/lib/money";
-import { listOfflineSales, type OfflineSaleRecord, type OfflineScope } from "@/shared/lib/offline/sales";
-import { expectedCashWithOffline, pendingOfflineCashTotal } from "@/shared/lib/offline/session-summary";
+import {
+  listOfflineSales,
+  type OfflineSaleRecord,
+  type OfflineScope,
+} from "@/shared/lib/offline/sales";
+import {
+  expectedCashWithOffline,
+  pendingOfflineCashTotal,
+} from "@/shared/lib/offline/session-summary";
 
 export default function RegisterSessionsPage() {
-  const PAGE_SIZE = 15;
+  const PAGE_SIZE = 10;
   const { user } = usePosUser();
   const [registers, setRegisters] = useState<RegisterDTO[]>([]);
   const [current, setCurrent] = useState<SessionDTO | null>(null);
@@ -28,7 +43,9 @@ export default function RegisterSessionsPage() {
   const [note, setNote] = useState("");
 
   const load = useCallback(async () => {
-    const scope: OfflineScope | null = user ? { userId: user.id, orgId: user.orgId, locationId: user.locationId } : null;
+    const scope: OfflineScope | null = user
+      ? { userId: user.id, orgId: user.orgId, locationId: user.locationId }
+      : null;
     const [res, local] = await Promise.all([
       registersApi.overview(),
       scope ? listOfflineSales(scope) : Promise.resolve([]),
@@ -82,8 +99,14 @@ export default function RegisterSessionsPage() {
   }
 
   const t = current?.totals;
-  const { amountPaise: pendingOfflineCashPaise, count: pendingOfflineCount } = useMemo(() => pendingOfflineCashTotal(offlineSales), [offlineSales]);
-  const { serverExpectedPaise: serverExpectedCashPaise, combinedExpectedPaise: combinedExpectedCashPaise } = current
+  const { amountPaise: pendingOfflineCashPaise, count: pendingOfflineCount } = useMemo(
+    () => pendingOfflineCashTotal(offlineSales),
+    [offlineSales],
+  );
+  const {
+    serverExpectedPaise: serverExpectedCashPaise,
+    combinedExpectedPaise: combinedExpectedCashPaise,
+  } = current
     ? expectedCashWithOffline({
         openingCashPaise: current.openingCashPaise,
         serverCashSalesPaise: t?.cashSalesPaise ?? 0,
@@ -95,16 +118,19 @@ export default function RegisterSessionsPage() {
   const combinedVariancePaise = countedCash ? countedCashPaise - combinedExpectedCashPaise : null;
   const recentPages = Math.max(1, Math.ceil(recent.length / PAGE_SIZE));
   const visibleRecent = recent.slice((recentPage - 1) * PAGE_SIZE, recentPage * PAGE_SIZE);
-  useEffect(() => { setRecentPage((page) => Math.min(page, recentPages)); }, [recentPages]);
+  useEffect(() => {
+    setRecentPage((page) => Math.min(page, recentPages));
+  }, [recentPages]);
 
   if (loading) return <SkeletonRows rows={4} />;
 
   return (
     <div className="mx-auto max-w-3xl space-y-6">
-      <header className="space-y-2">
-        <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-primary">Cash control</p>
-        <h1 className="text-3xl font-black tracking-[-0.04em] text-foreground">Register</h1>
-        <p className="max-w-xl text-sm text-foreground-muted">Open or close the register for this location and keep offline cash sales visible in the drawer total.</p>
+      <header className="space-y-1">
+        <h1 className="text-3xl font-bold tracking-[-0.03em] text-foreground-heading">Register</h1>
+        <p className="max-w-xl text-sm text-foreground-muted">
+          Cash in the drawer and online (UPI) money, counted separately.
+        </p>
       </header>
 
       {current ? (
@@ -113,24 +139,64 @@ export default function RegisterSessionsPage() {
             <h2 className="text-sm font-semibold text-foreground-heading">Open session</h2>
             <StatusBadge status="open" />
           </div>
-          <dl className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-3">
-            <Field label="Opening cash" value={formatPaise(current.openingCashPaise)} />
-            <Field label="Server cash sales" value={formatPaise(t?.cashSalesPaise ?? 0)} />
-            <Field label="Pending offline cash" value={`${formatPaise(pendingOfflineCashPaise)} · ${pendingOfflineCount} sale${pendingOfflineCount === 1 ? "" : "s"}`} />
-            <Field label="UPI sales" value={formatPaise(t?.upiSalesPaise ?? 0)} />
-            <Field label="Server sale count" value={String(t?.saleCount ?? 0)} />
-            <Field label="Server expected cash" value={formatPaise(serverExpectedCashPaise)} />
-            <Field label="Expected cash with offline" value={formatPaise(combinedExpectedCashPaise)} />
-          </dl>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div className="rounded-3xl bg-surface-muted p-5">
+              <p className="text-xs font-semibold uppercase tracking-[0.12em] text-foreground-muted">
+                Cash in drawer
+              </p>
+              <p className="mt-2 text-3xl font-bold text-foreground-heading">
+                {formatPaise(combinedExpectedCashPaise)}
+              </p>
+              <dl className="mt-3 space-y-1 text-xs text-foreground-muted">
+                <div className="flex justify-between">
+                  <dt>Opening cash</dt>
+                  <dd>{formatPaise(current.openingCashPaise)}</dd>
+                </div>
+                <div className="flex justify-between">
+                  <dt>Cash sales (server)</dt>
+                  <dd>{formatPaise(t?.cashSalesPaise ?? 0)}</dd>
+                </div>
+                <div className="flex justify-between">
+                  <dt>Offline cash pending ({pendingOfflineCount})</dt>
+                  <dd>{formatPaise(pendingOfflineCashPaise)}</dd>
+                </div>
+                <div className="flex justify-between">
+                  <dt>Server expected</dt>
+                  <dd>{formatPaise(serverExpectedCashPaise)}</dd>
+                </div>
+              </dl>
+            </div>
+            <div className="rounded-3xl bg-surface-muted p-5">
+              <p className="text-xs font-semibold uppercase tracking-[0.12em] text-foreground-muted">
+                Online (UPI)
+              </p>
+              <p className="mt-2 text-3xl font-bold text-foreground-heading">
+                {formatPaise(t?.upiSalesPaise ?? 0)}
+              </p>
+              <dl className="mt-3 space-y-1 text-xs text-foreground-muted">
+                <div className="flex justify-between">
+                  <dt>Sales this session</dt>
+                  <dd>{t?.saleCount ?? 0}</dd>
+                </div>
+              </dl>
+              <p className="mt-3 text-xs text-foreground-muted">Not counted in the drawer.</p>
+            </div>
+          </div>
 
           {pendingOfflineCount > 0 ? (
-            <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
-              <p className="font-semibold">{pendingOfflineCount} offline cash sale{pendingOfflineCount === 1 ? "" : "s"} still pending sync.</p>
-              <p className="mt-1">Physical drawer should include {formatPaise(pendingOfflineCashPaise)} extra cash. The backend close calculation will only know this amount after sync.</p>
+            <div className="mt-4 rounded-2xl bg-status-warning-surface p-4 text-sm text-status-warning">
+              <p className="font-semibold">
+                {pendingOfflineCount} offline cash sale{pendingOfflineCount === 1 ? "" : "s"} still
+                pending sync.
+              </p>
+              <p className="mt-1">
+                Physical drawer should include {formatPaise(pendingOfflineCashPaise)} extra cash.
+                The backend close calculation will only know this amount after sync.
+              </p>
             </div>
           ) : null}
 
-          <form onSubmit={closeRegister} className="mt-4 space-y-3 border-t border-border pt-4">
+          <form onSubmit={closeRegister} className="mt-5 space-y-4">
             <div>
               <label className="mb-1 block text-xs font-medium text-foreground-body">
                 Counted cash (₹)
@@ -145,10 +211,26 @@ export default function RegisterSessionsPage() {
                 className={inputCls}
               />
               {combinedVariancePaise !== null ? (
-                <p className="mt-1 text-xs text-foreground-muted">
-                  Variance using expected cash with offline: {formatPaise(combinedVariancePaise)}
+                <p className="mt-2 flex items-center gap-2 text-xs text-foreground-muted">
+                  <span
+                    className={`rounded-full px-2.5 py-1 font-semibold ${
+                      combinedVariancePaise === 0
+                        ? "bg-status-success-surface text-status-success"
+                        : combinedVariancePaise > 0
+                          ? "bg-status-info-surface text-status-info"
+                          : "bg-status-danger-surface text-status-danger"
+                    }`}
+                  >
+                    {combinedVariancePaise === 0
+                      ? "Balanced"
+                      : combinedVariancePaise > 0
+                        ? "Over"
+                        : "Short"}
+                  </span>
+                  Variance vs expected cash with offline: {formatPaise(combinedVariancePaise)}
                 </p>
               ) : null}
+              <NoteCounter onTotal={(rupees) => setCountedCash(rupees > 0 ? String(rupees) : "")} />
             </div>
             <div>
               <label className="mb-1 block text-xs font-medium text-foreground-body">
@@ -217,32 +299,54 @@ export default function RegisterSessionsPage() {
       )}
 
       <section className={cardCls}>
-        <h2 className="mb-3 text-sm font-semibold text-foreground-heading">Recent closed sessions</h2>
+        <h2 className="mb-3 text-xs font-semibold uppercase tracking-[0.12em] text-foreground-muted">
+          Recent closed sessions
+        </h2>
         {recent.length === 0 ? (
           <p className="text-sm text-foreground-muted">No closed sessions yet.</p>
         ) : (
           <>
-          <ul className="divide-y divide-border text-sm">
-            {visibleRecent.map((s) => (
-              <li key={s._id} className="flex flex-wrap items-center justify-between gap-2 py-2.5">
-                <span className="text-foreground-muted">
-                  {s.closedAt ? new Date(s.closedAt).toLocaleString("en-IN") : "—"}
-                </span>
-                <span>Expected {formatPaise(s.expectedCashPaise ?? 0)}</span>
-                <span>Counted {formatPaise(s.countedCashPaise ?? 0)}</span>
-                <span
-                  className={
-                    (s.cashVariancePaise ?? 0) === 0
-                      ? "font-medium text-status-success"
-                      : "font-medium text-status-warning"
-                  }
-                >
-                  Variance {formatPaise(s.cashVariancePaise ?? 0)}
-                </span>
-              </li>
-            ))}
-          </ul>
-          {recentPages > 1 ? <Pagination page={recentPage} pages={recentPages} onPageChange={setRecentPage} /> : null}
+            <ul className="space-y-2 text-sm">
+              {visibleRecent.map((s) => {
+                const v = s.cashVariancePaise ?? 0;
+                return (
+                  <li key={s._id} className="rounded-2xl bg-surface-muted p-4">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="font-semibold text-foreground-heading">
+                        {s.closedAt
+                          ? new Date(s.closedAt).toLocaleString("en-IN", {
+                              day: "numeric",
+                              month: "short",
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            })
+                          : "—"}
+                      </span>
+                      <span
+                        className={`rounded-full px-2.5 py-1 text-xs font-semibold ${v === 0 ? "bg-status-success-surface text-status-success" : v > 0 ? "bg-status-info-surface text-status-info" : "bg-status-danger-surface text-status-danger"}`}
+                      >
+                        {v === 0
+                          ? "Balanced"
+                          : `${v > 0 ? "Over" : "Short"} ${formatPaise(Math.abs(v))}`}
+                      </span>
+                    </div>
+                    <p className="mt-1 text-xs text-foreground-muted">
+                      Expected {formatPaise(s.expectedCashPaise ?? 0)} · Counted{" "}
+                      {formatPaise(s.countedCashPaise ?? 0)}
+                    </p>
+                  </li>
+                );
+              })}
+            </ul>
+            {recentPages > 1 ? (
+              <Pagination
+                page={recentPage}
+                pages={recentPages}
+                onPageChange={setRecentPage}
+                label="Recent sessions pages"
+                className="mt-3"
+              />
+            ) : null}
           </>
         )}
       </section>
@@ -254,19 +358,55 @@ export default function RegisterSessionsPage() {
   );
 }
 
-function Pagination({ page, pages, onPageChange }: { page: number; pages: number; onPageChange: (page: number) => void }) {
-  return <div className="mt-3 flex items-center justify-between border-t border-border pt-3 text-sm">
-    <button type="button" className="rounded-lg border border-border px-3 py-2 disabled:cursor-not-allowed disabled:opacity-40" disabled={page <= 1} onClick={() => onPageChange(page - 1)}>Previous</button>
-    <span className="text-foreground-muted">Page {page} of {pages}</span>
-    <button type="button" className="rounded-lg border border-border px-3 py-2 disabled:cursor-not-allowed disabled:opacity-40" disabled={page >= pages} onClick={() => onPageChange(page + 1)}>Next</button>
-  </div>;
-}
+const NOTE_DENOMINATIONS = [500, 200, 100, 50, 20, 10] as const;
 
-function Field({ label, value }: { label: string; value: string }) {
+/** Count-by-notes helper: sums note counts into the counted-cash field. The server still validates the close. */
+function NoteCounter({ onTotal }: { onTotal: (rupees: number) => void }) {
+  const [open, setOpen] = useState(false);
+  const [counts, setCounts] = useState<Record<number, number>>({});
+  function change(d: number, delta: number) {
+    const next = { ...counts, [d]: Math.max(0, (counts[d] ?? 0) + delta) };
+    setCounts(next);
+    onTotal(NOTE_DENOMINATIONS.reduce((sum, n) => sum + n * (next[n] ?? 0), 0));
+  }
   return (
-    <div>
-      <dt className="text-xs text-foreground-muted">{label}</dt>
-      <dd className="font-semibold text-foreground-heading">{value}</dd>
+    <div className="mt-3">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
+        className="text-sm font-semibold text-primary"
+      >
+        {open ? "Hide note counter" : "Count by notes"}
+      </button>
+      {open ? (
+        <ul className="mt-3 space-y-2 rounded-3xl bg-surface-muted p-3">
+          {NOTE_DENOMINATIONS.map((d) => (
+            <li key={d} className="flex items-center justify-between">
+              <span className="text-sm font-semibold text-foreground-heading">₹{d}</span>
+              <div className="flex items-center gap-3">
+                <button
+                  type="button"
+                  aria-label={`Fewer ₹${d} notes`}
+                  onClick={() => change(d, -1)}
+                  className="grid h-11 w-11 place-items-center rounded-full bg-surface-card text-lg"
+                >
+                  −
+                </button>
+                <span className="w-8 text-center text-sm font-bold">{counts[d] ?? 0}</span>
+                <button
+                  type="button"
+                  aria-label={`More ₹${d} notes`}
+                  onClick={() => change(d, 1)}
+                  className="grid h-11 w-11 place-items-center rounded-full bg-surface-card text-lg"
+                >
+                  +
+                </button>
+              </div>
+            </li>
+          ))}
+        </ul>
+      ) : null}
     </div>
   );
 }

@@ -18,11 +18,7 @@ import { ADMIN_HOME, isPlatformAdmin } from "@/shared/lib/auth/routing";
 export function SiteHeader() {
   const { user, capabilities, loading, logout } = usePosUser();
   const pathname = usePathname();
-  const accountHref = isPlatformAdmin(user)
-    ? ADMIN_HOME
-    : user?.orgId
-      ? "/dashboard"
-      : "/buyer";
+  const accountHref = isPlatformAdmin(user) ? ADMIN_HOME : user?.orgId ? "/dashboard" : "/buyer";
 
   const sellerWorkspaceRoutes = [
     "/dashboard",
@@ -33,11 +29,17 @@ export function SiteHeader() {
     "/offline-operations",
     "/settings",
   ];
-  const isSellerWorkspace = sellerWorkspaceRoutes.some((route) => pathname === route || pathname.startsWith(`${route}/`));
+  const isSellerWorkspace = sellerWorkspaceRoutes.some(
+    (route) => pathname === route || pathname.startsWith(`${route}/`),
+  );
 
   // SellerShell owns the POS application chrome on these routes. Keeping the
   // public site header here would render two mobile headers and two exits.
-  if (isSellerWorkspace) return null;
+  // BuyerShell owns the chrome on buyer routes (sidebar on desktop, avatar on mobile).
+  const isBuyerWorkspace =
+    (pathname === "/buyer" || pathname.startsWith("/buyer/")) &&
+    !pathname.startsWith("/buyer/setup");
+  if (isSellerWorkspace || isBuyerWorkspace) return null;
 
   async function handleLogout() {
     await logout();
@@ -47,11 +49,7 @@ export function SiteHeader() {
   return (
     <header className="no-print sticky top-0 z-50 border-b border-border/70 bg-surface backdrop-blur">
       <div className="mx-auto flex min-h-16 w-full max-w-7xl items-center justify-between gap-3 px-4 sm:px-6">
-        <Link
-          href="/"
-          className="flex min-w-0 items-center gap-2"
-          aria-label="KOMOLA home"
-        >
+        <Link href="/" className="flex min-w-0 items-center gap-2" aria-label="KOMOLA home">
           <Image
             src="/icons/apple-touch-icon.png"
             alt=""
@@ -65,10 +63,7 @@ export function SiteHeader() {
           </span>
         </Link>
 
-        <nav
-          aria-label="Primary navigation"
-          className="flex items-center gap-1 sm:gap-2"
-        >
+        <nav aria-label="Primary navigation" className="flex items-center gap-1 sm:gap-2">
           {capabilities?.buyer ? (
             <>
               <Link href="/buyer" className={`${navLinkClass} !hidden xl:!inline-flex`}>
@@ -146,7 +141,11 @@ export function SiteMobileNavigation() {
   const { capabilities, loading } = usePosUser();
   const pathname = usePathname();
 
-  if (loading || !capabilities?.buyer || (pathname !== "/buyer" && !pathname.startsWith("/buyer/"))) {
+  if (
+    loading ||
+    !capabilities?.buyer ||
+    (pathname !== "/buyer" && !pathname.startsWith("/buyer/"))
+  ) {
     return null;
   }
 
@@ -158,18 +157,20 @@ export function SiteMobileNavigation() {
   ];
 
   return (
-    <div className="fixed inset-x-4 bottom-4 z-40 xl:hidden">
+    <div className="fixed inset-x-0 bottom-0 z-40 lg:hidden">
       <nav
         aria-label="Buyer navigation"
-        className="grid grid-cols-4 rounded-3xl border border-border bg-surface-card/95 p-2 shadow-[0_18px_50px_rgba(23,23,23,0.18)] backdrop-blur"
+        className="safe-area-bottom grid grid-cols-4 bg-surface-card/95 px-2 pt-2 backdrop-blur"
       >
         {items.map(({ href, label, icon: Icon }) => {
-          const active = pathname === href || (href !== "/buyer" && pathname.startsWith(`${href}/`));
+          const active =
+            pathname === href || (href !== "/buyer" && pathname.startsWith(`${href}/`));
           return (
             <Link
               key={href}
               href={href}
-              className={`${active ? "bg-foreground text-white" : "text-foreground-muted hover:bg-surface-muted hover:text-foreground-body"} flex min-h-14 flex-col items-center justify-center gap-1 rounded-2xl px-1 text-[11px] font-semibold`}
+              aria-current={active ? "page" : undefined}
+              className={`${active ? "text-primary" : "text-foreground-muted hover:text-foreground-heading"} flex min-h-14 flex-col items-center justify-center gap-1 rounded-2xl px-1 text-[11px] font-semibold`}
             >
               <Icon className="h-5 w-5" aria-hidden="true" />
               {label}
@@ -186,7 +187,21 @@ export function SiteFooter() {
     <footer className="no-print border-t border-border bg-surface-card">
       <div className="mx-auto flex w-full max-w-7xl flex-col items-center justify-between gap-1 px-4 py-5 text-center text-xs text-foreground-muted sm:flex-row sm:px-6 sm:text-left">
         <span>© {new Date().getFullYear()} KOMOLA</span>
-        <span className="flex items-center gap-3"><span>Visakhapatnam, India</span><Link href="/support" className="font-semibold text-primary hover:underline">Support</Link><Link href="/privacy" className="font-semibold text-primary hover:underline">Privacy</Link><Link href="/terms" className="font-semibold text-primary hover:underline">Terms</Link><Link href="/privacy/requests" className="font-semibold text-primary hover:underline">Privacy requests</Link></span>
+        <span className="flex items-center gap-3">
+          <span>Visakhapatnam, India</span>
+          <Link href="/support" className="font-semibold text-primary hover:underline">
+            Support
+          </Link>
+          <Link href="/privacy" className="font-semibold text-primary hover:underline">
+            Privacy
+          </Link>
+          <Link href="/terms" className="font-semibold text-primary hover:underline">
+            Terms
+          </Link>
+          <Link href="/privacy/requests" className="font-semibold text-primary hover:underline">
+            Privacy requests
+          </Link>
+        </span>
       </div>
     </footer>
   );

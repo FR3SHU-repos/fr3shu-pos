@@ -64,8 +64,18 @@ describe("computeLineTotals", () => {
 describe("sumCartTotals", () => {
   it("adds line totals and clamps a cart-level discount", () => {
     const lines = [
-      computeLineTotals({ qtyBase: 1000, unitPricePaise: 6000, basePerSaleUnit: 1000, taxRateBps: 0 }),
-      computeLineTotals({ qtyBase: 2000, unitPricePaise: 9500, basePerSaleUnit: 1000, taxRateBps: 0 }),
+      computeLineTotals({
+        qtyBase: 1000,
+        unitPricePaise: 6000,
+        basePerSaleUnit: 1000,
+        taxRateBps: 0,
+      }),
+      computeLineTotals({
+        qtyBase: 2000,
+        unitPricePaise: 9500,
+        basePerSaleUnit: 1000,
+        taxRateBps: 0,
+      }),
     ];
     const cart = sumCartTotals(lines, 1000);
     expect(cart.grossPaise).toBe(6000 + 19000);

@@ -295,6 +295,10 @@ seller login/onboarding, register open/close, online cash sale, history, void,
 return, offline cash sale, reconnect/sync, local receipt recovery, account
 switching, PWA install/update, and buyer campaign/claim/receipt flows.
 
+### UI theme and shell (October 2026 redesign)
+
+Colour tokens live in `app/globals.css`: dark is the default (`:root`), the previous light palette is `:root[data-theme="light"]`. `app/layout.tsx` applies the saved `komola-theme` before paint. `SellerShell` uses a longest-match active state, a mobile bottom tab bar (Home, Sell, Sales, Register, More; Sign out and theme live in More) and a desktop sidebar. On `/pos`, the cart panel is a full-screen Review/Checkout view on mobile (opened from the sticky cart bar) and a permanent side panel on desktop; F2 starts payment and F4 focuses search. Payment, buyer-code and offline logic are unchanged.
+
 ## 11. AI change checklist
 
 Before changing this app:
@@ -313,3 +317,27 @@ Before changing this app:
    any route or response.
 6. Update the closest document and this reference, then run the four frontend
    checks above.
+
+## POS register structure (October 2026 refactor)
+
+`app/(seller)/pos/page.tsx` is a thin composition. Logic lives in hooks, pure state in `shared/lib/pos/`, UI in `shared/components/pos/`.
+
+- Hooks (`shared/hooks/pos/`): `usePosCatalog` (products + debounced search), `usePosRegister` (session, store, online, pending offline sales), `useCart` (lines + display totals), `useBuyerLookup` (walk-in / KOMOLA buyer code), `useCheckout` (payment state, validation, online/offline submit, idempotency key), `useHeldCarts`, `usePosShortcuts` (F2 pay, F4 search).
+- Pure state (`shared/lib/pos/`): `cart-lines.ts`, `payment-state.ts` and `customer-state.ts` (reducers). Covered by `tests/pos-cart-lines.test.ts` and `tests/pos-state.test.ts`.
+- Components (`shared/components/pos/`): `ProductGrid`, `CartPanel`, `CheckoutSheet`, `CustomerBlock`, `UpiQr`, `SaleCompleted`, `HeldCartsList`.
+- Invariants preserved: the API stays authoritative for money, stock and rewards; one idempotency key per cart attempt; phone required; offline checkout is cash only.
+
+## Data fetching and shared API types
+
+- Wire types (`PageMeta`, `ApiSuccessResponse`, `ApiFailureResponse`) live in `shared/lib/api/types.ts`; `app/api/v1/utils/responses.ts` re-exports them. Shared code must not import from `app/`.
+- `shared/hooks/useApi.ts`: `useApi(fetcher, deps, { enabled, debounceMs, keepData })` returns `{ data, error, loading, refetch, mutate }`. It aborts the previous request and discards late responses, so a changed filter never shows older results. Use `keepData: false` for detail pages keyed by id.
+- `Skeleton`, `SkeletonRows`, `EmptyState` and `ErrorState` (with retry) in `shared/components/ui.tsx` are the shared loading/empty/error UI.
+- Migrated so far: Sales history (list and detail) and the buyer receipt page. Other client pages still fetch in `useEffect` and can move over one at a time.
+
+## Error, loading and not-found boundaries
+
+`app/`, `app/(seller)/` and `app/buyer/` each have `error.tsx`, `loading.tsx` and `not-found.tsx`, built from `shared/components/RouteBoundary.tsx` (recovery screen with Try again and a home link, skeleton, 404). `app/global-error.tsx` is the last resort when the root layout itself fails and ships its own `<html>` with inline styles.
+
+## CI
+
+`.github/workflows/ci.yml` runs on pull requests and pushes to `staging` and `main`: `npm run lint`, `typecheck`, `npm test`, `npm run build` (placeholder public env vars only). The API repo has the same file running gofmt (advisory), `go vet ./...`, `go test ./...` and `go build ./cmd/api`; database tests skip without `FR3SH_TEST_POSTGRES_URL`.

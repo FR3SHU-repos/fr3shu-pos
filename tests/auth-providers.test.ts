@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { authCallbackRedirect, googleAuthEnabled, sellerGoogleRedirect } from "@/shared/lib/auth/providers";
+import {
+  authCallbackRedirect,
+  googleAuthEnabled,
+  sellerGoogleRedirect,
+} from "@/shared/lib/auth/providers";
 
 describe("seller auth providers", () => {
   it("gates Google strictly on the public flag", () => {
@@ -8,14 +12,21 @@ describe("seller auth providers", () => {
     expect(googleAuthEnabled(undefined)).toBe(false);
   });
   it("constructs the fixed seller callback without accepting a next URL", () => {
-    expect(sellerGoogleRedirect("https://pos.komola.in")).toBe("https://pos.komola.in/auth/callback?intent=seller-register");
+    expect(sellerGoogleRedirect("https://pos.komola.in")).toBe(
+      "https://pos.komola.in/auth/callback?intent=seller-register",
+    );
   });
   it("uses the exact allow-listed callback for every environment", () => {
-    expect(authCallbackRedirect("http://localhost:3000")).toBe("http://localhost:3000/auth/callback");
-    expect(authCallbackRedirect("https://pos.komola.in")).toBe("https://pos.komola.in/auth/callback");
+    expect(authCallbackRedirect("http://localhost:3000")).toBe(
+      "http://localhost:3000/auth/callback",
+    );
+    expect(authCallbackRedirect("https://pos.komola.in")).toBe(
+      "https://pos.komola.in/auth/callback",
+    );
   });
   it("carries OAuth intent and a safe destination in the callback URL", () => {
-    expect(authCallbackRedirect("https://pos.komola.in", { intent: "seller", next: "/dashboard" }))
-      .toBe("https://pos.komola.in/auth/callback?as=seller&next=%2Fdashboard");
+    expect(
+      authCallbackRedirect("https://pos.komola.in", { intent: "seller", next: "/dashboard" }),
+    ).toBe("https://pos.komola.in/auth/callback?as=seller&next=%2Fdashboard");
   });
 });

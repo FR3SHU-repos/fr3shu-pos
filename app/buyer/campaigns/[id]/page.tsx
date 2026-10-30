@@ -1,17 +1,10 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
-import {
-  ArrowLeft,
-  CheckCircle2,
-  Gift,
-  MapPin,
-  Phone,
-  Share2,
-  Timer,
-} from "lucide-react";
+import { ArrowLeft, CheckCircle2, Gift, MapPin, Phone, Share2, Timer } from "lucide-react";
 import toast from "react-hot-toast";
 import { campaignsApi } from "@/shared/lib/api";
 import type {
@@ -113,7 +106,7 @@ export default function BuyerCampaignDetailPage() {
 
   if (loading)
     return (
-      <main className="mx-auto min-h-screen max-w-4xl space-y-4 bg-surface p-4 pb-28 sm:p-8 sm:pb-28 xl:pb-8">
+      <main className="mx-auto min-h-screen max-w-4xl space-y-4 bg-background p-4 pb-32 sm:p-8 sm:pb-32 xl:pb-8">
         <Skeleton className="h-8 w-52" />
         <Skeleton className="h-72 w-full" />
         <Skeleton className="h-56 w-full" />
@@ -121,7 +114,7 @@ export default function BuyerCampaignDetailPage() {
     );
   if (!campaign)
     return (
-      <main className="mx-auto min-h-screen max-w-4xl bg-surface p-4 pb-28 sm:p-8 sm:pb-28 xl:pb-8">
+      <main className="mx-auto min-h-screen max-w-4xl bg-background p-4 pb-32 sm:p-8 sm:pb-32 xl:pb-8">
         <Link
           href="/buyer/campaigns"
           className="inline-flex items-center gap-2 text-sm font-semibold text-foreground-muted"
@@ -138,11 +131,8 @@ export default function BuyerCampaignDetailPage() {
       </main>
     );
 
-  const fulfillmentMethod: BuyerFulfillmentMethod =
-    campaign.deliveryOptions[0] ?? "home_delivery";
-  const hasApplied = Boolean(
-    campaign.buyerClaim && campaign.buyerClaim.status !== "cancelled",
-  );
+  const fulfillmentMethod: BuyerFulfillmentMethod = campaign.deliveryOptions[0] ?? "home_delivery";
+  const hasApplied = Boolean(campaign.buyerClaim && campaign.buyerClaim.status !== "cancelled");
   const hasDeliveryAddress = isCompleteAddress(campaign.buyerProfile?.address);
   const upcoming = isUpcoming(campaign);
   const canClaim =
@@ -152,7 +142,7 @@ export default function BuyerCampaignDetailPage() {
     campaign.claimsRemaining > 0 &&
     (fulfillmentMethod !== "home_delivery" || hasDeliveryAddress);
   return (
-    <main className="mx-auto min-h-screen max-w-4xl bg-surface p-4 pb-28 sm:p-8 sm:pb-28 xl:pb-8">
+    <main className="mx-auto min-h-screen max-w-4xl bg-background p-4 pb-32 sm:p-8 sm:pb-32 xl:pb-8">
       <Link
         href="/buyer/campaigns"
         className="mb-5 inline-flex items-center gap-2 text-sm font-semibold text-foreground-muted hover:text-primary"
@@ -172,10 +162,13 @@ export default function BuyerCampaignDetailPage() {
         <section className={`${cardCls} overflow-hidden p-0`}>
           <div className="relative flex min-h-64 items-center justify-center bg-secondary/40">
             {campaign.imageUrl ? (
-              <img
+              <Image
                 src={campaign.imageUrl}
                 alt={`${campaign.title} reward`}
-                className="max-h-[28rem] w-full object-contain"
+                width={1200}
+                height={800}
+                unoptimized
+                className="h-auto max-h-[28rem] w-full object-contain"
               />
             ) : (
               <Gift className="h-20 w-20 text-primary" />
@@ -186,19 +179,16 @@ export default function BuyerCampaignDetailPage() {
               {campaign.campaignType.replace("_", " ")}
             </p>
             {campaign.status !== "published" ? (
-              <p className="mt-2 inline-flex rounded-full border border-status-success bg-status-success px-3 py-1 text-xs font-bold capitalize text-white">
+              <p className="mt-2 inline-flex rounded-full border border-status-success bg-status-success px-3 py-1 text-xs font-bold capitalize text-primary-foreground">
                 Claimed · {campaign.status}
               </p>
             ) : null}
-            <h1 className="mt-2 text-3xl font-black text-foreground-heading">
-              {campaign.title}
-            </h1>
+            <h1 className="mt-2 text-3xl font-black text-foreground-heading">{campaign.title}</h1>
             <p className="mt-3 whitespace-pre-wrap text-base leading-7 text-foreground-muted">
               {campaign.description}
             </p>
             <p className="mt-4 text-sm font-bold text-foreground-heading">
-              Offered by{" "}
-              <span className="text-primary">{campaign.providerName}</span>
+              Offered by <span className="text-primary">{campaign.providerName}</span>
             </p>
             {campaign.providerPhone ? (
               <p className="mt-2 inline-flex items-center gap-1.5 text-sm font-semibold text-foreground-muted">
@@ -226,29 +216,16 @@ export default function BuyerCampaignDetailPage() {
           </div>
         </section>
         <section className={`${cardCls} grid gap-5 sm:grid-cols-3`}>
-          <Metric
-            label="Reward"
-            value={`${campaign.points.toLocaleString("en-IN")} points`}
-          />
-          <Metric
-            label="Claims remaining"
-            value={String(Math.max(0, campaign.claimsRemaining))}
-          />
-          <Metric
-            label="Limit per buyer"
-            value={String(campaign.perBuyerLimit)}
-          />
+          <Metric label="Reward" value={`${campaign.points.toLocaleString("en-IN")} points`} />
+          <Metric label="Claims remaining" value={String(Math.max(0, campaign.claimsRemaining))} />
+          <Metric label="Limit per buyer" value={String(campaign.perBuyerLimit)} />
         </section>
         {claim && claim.status !== "cancelled" ? (
-          <section
-            className={`${cardCls} border-status-success/30 bg-status-success-surface`}
-          >
+          <section className={`${cardCls} border-status-success/30 bg-status-success-surface`}>
             <div className="flex items-start gap-3">
               <CheckCircle2 className="mt-0.5 h-6 w-6 text-status-success" />
               <div>
-                <h2 className="text-xl font-bold text-foreground-heading">
-                  Already applied
-                </h2>
+                <h2 className="text-xl font-bold text-foreground-heading">Already applied</h2>
                 <p className="mt-1 text-sm text-foreground-muted">
                   {claim.status === "claimed"
                     ? `Your ${claim.points.toLocaleString("en-IN")} points are locked while the Rewardor reviews this claim.`
@@ -260,9 +237,9 @@ export default function BuyerCampaignDetailPage() {
                         ? "The Rewardor marked this reward as delivered. Confirm once you have received it."
                         : claim.status === "confirmed"
                           ? "You confirmed receiving this reward."
-                      : `Your claim is ${claim.status}.`}
+                          : `Your claim is ${claim.status}.`}
                 </p>
-                <p className="mt-4 rounded-xl bg-white px-4 py-3 font-mono text-2xl font-bold tracking-wider text-primary">
+                <p className="mt-4 rounded-xl bg-surface-muted px-4 py-3 font-mono text-2xl font-bold tracking-wider text-primary">
                   {claim.claimCode}
                 </p>
                 <p className="mt-3 text-sm text-foreground-muted">
@@ -281,7 +258,7 @@ export default function BuyerCampaignDetailPage() {
                 <button
                   type="button"
                   onClick={() => void shareVerificationDetails()}
-                  className="mt-3 inline-flex items-center gap-2 rounded-lg border border-border bg-white px-3 py-2 text-xs font-bold text-foreground-heading hover:border-primary hover:text-primary"
+                  className="mt-3 inline-flex items-center gap-2 rounded-2xl bg-surface-muted bg-surface-muted px-3 py-2 text-xs font-bold text-foreground-heading hover:border-primary hover:text-primary"
                 >
                   <Share2 className="h-4 w-4" />
                   Share verification details
@@ -303,18 +280,22 @@ export default function BuyerCampaignDetailPage() {
                 {upcoming ? "Upcoming offer" : "Apply for this offer"}
               </h2>
               <p className="mt-1 text-sm text-foreground-muted">
-                {upcoming && campaign.startsAt
-                  ? `This offer opens on ${formatDate(campaign.startsAt)}. You can apply after it starts.`
-                  : <>The Rewardor has selected <strong>{fulfillmentLabel(fulfillmentMethod)}</strong> for this offer.</>}
+                {upcoming && campaign.startsAt ? (
+                  `This offer opens on ${formatDate(campaign.startsAt)}. You can apply after it starts.`
+                ) : (
+                  <>
+                    The Rewardor has selected <strong>{fulfillmentLabel(fulfillmentMethod)}</strong>{" "}
+                    for this offer.
+                  </>
+                )}
               </p>
               {fulfillmentMethod === "home_delivery" && !hasDeliveryAddress ? (
                 <p className="mt-2 text-sm font-semibold text-red-700">
-                  Add your complete delivery address in your profile before
-                  applying.
+                  Add your complete delivery address in your profile before applying.
                 </p>
               ) : null}
             </div>
-            <div className="rounded-xl border border-border bg-surface p-4">
+            <div className="rounded-2xl bg-surface-muted bg-surface p-4">
               <p className="text-sm font-bold text-foreground-heading">
                 {fulfillmentLabel(fulfillmentMethod)}
               </p>
@@ -346,14 +327,13 @@ export default function BuyerCampaignDetailPage() {
                   ? "Already applied"
                   : upcoming && campaign.startsAt
                     ? `Starts ${formatDate(campaign.startsAt)}`
-                  : campaign.buyerClaimsRemaining <= 0
-                    ? "Claim limit reached"
-                    : fulfillmentMethod === "home_delivery" &&
-                        !hasDeliveryAddress
-                      ? "Add delivery address first"
-                      : canClaim
-                        ? "Apply for offer"
-                        : "Unavailable"}
+                    : campaign.buyerClaimsRemaining <= 0
+                      ? "Claim limit reached"
+                      : fulfillmentMethod === "home_delivery" && !hasDeliveryAddress
+                        ? "Add delivery address first"
+                        : canClaim
+                          ? "Apply for offer"
+                          : "Unavailable"}
             </button>
           </section>
         )}
@@ -363,7 +343,11 @@ export default function BuyerCampaignDetailPage() {
 }
 
 function isUpcoming(campaign: BuyerCampaign) {
-  return campaign.status === "published" && Boolean(campaign.startsAt) && new Date(campaign.startsAt!).getTime() > Date.now();
+  return (
+    campaign.status === "published" &&
+    Boolean(campaign.startsAt) &&
+    new Date(campaign.startsAt!).getTime() > Date.now()
+  );
 }
 
 function Metric({ label, value }: { label: string; value: string }) {
@@ -394,13 +378,7 @@ function fulfillmentLabel(method: BuyerFulfillmentMethod): string {
 function formatAddress(address?: Record<string, string>) {
   if (!address) return "Add a complete address in your profile";
   return (
-    [
-      address.line1,
-      address.line2,
-      address.city,
-      address.state,
-      address.postalCode,
-    ]
+    [address.line1, address.line2, address.city, address.state, address.postalCode]
       .filter(Boolean)
       .join(", ") || "Add a complete address in your profile"
   );
