@@ -46,7 +46,7 @@ export default function BuyerWalletPage() {
 
   if (loading)
     return (
-      <main className="mx-auto min-h-screen max-w-5xl space-y-4 bg-surface p-4 pb-28 sm:p-8 sm:pb-28 xl:pb-8">
+      <main className="mx-auto min-h-screen max-w-5xl space-y-4 bg-background p-4 pb-32 sm:p-8 sm:pb-32 xl:pb-8">
         <Skeleton className="h-12 w-72" />
         <Skeleton className="h-44 w-full" />
         <Skeleton className="h-64 w-full" />
@@ -54,28 +54,24 @@ export default function BuyerWalletPage() {
     );
 
   return (
-    <main className="mx-auto min-h-screen max-w-5xl bg-surface p-4 pb-28 sm:p-8 sm:pb-28 xl:pb-8">
-      <header className="mb-6">
-        <p className="font-semibold text-primary">KOMOLA Buyer</p>
-        <h1 className="text-3xl font-bold text-foreground-heading">
-          My wallet
-        </h1>
-        <p className="mt-1 text-foreground-muted">
-          Your points, claimed rewards, and rewards available in your location.
-        </p>
+    <main className="mx-auto min-h-screen max-w-5xl bg-background p-4 pb-32 sm:p-8 sm:pb-32 xl:pb-8">
+      <header className="mb-5">
+        <h1 className="text-3xl font-bold tracking-[-0.03em] text-foreground-heading">Wallet</h1>
+        <p className="mt-1 text-sm text-foreground-muted">Your points and claimed rewards.</p>
       </header>
       {error ? (
-        <p role="alert" className="mb-4 rounded-lg bg-red-50 p-4 text-red-700">
+        <p role="alert" className="mb-4 rounded-lg bg-status-danger-surface p-4 text-status-danger">
           {error}
         </p>
       ) : null}
       <section
-        className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4"
+        className="grid grid-cols-2 gap-3 lg:grid-cols-4"
         aria-label="Wallet balances"
       >
         <WalletMetric
           icon={<Coins />}
           label="Available points"
+          hero
           value={(summary?.availableCoins ?? 0).toLocaleString("en-IN")}
         />
         <WalletMetric
@@ -94,7 +90,7 @@ export default function BuyerWalletPage() {
           value={(summary?.lifetimeRedeemedCoins ?? 0).toLocaleString("en-IN")}
         />
       </section>
-      <section className={`${cardCls} mt-6`} aria-labelledby="claimed-title">
+      <section className={`${cardCls} mt-4`} aria-labelledby="claimed-title">
         <div className="mb-4 flex items-center gap-2">
           <WalletCards className="h-6 w-6 text-primary" />
           <h2
@@ -142,7 +138,7 @@ export default function BuyerWalletPage() {
           </ul>
         )}
       </section>
-      <section className={`${cardCls} mt-6`} aria-labelledby="available-title">
+      <section className={`${cardCls} mt-4`} aria-labelledby="available-title">
         <div className="mb-4 flex items-center justify-between gap-3">
           <div>
             <h2
@@ -171,7 +167,7 @@ export default function BuyerWalletPage() {
             {available.slice(0, 6).map((campaign) => (
               <li
                 key={campaign.id}
-                className="rounded-xl border border-border bg-surface p-4"
+                className="rounded-2xl bg-surface-muted bg-surface p-4"
               >
                 <Link
                   href={`/buyer/campaigns/${campaign.slug}`}
@@ -205,20 +201,22 @@ function WalletMetric({
   icon,
   label,
   value,
+  hero = false,
 }: {
   icon: React.ReactNode;
   label: string;
   value: string;
+  hero?: boolean;
 }) {
   return (
-    <div className="rounded-2xl border border-border bg-surface-card p-5">
+    <div className={`rounded-3xl bg-surface-card p-5 ${hero ? "col-span-2 lg:col-span-1" : ""}`}>
       <div className="flex items-center gap-2 text-primary">
         {icon}
         <p className="m-0 text-sm font-semibold text-foreground-muted">
           {label}
         </p>
       </div>
-      <p className="m-0 mt-3 text-3xl font-black text-foreground-heading">
+      <p className={`m-0 mt-3 font-bold tracking-[-0.02em] text-foreground-heading ${hero ? "text-5xl" : "text-3xl"}`}>
         {value}
       </p>
     </div>
@@ -309,7 +307,7 @@ function ClaimRow({
         <button
           type="button"
           onClick={() => void shareVerificationDetails()}
-          className="mt-3 inline-flex items-center gap-2 rounded-lg border border-border bg-surface-card px-3 py-2 text-xs font-bold text-foreground-heading hover:border-primary hover:text-primary"
+          className="mt-3 inline-flex items-center gap-2 rounded-2xl bg-surface-muted bg-surface-card px-3 py-2 text-xs font-bold text-foreground-heading hover:border-primary hover:text-primary"
         >
           <Share2 className="h-4 w-4" />
           Share verification details

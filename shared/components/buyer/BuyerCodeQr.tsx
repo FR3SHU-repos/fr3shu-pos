@@ -39,7 +39,7 @@ export function BuyerCodeQr({ code }: { code: string }) {
             if (event.target === event.currentTarget) setOpen(false);
           }}
         >
-          <div className="w-full max-w-sm rounded-2xl bg-white p-6 text-center shadow-xl">
+          <div className="w-full max-w-sm rounded-2xl bg-surface-card p-6 text-center shadow-xl">
             <div className="flex items-center justify-between gap-4">
               <h2 id="buyer-qr-title" className="text-xl font-semibold text-foreground-heading">
                 My buyer QR code

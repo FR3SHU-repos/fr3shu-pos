@@ -102,8 +102,8 @@ export default function PrivacyRequestsPage() {
           <label className="flex items-start gap-3 text-sm text-foreground-muted"><input type="checkbox" className="mt-1 h-4 w-4 accent-primary" checked={consents.market_intelligence} onChange={(event) => void updateConsent("market_intelligence", event.target.checked)} /><span><strong className="text-foreground-heading">Agricultural market insights</strong><br />Use pseudonymised purchase and location patterns to improve KOMOLA and understand product demand.</span></label>
           <label className="flex items-start gap-3 text-sm text-foreground-muted"><input type="checkbox" className="mt-1 h-4 w-4 accent-primary" checked={consents.marketing} onChange={(event) => void updateConsent("marketing", event.target.checked)} /><span><strong className="text-foreground-heading">Marketing messages</strong><br />Receive optional KOMOLA updates and offers.</span></label>
         </fieldset>
-        {message ? <p role="status" className="rounded-lg bg-green-50 p-3 text-sm font-semibold text-green-700">{message}</p> : null}
-        {error ? <p role="alert" className="rounded-lg bg-red-50 p-3 text-sm font-semibold text-red-700">{error}</p> : null}
+        {message ? <p role="status" className="rounded-lg bg-status-success-surface p-3 text-sm font-semibold text-status-success">{message}</p> : null}
+        {error ? <p role="alert" className="rounded-lg bg-status-danger-surface p-3 text-sm font-semibold text-status-danger">{error}</p> : null}
       </section>
       <section className={`${cardCls} space-y-5`}>
         <div><h2 className="text-xl font-black text-foreground-heading">Submit a privacy request</h2><p className="mt-1 text-sm text-foreground-muted">Requests are linked to your signed-in account so the KOMOLA team can verify and track them.</p></div>

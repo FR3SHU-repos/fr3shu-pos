@@ -1,3 +1,4 @@
+import Image from "next/image";
 import React from "react";
 import type { SaleDTO } from "@/shared/lib/api/sales";
 import { formatPaise } from "@/shared/lib/money";
@@ -33,8 +34,8 @@ export function ReceiptView({
   return (
     <div id="pos-receipt" className="rcpt">
       <div className="rcpt-brand">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img className="rcpt-logo" src="/komola-logo.png" alt="" />
+        {/* eager: a lazy image may not be loaded yet when the receipt is printed */}
+        <Image className="rcpt-logo" src="/komola-logo.png" alt="" width={52} height={52} loading="eager" />
         <div className="rcpt-wordmark">KOMOLA</div>
         <div className="rcpt-tagline">KOMOLA purchase</div>
       </div>

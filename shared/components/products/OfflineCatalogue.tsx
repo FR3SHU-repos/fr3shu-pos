@@ -74,7 +74,7 @@ export function OfflineCatalogue({ compact = false, visible = true, active = tru
         <p role="status" className="text-xs text-foreground-muted">{offline ? "Offline" : "Online"} · {busy ? "Saving products for offline use…" : snapshot ? `${snapshot.items.length} products saved · ${new Date(snapshot.savedAt).toLocaleString()} · ${snapshot.snapshotVersion}` : "No offline catalogue saved yet"}</p>
       </div>
       <div className="flex flex-wrap gap-2">
-        <button type="button" className="min-h-11 rounded-full border border-border bg-surface-card px-4 py-2 text-xs font-semibold text-foreground-body hover:bg-white" onClick={() => setOpen(!open)} aria-expanded={open}>{open ? "Hide saved products" : "Browse saved products"}</button>
+        <button type="button" className="min-h-11 rounded-full border border-border bg-surface-card px-4 py-2 text-xs font-semibold text-foreground-body hover:bg-surface-card" onClick={() => setOpen(!open)} aria-expanded={open}>{open ? "Hide saved products" : "Browse saved products"}</button>
         <button type="button" disabled={offline || busy} className="min-h-11 rounded-full bg-primary px-4 py-2 text-xs font-semibold text-primary-foreground hover:bg-primary-hover disabled:opacity-50" onClick={() => setRevision(v => v + 1)}>Sync products</button>
       </div>
     </div>

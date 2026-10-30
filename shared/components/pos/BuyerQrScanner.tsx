@@ -81,7 +81,7 @@ export function BuyerQrScanner({
 
       {open ? (
         <div className="fixed inset-0 z-50 grid place-items-center bg-black/60 p-4" role="dialog" aria-modal="true" aria-labelledby="buyer-scanner-title">
-          <div className="w-full max-w-md rounded-2xl bg-white p-5 shadow-xl">
+          <div className="w-full max-w-md rounded-2xl bg-surface-card p-5 shadow-xl">
             <div className="flex items-center justify-between gap-4">
               <div>
                 <h2 id="buyer-scanner-title" className="text-lg font-semibold text-foreground-heading">Scan buyer QR code</h2>

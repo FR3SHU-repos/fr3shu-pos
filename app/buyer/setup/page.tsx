@@ -90,7 +90,7 @@ export default function BuyerSetupPage() {
     router.replace("/buyer");
   }
 
-  return <main className="flex min-h-screen items-center justify-center bg-surface p-4 pb-28 xl:pb-4">
+  return <main className="flex min-h-screen items-center justify-center bg-background p-4 pb-32 xl:pb-4">
     <form onSubmit={submit} className={`${cardCls} w-full max-w-md space-y-5`}>
       <div>
         <p className="font-semibold text-primary">Buyer profile</p>
@@ -117,14 +117,14 @@ export default function BuyerSetupPage() {
         </select>
         <p className="mt-1.5 text-xs text-foreground-muted">You will see rewards and offers enabled for this location.</p>
       </div>
-      <fieldset className="space-y-4 rounded-xl border border-border p-4">
+      <fieldset className="space-y-4 rounded-2xl bg-surface-muted p-4">
         <legend className="px-1 text-sm font-semibold">Address <span className="text-primary">*</span></legend>
         <div><label className="block text-sm font-semibold" htmlFor="buyer-line1">Address line 1 <span className="text-primary">*</span></label><input id="buyer-line1" className={inputCls} value={line1} onChange={(event) => setLine1(event.target.value)} autoComplete="address-line1" required /></div>
         <div><label className="block text-sm font-semibold" htmlFor="buyer-line2">Address line 2 <span className="text-xs font-normal text-foreground-muted">(optional)</span></label><input id="buyer-line2" className={inputCls} value={line2} onChange={(event) => setLine2(event.target.value)} autoComplete="address-line2" /></div>
         <div className="grid gap-4 sm:grid-cols-2"><div><label className="block text-sm font-semibold" htmlFor="buyer-city">City <span className="text-primary">*</span></label><input id="buyer-city" className={inputCls} value={city} onChange={(event) => setCity(event.target.value)} autoComplete="address-level2" required /></div><div><label className="block text-sm font-semibold" htmlFor="buyer-state">State <span className="text-primary">*</span></label><input id="buyer-state" className={inputCls} value={state} onChange={(event) => setState(event.target.value)} autoComplete="address-level1" required /></div></div>
         <div><label className="block text-sm font-semibold" htmlFor="buyer-postal-code">PIN code <span className="text-primary">*</span></label><input id="buyer-postal-code" className={inputCls} value={postalCode} onChange={(event) => setPostalCode(event.target.value.replace(/\D/g, "").slice(0, 6))} inputMode="numeric" autoComplete="postal-code" maxLength={6} required /></div>
       </fieldset>
-      <fieldset className="space-y-3 rounded-xl border border-border bg-surface p-4">
+      <fieldset className="space-y-3 rounded-2xl bg-surface-muted bg-surface p-4">
         <legend className="px-1 text-sm font-semibold">Privacy choices</legend>
         <label className="flex items-start gap-3 text-sm text-foreground-muted">
           <input type="checkbox" className="mt-1 h-4 w-4 accent-primary" checked={coreServiceConsent} onChange={(event) => setCoreServiceConsent(event.target.checked)} required />
@@ -135,7 +135,7 @@ export default function BuyerSetupPage() {
           <span>I allow KOMOLA to use pseudonymised purchase and location patterns to build aggregated agricultural market insights and improve the service. This is optional and can be withdrawn later.</span>
         </label>
       </fieldset>
-      {error && <p role="alert" className="rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}</p>}
+      {error && <p role="alert" className="rounded-lg bg-status-danger-surface p-3 text-sm text-status-danger">{error}</p>}
       <button className={`${primaryBtnCls} min-h-12 w-full`} disabled={busy}>{busy ? "Saving…" : "Save and continue"}</button>
     </form>
   </main>;

@@ -9,7 +9,7 @@ import {
   type ProductDTO,
   type SupplierDTO,
 } from "./_map";
-import type { PageMeta } from "@/app/api/v1/utils/responses";
+import type { PageMeta } from "@/shared/lib/api/types";
 import {
   applyLocalStockDeductions,
   listOfflineSales,

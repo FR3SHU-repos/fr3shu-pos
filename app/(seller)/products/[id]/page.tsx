@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import React, { use, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
@@ -157,7 +158,7 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
 
       <form onSubmit={save} className={`${cardCls} space-y-4`}>
         <div className="grid gap-4 sm:grid-cols-[160px_1fr] sm:items-start">
-          {product.imageUrl ? <img src={product.imageUrl} alt={product.name} className="h-40 w-40 rounded-xl object-cover ring-1 ring-border" /> : <div className="flex h-40 w-40 items-center justify-center rounded-xl border border-dashed border-border text-center text-sm text-foreground-muted">No product image yet</div>}
+          {product.imageUrl ? <Image src={product.imageUrl} alt={product.name} width={160} height={160} unoptimized className="h-40 w-40 rounded-xl object-cover ring-1 ring-border" /> : <div className="flex h-40 w-40 items-center justify-center rounded-xl border border-dashed border-border text-center text-sm text-foreground-muted">No product image yet</div>}
           <div>
             <label className="mb-1 block text-xs font-medium text-foreground-body">Product image</label>
             <input type="file" accept="image/jpeg,image/png,image/webp" onChange={(e) => setImage(e.target.files?.[0] ?? null)} className={`${inputCls} w-full`} />

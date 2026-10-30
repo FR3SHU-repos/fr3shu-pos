@@ -10,7 +10,7 @@ import {
   type PaymentDTO,
   type SaleDTO,
 } from "./_map";
-import type { PageMeta } from "@/app/api/v1/utils/responses";
+import type { PageMeta } from "@/shared/lib/api/types";
 import {
   incrementOfflineSaleAttempt,
   claimPendingOfflineSales,
@@ -27,9 +27,16 @@ import { jsonByteLength, recordOfflineSyncAttempt } from "@/shared/lib/offline/n
 export type { SaleDTO };
 export type PaymentRow = PaymentDTO;
 
+export interface SaleListSummary {
+  completedCount: number;
+  totalPaise: number;
+}
+
 export interface SaleListResult {
   items: SaleDTO[];
   meta: PageMeta;
+  /** Server-computed totals for the whole filter (all pages), completed sales only. */
+  summary?: SaleListSummary;
 }
 
 export interface SaleDetail {
@@ -75,11 +82,44 @@ export const list = async (params?: {
   limit?: number;
   receiptNo?: string;
   phone?: string;
+  /** RFC3339 instant, inclusive. */
+  from?: string;
+  /** RFC3339 instant, exclusive. */
+  to?: string;
 }): Promise<ApiResult<SaleListResult>> => {
-  const res = await goRequest<{ items: GoSale[]; meta: PageMeta }>("sales", { query: params });
+  const res = await goRequest<{ items: GoSale[]; meta: PageMeta; summary?: { completedCount: number; totalMinor: number } }>("sales", { query: params });
   return {
     ...res,
-    data: res.data ? { items: res.data.items.map(mapSale), meta: res.data.meta } : null,
+    data: res.data
+      ? {
+          items: res.data.items.map(mapSale),
+          meta: res.data.meta,
+          summary: res.data.summary
+            ? { completedCount: res.data.summary.completedCount, totalPaise: res.data.summary.totalMinor }
+            : undefined,
+        }
+      : null,
+  };
+};
+
+export interface DailySalesTotal {
+  /** Local calendar date, YYYY-MM-DD. */
+  date: string;
+  completedCount: number;
+  totalPaise: number;
+}
+
+/** Server-computed completed-sale totals for the last `days` local days, oldest first. */
+export const daily = async (days = 6): Promise<ApiResult<DailySalesTotal[]>> => {
+  const tz = typeof Intl !== "undefined" ? Intl.DateTimeFormat().resolvedOptions().timeZone : undefined;
+  const res = await goRequest<{ days: { date: string; completedCount: number; totalMinor: number }[] }>("sales/daily", {
+    query: { days, tz },
+  });
+  return {
+    ...res,
+    data: res.data
+      ? res.data.days.map((d) => ({ date: d.date, completedCount: d.completedCount, totalPaise: d.totalMinor }))
+      : null,
   };
 };
 
@@ -202,7 +242,7 @@ function automaticSyncMessage(reason?: string): string {
     case "invalid_operation":
       return "Automatic check failed: sale data is incomplete.";
     case "invalid_cash":
-      return "Automatic check failed: cash paid, total, or change does not match.";
+      return "The cash received does not cover the sale total. Open the receipt, edit the cash amount, and try again.";
     case "invalid_line":
       return "Automatic check failed: one product line is incomplete.";
     case "invalid_totals":
@@ -214,9 +254,9 @@ function automaticSyncMessage(reason?: string): string {
     case "inventory_cursor_invalid":
       return "Offline inventory evidence is invalid. Export the receipt and ask support to review it.";
     case "offline_lot_evidence_missing":
-      return "Offline lot evidence is missing. Refresh stock before syncing this sale.";
+      return "Stock details are missing for one item. Open the receipt, review the item and quantity, then try again.";
     case "offline_lot_evidence_invalid":
-      return "Offline lot evidence is invalid. Export the receipt and ask support to review it.";
+      return "The saved stock details for one item are no longer valid. Open the receipt, correct the item or quantity, and try again.";
     case "validation":
       return "Automatic check failed on the server. Check customer, stock, product, and cash details.";
     case "conflict":

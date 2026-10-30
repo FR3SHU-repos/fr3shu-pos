@@ -243,7 +243,7 @@ export default function SellerOnboarding() {
         {field("postalCode", "PIN code", { inputMode: "numeric", autoComplete: "postal-code", placeholder: "6-digit PIN code", maxLength: 6 })}
       </fieldset>
 
-      {error && <p ref={errorRef} role="alert" className="rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}</p>}
+      {error && <p ref={errorRef} role="alert" className="rounded-lg bg-status-danger-surface p-3 text-sm text-status-danger">{error}</p>}
       <button className={`${primaryBtnCls} min-h-12 w-full`} disabled={busy || locations.length === 0}>{busy ? "Submitting…" : "Submit seller application"}</button>
     </form>
   </main>;

@@ -6,6 +6,7 @@ import { MessageCircle, Pencil, Printer } from "lucide-react";
 import toast from "react-hot-toast";
 import { salesApi } from "@/shared/lib/api";
 import type { SaleDetail } from "@/shared/lib/api/sales";
+import { useApi } from "@/shared/hooks/useApi";
 import { ghostBtnCls, Skeleton, StatusBadge } from "@/shared/components/ui";
 import { ReceiptView } from "@/shared/components/pos/ReceiptView";
 import { formatPaise } from "@/shared/lib/money";
@@ -15,34 +16,18 @@ import { normalizeIndianMobile } from "@/shared/lib/auth/phone";
 
 export default function SaleDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
-  const [detail, setDetail] = useState<SaleDetail | null>(null);
-  const [loading, setLoading] = useState(true);
+  const { data: detail, error: loadError, loading, mutate: setDetail } = useApi<SaleDetail>(() => salesApi.get(id), [id], { keepData: false });
   const [editingPhone, setEditingPhone] = useState(false);
   const [phoneInput, setPhoneInput] = useState("");
   const [savingPhone, setSavingPhone] = useState(false);
+  const [action, setAction] = useState<"void" | "return" | null>(null);
+  const [actionReason, setActionReason] = useState("");
+  const [returnQty, setReturnQty] = useState<Record<number, string>>({});
+  const [actionBusy, setActionBusy] = useState(false);
 
   useEffect(() => {
-    let cancelled = false;
-    setLoading(true);
-    setDetail(null);
-
-    void salesApi.get(id)
-      .then((res) => {
-        if (cancelled) return;
-        if (res.success && res.data) setDetail(res.data);
-        else toast.error(res.message);
-      })
-      .catch((error: unknown) => {
-        if (!cancelled) toast.error(error instanceof Error ? error.message : "Could not load sale.");
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [id]);
+    if (loadError) toast.error(loadError);
+  }, [loadError]);
 
   if (loading) return <Skeleton className="h-96 w-full max-w-md" />;
   if (!detail) return <p className="text-sm text-foreground-muted">Sale not found.</p>;
@@ -82,6 +67,27 @@ export default function SaleDetailPage({ params }: { params: Promise<{ id: strin
     } finally {
       setSavingPhone(false);
     }
+  };
+  const submitVoid = async () => {
+    if (!actionReason.trim()) { toast.error("Add a reason before voiding this sale."); return; }
+    setActionBusy(true);
+    const response = await salesApi.voidSale(id, actionReason.trim(), globalThis.crypto.randomUUID());
+    setActionBusy(false);
+    if (!response.success || !response.data) { toast.error(response.message || "Could not void this sale."); return; }
+    setDetail((current) => current ? { ...current, sale: response.data! } : current);
+    setAction(null); setActionReason(""); toast.success("Sale voided");
+  };
+  const submitReturn = async () => {
+    if (!actionReason.trim()) { toast.error("Add a reason before recording a return."); return; }
+    const lines = sale.items.map((_line, index) => ({ saleLineNo: index + 1, qty: returnQty[index] ?? "0" })).filter((line) => Number(line.qty) > 0);
+    if (!lines.length) { toast.error("Enter a return quantity for at least one item."); return; }
+    setActionBusy(true);
+    const response = await salesApi.returnSale(id, { idempotencyKey: globalThis.crypto.randomUUID(), lines, reason: actionReason.trim(), refundSettlement: "pending" });
+    setActionBusy(false);
+    if (!response.success) { toast.error(response.message || "Could not record the return."); return; }
+    setAction(null); setActionReason(""); setReturnQty({}); toast.success("Return recorded for review");
+    const refreshed = await salesApi.get(id);
+    if (refreshed.success && refreshed.data) setDetail(refreshed.data);
   };
 
   return (
@@ -141,6 +147,21 @@ export default function SaleDetailPage({ params }: { params: Promise<{ id: strin
             </button>
           </div>
         ) : null}
+      </div>
+
+      <div className="rounded-xl border border-border bg-surface-card p-4 text-sm no-print">
+        <h2 className="font-semibold text-foreground-heading">Sale actions</h2>
+        <p className="mt-1 text-foreground-muted">Correct a completed receipt with an audited void or return.</p>
+        <div className="mt-3 flex flex-wrap gap-2">
+          <button type="button" className="rounded-lg border border-status-danger/40 px-3 py-2 font-semibold text-status-danger disabled:opacity-50" onClick={() => { setAction("void"); setActionReason(""); }} disabled={actionBusy || sale.status === "voided"}>Void sale</button>
+          <button type="button" className={ghostBtnCls} onClick={() => { setAction("return"); setActionReason(""); }} disabled={actionBusy || sale.status === "voided"}>Record return</button>
+        </div>
+        {action ? <div className="mt-4 space-y-3 rounded-lg border border-border bg-surface p-3">
+          <div className="flex items-center justify-between"><h3 className="font-semibold text-foreground-heading">{action === "void" ? "Void this sale" : "Return items"}</h3><button type="button" className="text-sm text-foreground-muted" onClick={() => setAction(null)}>Cancel</button></div>
+          {action === "return" ? <div className="space-y-2">{sale.items.map((line, index) => <label key={`${line.productId}-${index}`} className="flex items-center justify-between gap-3 text-sm"><span className="min-w-0 flex-1 text-foreground-heading">{line.name}<span className="ml-2 text-xs text-foreground-muted">sold {line.qtyBase} {line.saleUnit}</span></span><input className="w-24 rounded-lg border border-border bg-surface-card px-2 py-1.5 text-right" inputMode="decimal" min="0" max={line.qtyBase} value={returnQty[index] ?? ""} onChange={(event) => setReturnQty((current) => ({ ...current, [index]: event.target.value.replace(/[^0-9.]/g, "") }))} placeholder="0" aria-label={`Return quantity for ${line.name}`} /></label>)}</div> : null}
+          <label className="block text-xs font-medium text-foreground-body">Reason<input className={`${"mt-1 w-full rounded-lg border border-border bg-surface-card px-3 py-2 text-sm text-foreground-heading"}`} value={actionReason} onChange={(event) => setActionReason(event.target.value)} placeholder={action === "void" ? "Duplicate or incorrect sale" : "Customer return reason"} /></label>
+          <button type="button" className="rounded-lg bg-primary px-4 py-2 font-semibold text-primary-foreground disabled:opacity-50" disabled={actionBusy} onClick={() => void (action === "void" ? submitVoid() : submitReturn())}>{actionBusy ? "Saving…" : action === "void" ? "Confirm void" : "Confirm return"}</button>
+        </div> : null}
       </div>
 
       <ReceiptView sale={sale} payments={receiptPayments} />

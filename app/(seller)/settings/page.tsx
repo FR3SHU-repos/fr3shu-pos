@@ -218,10 +218,10 @@ export default function PaymentSettingsPage() {
           <button type="button" className={`${primaryBtnCls} whitespace-nowrap`} onClick={linkReferral} disabled={saving}>{saving ? "Linking…" : "Link buyer code"}</button>
         </div>
       </section>
-      <section className={`${cardCls} mt-6 max-w-2xl border-red-200`}>
+      <section className={`${cardCls} mt-6 max-w-2xl border-status-danger/30`}>
         <h2 className="text-lg font-semibold text-foreground-heading">Request account deletion</h2>
         <p className="mt-1 text-sm leading-6 text-foreground-muted">This is a review request, not an immediate deletion. An administrator will verify it before processing.</p>
-        <div className="mt-4 rounded-xl bg-red-50 p-4 text-sm leading-6 text-red-900">
+        <div className="mt-4 rounded-xl bg-status-danger-surface p-4 text-sm leading-6 text-status-danger">
           Approved requests anonymize your login email, phone number, name, address, business contact details and other personal profile data. Your user ID is retained, and de-identified sales, invoices, rewards, inventory and market-insight records remain available where required for accounting, fraud prevention and analytics.
         </div>
         {deletionRequest ? (
@@ -231,11 +231,11 @@ export default function PaymentSettingsPage() {
               <span className="rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold capitalize text-primary">{deletionRequest.status.replace("_", " ")}</span>
             </div>
             <p className="mt-2 text-sm text-foreground-muted">Submitted {new Date(deletionRequest.createdAt).toLocaleString("en-IN")}{deletionRequest.dueAt ? ` · Target response ${new Date(deletionRequest.dueAt).toLocaleDateString("en-IN")}` : ""}</p>
-            {deletionRequest.responseNote ? <p className="mt-3 rounded-lg bg-white p-3 text-sm text-foreground-muted">{deletionRequest.responseNote}</p> : null}
+            {deletionRequest.responseNote ? <p className="mt-3 rounded-lg bg-surface-card p-3 text-sm text-foreground-muted">{deletionRequest.responseNote}</p> : null}
           </div>
         ) : null}
         {deletionRequest?.status === "submitted" || deletionRequest?.status === "in_review" ? null : (
-          <button type="button" className="mt-4 rounded-xl border border-red-300 px-4 py-3 text-sm font-bold text-red-700 disabled:opacity-50" onClick={requestAccountDeletion} disabled={deletionSubmitting}>{deletionSubmitting ? "Submitting…" : "Request account deletion"}</button>
+          <button type="button" className="mt-4 rounded-xl border border-status-danger/40 px-4 py-3 text-sm font-bold text-status-danger disabled:opacity-50" onClick={requestAccountDeletion} disabled={deletionSubmitting}>{deletionSubmitting ? "Submitting…" : "Request account deletion"}</button>
         )}
       </section>
     </div>

@@ -2,21 +2,21 @@ import React from "react";
 import { cx } from "@/shared/lib/utils";
 
 export const inputCls =
-  "w-full rounded-[14px] border border-border bg-surface-card px-4 py-3 text-sm " +
+  "w-full min-h-12 rounded-2xl border border-transparent bg-surface-muted px-4 py-3 text-sm " +
   "text-foreground-body placeholder:text-foreground-muted " +
-  "focus:outline-none focus:ring-2 focus:ring-primary/30 transition";
+  "focus:outline-none focus:border-primary/60 focus:ring-2 focus:ring-primary/25 transition";
 
-export const cardCls = "rounded-[26px] border border-border bg-surface-card p-5";
+export const cardCls = "rounded-3xl bg-surface-card p-5";
 
 export const primaryBtnCls =
-  "inline-flex items-center justify-center gap-2 rounded-full bg-primary px-5 py-3 " +
+  "inline-flex items-center justify-center gap-2 rounded-full bg-primary px-6 py-3 " +
   "text-sm font-semibold text-primary-foreground hover:bg-primary-hover transition " +
-  "disabled:opacity-50 disabled:pointer-events-none min-h-11";
+  "disabled:opacity-50 disabled:pointer-events-none min-h-12";
 
 export const ghostBtnCls =
-  "inline-flex items-center justify-center gap-2 rounded-full border border-border " +
-  "bg-surface-card px-4 py-3 text-sm font-medium text-foreground-body hover:bg-surface " +
-  "transition disabled:opacity-50 min-h-11";
+  "inline-flex items-center justify-center gap-2 rounded-full " +
+  "bg-surface-muted px-5 py-3 text-sm font-semibold text-foreground-heading hover:bg-tertiary " +
+  "transition disabled:opacity-50 min-h-12";
 
 const STATUS_COLORS: Record<string, string> = {
   open: "bg-status-success-surface text-status-success",
@@ -36,15 +36,21 @@ const STATUS_COLORS: Record<string, string> = {
   voided: "bg-status-danger-surface text-status-danger",
 };
 
+const STATUS_LABELS: Record<string, string> = {
+  PendingVerification: "Pending check",
+  InConversion: "Converting",
+  NotOrganic: "Not organic",
+};
+
 export function StatusBadge({ status }: { status: string }) {
   return (
     <span
       className={cx(
-        "inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium",
+        "inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold capitalize",
         STATUS_COLORS[status] ?? "bg-surface text-foreground-muted",
       )}
     >
-      {status}
+      {STATUS_LABELS[status] ?? status}
     </span>
   );
 }
@@ -75,13 +81,35 @@ export function EmptyState({
   action?: React.ReactNode;
 }) {
   return (
-    <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-border bg-surface-card px-6 py-14 text-center">
+    <div className="flex flex-col items-center justify-center rounded-3xl bg-surface-card px-6 py-14 text-center">
       {icon ? <div className="mb-3 text-foreground-muted">{icon}</div> : null}
       <p className="text-sm font-semibold text-foreground-heading">{title}</p>
       {description ? (
         <p className="mt-1 max-w-sm text-sm text-foreground-muted">{description}</p>
       ) : null}
       {action ? <div className="mt-4">{action}</div> : null}
+    </div>
+  );
+}
+
+export function ErrorState({
+  title = "Could not load this",
+  message,
+  onRetry,
+}: {
+  title?: string;
+  message?: string | null;
+  onRetry?: () => void;
+}) {
+  return (
+    <div role="alert" className="flex flex-col items-center justify-center rounded-3xl bg-surface-card px-6 py-12 text-center">
+      <p className="text-sm font-semibold text-foreground-heading">{title}</p>
+      {message ? <p className="mt-1 max-w-sm text-sm text-foreground-muted">{message}</p> : null}
+      {onRetry ? (
+        <button type="button" onClick={onRetry} className={`${ghostBtnCls} mt-4`}>
+          Try again
+        </button>
+      ) : null}
     </div>
   );
 }

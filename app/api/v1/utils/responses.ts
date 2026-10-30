@@ -1,23 +1,8 @@
 // Standard API response envelope used by every /api/v1 route.
 
-export interface ApiSuccessResponse<T> {
-  success: true;
-  message: string;
-  data: T;
-}
+import type { ApiFailureResponse, ApiSuccessResponse, PageMeta } from "@/shared/lib/api/types";
 
-export interface ApiFailureResponse<E = string> {
-  success: false;
-  message: string;
-  error?: E;
-}
-
-export interface PageMeta {
-  total: number;
-  page: number;
-  limit: number;
-  totalPages: number;
-}
+export type { ApiFailureResponse, ApiSuccessResponse, PageMeta };
 
 export function success<T>(data: T, message = "Success"): ApiSuccessResponse<T> {
   return { success: true, message, data };

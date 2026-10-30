@@ -103,7 +103,7 @@ export function RegisterForm({ intent }: { intent: AuthIntent }) {
     <input aria-label="Password" className={inputCls} type="password" placeholder="Password" value={form.password} onChange={e=>setForm({...form,password:e.target.value})} required />
     <input aria-label="Confirm password" className={inputCls} type="password" placeholder="Confirm password" value={form.confirm} onChange={e=>setForm({...form,confirm:e.target.value})} required />
     {intent === "seller" && <select aria-label="Seller type" className={inputCls} value={form.sellerType} onChange={e=>setForm({...form,sellerType:e.target.value as SellerOrgType})}>{["Farmer","FPO","Retailer","Brand"].map(x=><option key={x}>{x}</option>)}</select>}
-    {error && <p role="alert" aria-live="polite" className="text-sm text-red-700">{error}</p>}
+    {error && <p role="alert" aria-live="polite" className="text-sm text-status-danger">{error}</p>}
     <button disabled={busy} className={`${primaryBtnCls} w-full`}>{busy ? "Creating…" : "Create account"}</button>
     <p className="text-center text-sm"><Link href={`/login/${intent}`} className="text-primary">Already registered? Sign in as a {intent}</Link></p>
   </form></main>;

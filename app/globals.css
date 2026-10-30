@@ -1,49 +1,84 @@
 @import "tailwindcss";
 
+/* KOMOLA calm-counter theme. Dark is the default and mirrors komola-mobile
+   (src/common/theme). The light variant keeps the previous cool-neutral
+   palette with a darker link orange for AA contrast. Switch with
+   <html data-theme="light|dark">. */
 :root {
-  --background: #eef0f2;
-  --foreground: #171717;
+  color-scheme: dark;
+  --background: #0e0f11;
+  --foreground: #f4f5f6;
   --font-sans: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   --font-mono: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+
+  --color-primary: #f15d36;
+  --color-primary-hover: #ff7552;
+  --color-primary-foreground: #111214;
+  --color-brand: #f15d36;
+
+  --color-secondary: #8a9099;
+  --color-secondary-subtle: #202328;
+  --color-secondary-foreground: #c9cdd2;
+  --color-tertiary: #2a2d32;
+  --color-tertiary-foreground: #8a9099;
+
+  --color-surface: #17191c;
+  --color-surface-card: #17191c;
+  --color-surface-muted: #202328;
+  --color-surface-raised: #202328;
+
+  --color-foreground-heading: #f4f5f6;
+  --color-foreground-body: #c9cdd2;
+  --color-foreground-muted: #8a9099;
+
+  --color-border: rgba(255, 255, 255, 0.07);
+  --color-border-focus: #f15d36;
+
+  --color-status-warning: #f5b941;
+  --color-status-warning-surface: rgba(245, 185, 65, 0.14);
+  --color-status-info: #7db4ff;
+  --color-status-info-surface: rgba(125, 180, 255, 0.14);
+  --color-status-success: #3dd68c;
+  --color-status-success-surface: rgba(61, 214, 140, 0.14);
+  --color-status-danger: #ff7a72;
+  --color-status-danger-surface: rgba(255, 122, 114, 0.14);
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-sans);
-  --font-mono: var(--font-mono);
+/* Decorative campaign artwork; identical in both themes. */
+:root {
+  --art-product: linear-gradient(135deg, #3d5a2b, #c98a2b);
+  --art-offer: linear-gradient(135deg, #7a3b8f, #e0693f);
+  --art-cashback: linear-gradient(135deg, #7d3022, #f15d36);
 }
 
-@theme {
-  /* Primary — Komola orange: CTAs, links, active states */
-  --color-primary: #ff5733;
+:root[data-theme="light"] {
+  color-scheme: light;
+  --background: #eef0f2;
+  --foreground: #171717;
+
+  --color-primary: #e04a22;
   --color-primary-hover: #b83218;
   --color-primary-foreground: #ffffff;
+  --color-brand: #e04a22;
 
-  /* Secondary — restrained neutral accent; status colors carry meaning. */
   --color-secondary: #6b7280;
   --color-secondary-subtle: #f5f6f7;
   --color-secondary-foreground: #374151;
-
-  /* Tertiary — stone neutral: subtle UI elements */
   --color-tertiary: #d6d3d1;
   --color-tertiary-foreground: #78716c;
 
-  /* Surfaces */
   --color-surface: #f5f6f7;
   --color-surface-card: #ffffff;
+  --color-surface-muted: #f1f2f4;
+  --color-surface-raised: #ffffff;
 
-  /* Text scale */
   --color-foreground-heading: #171717;
   --color-foreground-body: #374151;
   --color-foreground-muted: #6b7280;
-  --color-brand: #ff5733;
 
-  /* Borders */
-  --color-border: #dde2e5;
+  --color-border: #e3e6e9;
   --color-border-focus: #ff9b80;
 
-  /* Status tokens */
   --color-status-warning: #b45309;
   --color-status-warning-surface: #fffbeb;
   --color-status-info: #1d4ed8;
@@ -54,11 +89,48 @@
   --color-status-danger-surface: #fef2f2;
 }
 
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-sans);
+  --font-mono: var(--font-mono);
+}
+
+@theme {
+  --color-primary: #f15d36;
+  --color-primary-hover: #ff7552;
+  --color-primary-foreground: #111214;
+  --color-brand: #f15d36;
+  --color-secondary: #8a9099;
+  --color-secondary-subtle: #202328;
+  --color-secondary-foreground: #c9cdd2;
+  --color-tertiary: #2a2d32;
+  --color-tertiary-foreground: #8a9099;
+  --color-surface: #17191c;
+  --color-surface-card: #17191c;
+  --color-surface-muted: #202328;
+  --color-surface-raised: #202328;
+  --color-foreground-heading: #f4f5f6;
+  --color-foreground-body: #c9cdd2;
+  --color-foreground-muted: #8a9099;
+  --color-border: rgba(255, 255, 255, 0.07);
+  --color-border-focus: #f15d36;
+  --color-status-warning: #f5b941;
+  --color-status-warning-surface: rgba(245, 185, 65, 0.14);
+  --color-status-info: #7db4ff;
+  --color-status-info-surface: rgba(125, 180, 255, 0.14);
+  --color-status-success: #3dd68c;
+  --color-status-success-surface: rgba(61, 214, 140, 0.14);
+  --color-status-danger: #ff7a72;
+  --color-status-danger-surface: rgba(255, 122, 114, 0.14);
+}
+
 body {
   background: var(--background);
   color: var(--foreground);
   font-family: var(--font-sans), Arial, Helvetica, sans-serif;
   text-rendering: geometricPrecision;
+  font-variant-numeric: tabular-nums;
 }
 
 * {

@@ -1,323 +1,100 @@
 "use client";
 
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import toast from "react-hot-toast";
-import { QRCodeSVG } from "qrcode.react";
-import {
-  Search,
-  Plus,
-  Minus,
-  Trash2,
-  Loader2,
-  CheckCircle2,
-  Printer,
-  PauseCircle,
-  PlayCircle,
-  Coins,
-  UserRoundSearch,
-  MessageCircle,
-} from "lucide-react";
-import { customersApi, productsApi, registersApi, salesApi, sellerOrgsApi } from "@/shared/lib/api";
-import type { ResolvedBuyer } from "@/shared/lib/api/customers";
+import { Search } from "lucide-react";
+import { productsApi } from "@/shared/lib/api";
 import type { ProductDTO } from "@/shared/lib/api/products";
-import type { SaleDTO } from "@/shared/lib/api/sales";
-import type { SessionDTO } from "@/shared/lib/api/registers";
-import { usePosUser } from "@/shared/context/PosUserContext";
-import {
-  cardCls,
-  EmptyState,
-  ghostBtnCls,
-  inputCls,
-  primaryBtnCls,
-  Skeleton,
-} from "@/shared/components/ui";
-import { cx } from "@/shared/lib/utils";
-import { printReceipt } from "@/shared/lib/offline/receipt-print";
-import { computeLineTotals, formatPaise, sumCartTotals } from "@/shared/lib/money";
-import { defaultBaseMetadata, formatBaseQuantity, formatMeasurementValue, formatProductQuantity, measurementMetadata, measurementValue, MEASUREMENT_UNIT_LABELS, MEASUREMENT_UNITS, preferredMeasurementUnit, toBaseQuantity, type BaseUnit, type MeasurementUnit, type SaleUnit } from "@/shared/lib/units";
-import { clampQuantityToStock, remainingStockBase } from "@/shared/lib/pos-stock";
+import toast from "react-hot-toast";
+import { EmptyState, inputCls, primaryBtnCls, Skeleton } from "@/shared/components/ui";
 import { translator, LOCALES, type Locale } from "@/shared/lib/i18n";
-import { ReceiptView, type ReceiptPaymentLine } from "@/shared/components/pos/ReceiptView";
-import { buildWhatsAppReceiptUrl } from "@/shared/lib/whatsapp-share";
-import { normalizeIndianMobile } from "@/shared/lib/auth/phone";
-import { KomoMessage } from "@/shared/components/mascot";
-import { type CartLine, type HeldCart } from "@/shared/components/pos/types";
-import { loadHeldCarts, saveHeldCarts } from "@/shared/lib/offline/held-carts";
-import { BuyerQrScanner } from "@/shared/components/pos/BuyerQrScanner";
-import { OFFLINE_SALES_SYNC_EVENT } from "@/shared/components/pos/OfflineSalesSyncWorker";
-import { buildUpiPaymentUri, isValidUpiId } from "@/shared/lib/upi";
-import { newUuid } from "@/shared/lib/uuid";
-import {
-  commitOfflineCashSale,
-  listPendingOfflineSales,
-  offlineSaleToDTO,
-  parseRupeesToPaise,
-  readOfflineSessionContext,
-  saveOfflineSessionContext,
-  type OfflineScope,
-} from "@/shared/lib/offline/sales";
-
-type PayMethod = "cash" | "upi" | "split";
-
-function lineBaseUnit(line: CartLine): BaseUnit {
-  return line.baseUnit ?? line.product.baseUnit ?? defaultBaseMetadata(line.saleUnit).baseUnit;
-}
-
-function lineBasePerSaleUnit(line: CartLine): number {
-  return line.basePerSaleUnit ?? line.product.basePerSaleUnit;
-}
-
-function lineUnitPricePaise(line: CartLine): number {
-  return line.unitPricePaise ?? line.product.basePricePaise ?? 0;
-}
+import { toBaseQuantity } from "@/shared/lib/units";
+import { formatPaise } from "@/shared/lib/money";
+import { lineBasePerSaleUnit } from "@/shared/lib/pos/cart-lines";
+import { ProductBarcodeScanner } from "@/shared/components/pos/ProductBarcodeScanner";
+import { ProductGrid } from "@/shared/components/pos/ProductGrid";
+import { HeldCartsList } from "@/shared/components/pos/HeldCartsList";
+import { CartPanel } from "@/shared/components/pos/CartPanel";
+import { CheckoutSheet } from "@/shared/components/pos/CheckoutSheet";
+import { SaleCompleted } from "@/shared/components/pos/SaleCompleted";
+import { useCart } from "@/shared/hooks/pos/useCart";
+import { useBuyerLookup } from "@/shared/hooks/pos/useBuyerLookup";
+import { useCheckout } from "@/shared/hooks/pos/useCheckout";
+import { useHeldCarts } from "@/shared/hooks/pos/useHeldCarts";
+import { usePosCatalog } from "@/shared/hooks/pos/usePosCatalog";
+import { usePosRegister } from "@/shared/hooks/pos/usePosRegister";
+import { usePosShortcuts } from "@/shared/hooks/pos/usePosShortcuts";
 
 export default function PosPage() {
-  const { user } = usePosUser();
   const [locale, setLocale] = useState<Locale>("en");
   const t = useMemo(() => translator(locale), [locale]);
-
-  const [loading, setLoading] = useState(true);
-  const [online, setOnline] = useState(true);
-  const [session, setSession] = useState<SessionDTO | null>(null);
-  const [catalog, setCatalog] = useState<ProductDTO[]>([]);
-  const [query, setQuery] = useState("");
-  const [lines, setLines] = useState<CartLine[]>([]);
-  const [held, setHeld] = useState<HeldCart[]>([]);
-
-  const [showPay, setShowPay] = useState(false);
-  const [payMethod, setPayMethod] = useState<PayMethod>("cash");
-  const [cashPart, setCashPart] = useState("");
-  const [upiPart, setUpiPart] = useState("");
-  const [upiAmount, setUpiAmount] = useState("");
-  const [upiRef, setUpiRef] = useState("");
-  const [tendered, setTendered] = useState("");
-  const [customerName, setCustomerName] = useState("");
-  const [customerPhone, setCustomerPhone] = useState("");
-  const [buyerCode, setBuyerCode] = useState("");
-  const [resolvedBuyer, setResolvedBuyer] = useState<ResolvedBuyer | null>(null);
-  const [guestCustomer, setGuestCustomer] = useState(true);
-  const [resolvingBuyer, setResolvingBuyer] = useState(false);
-  const [marketingConsent, setMarketingConsent] = useState(false);
-
-  const [submitting, setSubmitting] = useState(false);
-  const [completed, setCompleted] = useState<SaleDTO | null>(null);
-  const [completedOffline, setCompletedOffline] = useState(false);
-  const [completedPayment, setCompletedPayment] = useState<{
-    lines: ReceiptPaymentLine[];
-    changePaise: number;
-  } | null>(null);
-  const [store, setStore] = useState<{ name?: string; location?: string; upiId?: string; upiPayeeName?: string }>({});
-  const [offlineSessionSavedAt, setOfflineSessionSavedAt] = useState<number | null>(null);
-  const [pendingOfflineCount, setPendingOfflineCount] = useState(0);
-
   const searchRef = useRef<HTMLInputElement>(null);
-  // One idempotency key per cart attempt. Regenerated after a completed sale.
-  const idemRef = useRef<string>(newUuid());
 
-  const offlineScope = useMemo<OfflineScope | null>(() => {
-    if (!user) return null;
-    return { userId: user.id, orgId: user.orgId, locationId: user.locationId };
-  }, [user]);
+  // Mobile-only view state: cart review overlay and which line's pack size is being adjusted.
+  const [cartOpen, setCartOpen] = useState(false);
+  const [adjustKey, setAdjustKey] = useState<string | null>(null);
 
-  const refreshPendingOfflineCount = useCallback(async () => {
-    if (!offlineScope) {
-      setPendingOfflineCount(0);
-      return;
-    }
-    const pending = await listPendingOfflineSales(offlineScope);
-    setPendingOfflineCount(pending.length);
-  }, [offlineScope]);
+  const { catalog, setCatalog, query, setQuery } = usePosCatalog();
+  const register = usePosRegister(setCatalog);
+  const { user, loading, online, session, store, setStore } = register;
+  const cart = useCart();
+  const buyer = useBuyerLookup();
+  const checkout = useCheckout({
+    lines: cart.lines,
+    netPaise: cart.totals.netPaise,
+    customer: buyer.customer,
+    store,
+    session,
+    offlineScope: register.offlineScope,
+    cashierId: user?.id ?? "",
+    setCatalog,
+    refreshPendingOfflineCount: register.refreshPendingOfflineCount,
+    reload: register.reload,
+  });
 
-  const load = useCallback(async () => {
-    // Do not block the POS shell indefinitely on a slow/unavailable backend.
-    // The last locally saved register context is enough to render the screen;
-    // catalogue hydration and server refresh can complete independently.
-    const registerRemote = registersApi.overview();
-    const catalogueRemote = productsApi.list({ limit: 12, status: "active" });
-    const result = await Promise.race([
-      registerRemote,
-      new Promise<null>((resolve) => window.setTimeout(() => resolve(null), 1500)),
-    ]);
-    const applyRegister = async (ov: Awaited<typeof registerRemote>) => {
-      if (ov.success && ov.data) {
-        setSession(ov.data.currentSession);
-        if (offlineScope && ov.data.currentSession) {
-          const saved = await saveOfflineSessionContext(offlineScope, ov.data.currentSession);
-          if (saved) setOfflineSessionSavedAt(Date.now());
-        }
-      } else if (offlineScope) {
-        const saved = await readOfflineSessionContext(offlineScope);
-        if (saved) {
-          setSession(saved.session);
-          setOfflineSessionSavedAt(saved.savedAt);
-        }
-      }
-    };
-    const applyCatalogue = (pl: Awaited<typeof catalogueRemote>) => {
-      if (pl.success && pl.data) setCatalog(pl.data.items);
-    };
-    if (!result) {
-      if (offlineScope) {
-        const saved = await readOfflineSessionContext(offlineScope);
-        if (saved) {
-          setSession(saved.session);
-          setOfflineSessionSavedAt(saved.savedAt);
-        }
-      }
-      await refreshPendingOfflineCount();
-      setLoading(false);
-      void registerRemote.then(applyRegister).catch(() => {
-        // The local session remains usable when the late refresh fails.
-      });
-      void catalogueRemote.then(applyCatalogue).catch(() => {
-        // The local session/catalogue remain usable when the late refresh fails.
-      });
-      return;
-    }
-    await applyRegister(result);
-    void catalogueRemote.then(applyCatalogue).catch(() => {
-      // Products can be loaded again through search when the catalogue refresh fails.
-    });
-    await refreshPendingOfflineCount();
-    setLoading(false);
-  }, [offlineScope, refreshPendingOfflineCount]);
+  function resetCart() {
+    cart.clear();
+    checkout.reset();
+    buyer.reset();
+    setCartOpen(false);
+    setAdjustKey(null);
+  }
 
-  useEffect(() => {
-    void load();
-  }, [load]);
-
-  useEffect(() => {
-    const updateOnline = () => setOnline(typeof navigator === "undefined" ? true : navigator.onLine);
-    updateOnline();
-    window.addEventListener("online", updateOnline);
-    window.addEventListener("offline", updateOnline);
-    return () => {
-      window.removeEventListener("online", updateOnline);
-      window.removeEventListener("offline", updateOnline);
-    };
-  }, []);
-
-  useEffect(() => {
-    const refresh = () => void refreshPendingOfflineCount();
-    window.addEventListener(OFFLINE_SALES_SYNC_EVENT, refresh);
-    window.addEventListener("komola:offline-sales-changed", refresh);
-    return () => {
-      window.removeEventListener(OFFLINE_SALES_SYNC_EVENT, refresh);
-      window.removeEventListener("komola:offline-sales-changed", refresh);
-    };
-  }, [refreshPendingOfflineCount]);
-
-  useEffect(() => {
-    sellerOrgsApi.getMyOrganization().then((res) => {
-      if (!res.success || !res.data) return;
-      const locs = res.data.locations ?? [];
-      const active = locs.find((l) => l.active) ?? locs[0];
-      setStore({
-        name: res.data.displayName,
-        location: active?.name,
-        upiId: res.data.organization.upiId,
-        upiPayeeName: res.data.organization.upiPayeeName,
-      });
-    });
-  }, []);
-
-  useEffect(() => {
-    if (!offlineScope) {
-      return;
-    }
-    let current = true;
-    void loadHeldCarts(offlineScope)
-      .then((carts) => { if (current) setHeld(carts); })
-      .catch(() => { if (current) toast.error("Held carts could not be loaded on this device."); });
-    return () => { current = false; };
-  }, [offlineScope]);
+  const { held, holdCart, resumeCart } = useHeldCarts({
+    offlineScope: register.offlineScope,
+    lines: cart.lines,
+    netPaise: cart.totals.netPaise,
+    catalog,
+    setLines: cart.setLines,
+    onHeld: resetCart,
+  });
 
   useEffect(() => {
     searchRef.current?.focus();
   }, [loading]);
 
-  useEffect(() => {
-    const ctrl = new AbortController();
-    const timer = setTimeout(async () => {
-      const res = await productsApi.list({ q: query.trim() || undefined, limit: query.trim() ? 24 : 12, status: "active", signal: ctrl.signal });
-      if (res.success && res.data) setCatalog(res.data.items);
-    }, 250);
-    return () => { clearTimeout(timer); ctrl.abort(); };
-  }, [query]);
+  usePosShortcuts({
+    pay: () => {
+      if (!checkout.showPay) checkout.startPay();
+    },
+    focusSearch: () => {
+      checkout.setShowPay(false);
+      setCartOpen(false);
+      searchRef.current?.focus();
+    },
+  });
 
-  const results = catalog;
   const offlineShortfallLines = useMemo(
-    () => !online ? lines.map((line) => ({
+    () => !online ? cart.lines.map((line) => ({
       name: line.product.name,
       unit: line.saleUnit,
       shortfallBase: Math.max(0, toBaseQuantity(line.qty, line.saleUnit, lineBasePerSaleUnit(line)) - line.product.availableBase),
     })).filter((line) => line.shortfallBase > 0) : [],
-    [lines, online],
+    [cart.lines, online],
   );
-
-  const lineTotals = useMemo(
-    () =>
-      lines.map((l) =>
-        computeLineTotals({
-          qtyBase: toBaseQuantity(l.qty, l.saleUnit, lineBasePerSaleUnit(l)),
-          unitPricePaise: lineUnitPricePaise(l),
-          basePerSaleUnit: lineBasePerSaleUnit(l),
-          taxRateBps: l.product.taxRateBps ?? 0,
-          discountPaise: l.discountPaise,
-        }),
-      ),
-    [lines],
-  );
-  const cart = useMemo(() => sumCartTotals(lineTotals), [lineTotals]);
-  const qrAmountPaise = payMethod === "split"
-    ? Math.round(Number(upiPart || 0) * 100)
-    : Math.round(Number(upiAmount || 0) * 100);
-  const upiPaymentUri = useMemo(() => {
-    if (!store.upiId || !isValidUpiId(store.upiId) || qrAmountPaise <= 0) return null;
-    return buildUpiPaymentUri({
-      upiId: store.upiId,
-      payeeName: store.upiPayeeName || store.name || store.upiId,
-      amountPaise: qrAmountPaise,
-      note: "KOMOLA POS payment",
-    });
-  }, [qrAmountPaise, store]);
 
   function addProduct(p: ProductDTO) {
-    const offline = typeof navigator !== "undefined" && !navigator.onLine;
-    setLines((prev) => {
-      const idx = prev.findIndex((l) => l.product._id === p._id);
-      if (idx >= 0) {
-        const copy = [...prev];
-        const next = offline ? copy[idx].qty + 1 : clampQuantityToStock(copy[idx].qty + 1, copy[idx].saleUnit, p.availableBase, p.basePerSaleUnit);
-        if (!offline && next === copy[idx].qty) {
-          toast.error("No more stock is available for this product");
-          return prev;
-        }
-        copy[idx] = { ...copy[idx], qty: next };
-        return copy;
-      }
-      if (!offline && p.availableBase <= 0) {
-        toast.error("This product is out of stock");
-        return prev;
-      }
-      const initialQty = offline ? 1 : clampQuantityToStock(1, p.saleUnit, p.availableBase, p.basePerSaleUnit);
-      return [
-        ...prev,
-        {
-          key: newUuid(),
-          product: p,
-          qty: initialQty,
-          saleUnit: p.saleUnit,
-          baseUnit: p.baseUnit,
-          basePerSaleUnit: p.basePerSaleUnit,
-          measurementUnit: preferredMeasurementUnit(p.baseUnit ?? defaultBaseMetadata(p.saleUnit).baseUnit, p.basePerSaleUnit, p.saleUnit),
-          measurementValue: measurementValue(p.basePerSaleUnit, preferredMeasurementUnit(p.baseUnit ?? defaultBaseMetadata(p.saleUnit).baseUnit, p.basePerSaleUnit, p.saleUnit)),
-          unitPricePaise: p.basePricePaise,
-          discountPaise: 0,
-        },
-      ];
-    });
+    cart.addProduct(p);
     setQuery("");
     searchRef.current?.focus();
   }
@@ -328,306 +105,16 @@ export default function PosPage() {
     if (!q) return;
     const byBarcode = await productsApi.lookup({ barcode: q });
     const bySKU = byBarcode.success ? byBarcode : await productsApi.lookup({ sku: q });
-    const exact = bySKU.data ?? results[0];
+    const exact = bySKU.data ?? catalog[0];
     if (exact) addProduct(exact);
   }
 
-  function setQty(key: string, qty: number) {
-    const offline = typeof navigator !== "undefined" && !navigator.onLine;
-    setLines((prev) =>
-      prev.map((l) => (l.key === key ? { ...l, qty: offline ? Math.max(0, qty) : clampQuantityToStock(qty, l.saleUnit, l.product.availableBase, lineBasePerSaleUnit(l)) } : l)),
-    );
-  }
-  function setUnit(key: string, unit: SaleUnit) {
-    const offline = typeof navigator !== "undefined" && !navigator.onLine;
-    setLines((prev) => prev.map((l) => (l.key === key ? { ...l, saleUnit: unit, qty: offline ? l.qty : clampQuantityToStock(l.qty, unit, l.product.availableBase, lineBasePerSaleUnit(l)) } : l)));
-  }
-  function setMeasurementValue(key: string, unit: MeasurementUnit, value: number) {
-    if (!Number.isFinite(value) || value <= 0) return;
-    const metadata = measurementMetadata(unit);
-    const basePerSaleUnit = Math.round(value * metadata.factor);
-    if (!Number.isInteger(basePerSaleUnit) || basePerSaleUnit <= 0) return;
-    setLines((prev) => prev.map((l) => (
-      l.key === key && metadata.baseUnit === lineBaseUnit(l)
-        ? { ...l, baseUnit: metadata.baseUnit, basePerSaleUnit, measurementUnit: unit, measurementValue: value }
-        : l
-    )));
-  }
-
-  function setMeasurementUnit(key: string, unit: MeasurementUnit) {
-    setLines((prev) => prev.map((l) => {
-      if (l.key !== key) return l;
-      const metadata = measurementMetadata(unit);
-      if (metadata.baseUnit !== lineBaseUnit(l)) return l;
-      return { ...l, measurementUnit: unit, measurementValue: measurementValue(lineBasePerSaleUnit(l), unit) };
-    }));
-  }
-  function setLinePrice(key: string, rupees: number) {
-    if (!Number.isFinite(rupees) || rupees < 0) return;
-    setLines((prev) => prev.map((l) => (l.key === key ? { ...l, unitPricePaise: Math.round(rupees * 100), priceOverridden: true } : l)));
-  }
-  function removeLine(key: string) {
-    setLines((prev) => prev.filter((l) => l.key !== key));
-  }
-
-  function resetCart() {
-    setLines([]);
-    setShowPay(false);
-    setPayMethod("cash");
-    setCashPart("");
-    setUpiPart("");
-    setUpiAmount("");
-    setUpiRef("");
-    setTendered("");
-    setCustomerName("");
-    setCustomerPhone("");
-    setBuyerCode("");
-    setResolvedBuyer(null);
-    setGuestCustomer(true);
-    setMarketingConsent(false);
-    setCompletedPayment(null);
-    setCompletedOffline(false);
-    idemRef.current = newUuid();
-  }
-
-  async function persistHeld(next: HeldCart[]) {
-    if (!offlineScope) throw new Error("Seller scope is not ready.");
-    await saveHeldCarts(offlineScope, next);
-    setHeld(next);
-  }
-
-  async function holdCart() {
-    if (lines.length === 0) return;
-    const entry: HeldCart = {
-      id: newUuid(),
-      label: `${lines.length} item(s) · ${formatPaise(cart.netPaise)}`,
-      savedAt: new Date().toISOString(),
-      lines: lines.map((l) => ({
-        productId: l.product._id,
-        qty: l.qty,
-        saleUnit: l.saleUnit,
-        baseUnit: lineBaseUnit(l),
-        basePerSaleUnit: lineBasePerSaleUnit(l),
-        measurementUnit: l.measurementUnit,
-        measurementValue: l.measurementValue,
-        unitPricePaise: lineUnitPricePaise(l),
-        priceOverridden: l.priceOverridden,
-        discountPaise: l.discountPaise,
-      })),
-    };
-    try {
-      await persistHeld([entry, ...held].slice(0, 10));
-    } catch {
-      toast.error("Cart could not be held safely on this device.");
-      return;
-    }
-    resetCart();
-    toast.success("Cart held");
-  }
-
-  async function resumeCart(entry: HeldCart) {
-    const restored: CartLine[] = [];
-    for (const l of entry.lines) {
-      const visibleProduct = catalog.find((p) => p._id === l.productId);
-      const product = visibleProduct ?? (await productsApi.get(l.productId)).data;
-      if (!product) {
-        toast.error("This held cart cannot be resumed until all of its products are available.");
-        return;
-      }
-      const restoredBaseUnit = l.baseUnit ?? product.baseUnit ?? defaultBaseMetadata(l.saleUnit).baseUnit;
-      const restoredFactor = l.basePerSaleUnit ?? product.basePerSaleUnit;
-      const restoredMeasurementUnit = l.measurementUnit ?? preferredMeasurementUnit(restoredBaseUnit, restoredFactor, l.saleUnit);
-      restored.push({ key: newUuid(), product, qty: l.qty, saleUnit: l.saleUnit, baseUnit: restoredBaseUnit, basePerSaleUnit: restoredFactor, measurementUnit: restoredMeasurementUnit, measurementValue: l.measurementValue ?? measurementValue(restoredFactor, restoredMeasurementUnit), unitPricePaise: l.unitPricePaise, priceOverridden: l.priceOverridden, discountPaise: l.discountPaise });
-    }
-    try {
-      await persistHeld(held.filter((h) => h.id !== entry.id));
-    } catch {
-      toast.error("Held cart could not be updated on this device.");
-      return;
-    }
-    setLines(restored);
-    toast.success("Cart resumed");
-  }
-
-  async function completeSale() {
-    if (submitting || lines.length === 0) return;
-    if (!customerName.trim()) {
-      toast.error("Enter the customer's name");
-      return;
-    }
-    if (!normalizeIndianMobile(customerPhone)) {
-      toast.error("Enter a valid 10-digit Indian customer mobile number.");
-      return;
-    }
-    if (!guestCustomer && !resolvedBuyer) {
-      toast.error("Find or scan a valid KOMOLA buyer code, or choose guest customer");
-      return;
-    }
-
-    const cashReceivedPaise = payMethod === "cash" ? parseRupeesToPaise(tendered) : null;
-    if (payMethod === "cash" && cashReceivedPaise == null) {
-      toast.error("Enter a valid cash amount.");
-      return;
-    }
-
-    const payments: { method: "cash" | "upi"; amountPaise: number; upiRef?: string }[] = [];
-    if (payMethod === "cash") {
-      if (cashReceivedPaise == null || cashReceivedPaise < cart.netPaise) {
-        toast.error("Cash received is less than the sale total.");
-        return;
-      }
-      payments.push({ method: "cash", amountPaise: cashReceivedPaise });
-    } else if (payMethod === "upi") {
-      const upi = parseRupeesToPaise(upiAmount);
-      if (upi == null || upi !== cart.netPaise) {
-        toast.error(`UPI amount must equal ${formatPaise(cart.netPaise)}`);
-        return;
-      }
-      if (!store.upiId) {
-        toast.error("Add the seller UPI ID in Payment settings first.");
-        return;
-      }
-      payments.push({ method: "upi", amountPaise: upi, upiRef: upiRef.trim() || undefined });
-    } else {
-      const cash = Math.round(Number(cashPart || 0) * 100);
-      const upi = Math.round(Number(upiPart || 0) * 100);
-      if (cash + upi !== cart.netPaise) {
-        toast.error(`Split must total ${formatPaise(cart.netPaise)}`);
-        return;
-      }
-      if (upi > 0 && !store.upiId) {
-        toast.error("Add the seller UPI ID in Payment settings first.");
-        return;
-      }
-      if (cash > 0) payments.push({ method: "cash", amountPaise: cash });
-      if (upi > 0) payments.push({ method: "upi", amountPaise: upi, upiRef: upiRef.trim() || undefined });
-    }
-
-    if (typeof navigator !== "undefined" && !navigator.onLine) {
-      if (payMethod !== "cash") {
-        toast.error("Offline checkout is available for cash sales only.");
-        return;
-      }
-      if (!offlineScope || !session || cashReceivedPaise == null) {
-        toast.error("This register is not ready for offline checkout.");
-        return;
-      }
-      setSubmitting(true);
-      try {
-        const sale = await commitOfflineCashSale({
-          scope: offlineScope,
-          session,
-          cashierId: user?.id ?? "",
-          lines,
-          cashReceivedPaise,
-          customerName: customerName.trim(),
-          customerPhone: customerPhone.trim(),
-          buyerCode: resolvedBuyer?.code,
-          marketingConsent: marketingConsent || undefined,
-          operationId: idemRef.current,
-        });
-        setCatalog((prev) =>
-          prev.map((product) => {
-            const soldBase = sale.lines
-              .filter((line) => line.productId === product._id)
-              .reduce((sum, line) => sum + line.qtyBase, 0);
-            return soldBase > 0 ? { ...product, availableBase: Math.max(0, product.availableBase - soldBase) } : product;
-          }),
-        );
-        setCompletedPayment({
-          lines: [{ method: "Cash", amountPaise: sale.payment.receivedPaise }],
-          changePaise: sale.payment.changePaise,
-        });
-        setCompleted(offlineSaleToDTO(sale));
-        setCompletedOffline(true);
-        await refreshPendingOfflineCount();
-        void refreshPendingOfflineCount();
-        toast.success("Sale saved on this device. It will sync when internet returns.");
-      } catch (error) {
-        toast.error(error instanceof Error ? error.message : "Offline sale failed");
-      } finally {
-        setSubmitting(false);
-      }
-      return;
-    }
-
-    setSubmitting(true);
-    const res = await salesApi.create({
-      idempotencyKey: idemRef.current,
-      // The displayed session may come from the offline cache after a reset or
-      // while the register endpoint is unavailable. Online checkout resolves
-      // the current server-side open register instead of reusing that stale ID.
-      items: lines.map((l) => ({
-        productId: l.product._id,
-        qty: l.qty,
-        saleUnit: l.saleUnit,
-        baseUnit: lineBaseUnit(l),
-        basePerSaleUnit: lineBasePerSaleUnit(l),
-        unitPricePaise: lineUnitPricePaise(l),
-        priceOverridden: l.priceOverridden,
-        discountPaise: l.discountPaise || undefined,
-      })),
-      payments,
-      customerName: customerName.trim(),
-      customerPhone: customerPhone.trim(),
-      buyerCode: resolvedBuyer?.code,
-      walkInCustomer: guestCustomer,
-      marketingConsent: marketingConsent || undefined,
-    });
-    setSubmitting(false);
-
-    if (!res.success || !res.data) {
-      toast.error(res.message || "Sale failed");
-      return;
-    }
-    const label: Record<"cash" | "upi", string> = { cash: "Cash", upi: "UPI" };
-    setCompletedPayment({
-      lines: payments.map((p) => ({
-        method: label[p.method],
-        amountPaise: p.amountPaise,
-        reference: p.upiRef,
-      })),
-      changePaise:
-        payMethod === "cash"
-          ? Math.max(0, (cashReceivedPaise ?? cart.netPaise) - cart.netPaise)
-          : 0,
-    });
-    setCompleted(res.data.sale);
-    setCompletedOffline(false);
-    void load();
-  }
-
-  const resolveBuyer = useCallback(async (value: string) => {
-    const code = value.trim().toUpperCase();
-    if (!/^BYR-[A-F0-9]{10}$/.test(code)) {
-      toast.error("Enter a buyer code like BYR-1A2B3C4D5E");
-      return;
-    }
-    setResolvingBuyer(true);
-    const result = await customersApi.resolveBuyerCode(code);
-    setResolvingBuyer(false);
-    if (!result.success || !result.data) {
-      setResolvedBuyer(null);
-      toast.error(result.status === 404 ? "Buyer code not found" : result.message);
-      return;
-    }
-    setBuyerCode(result.data.code);
-    setResolvedBuyer(result.data);
-    setGuestCustomer(false);
-    setCustomerName(result.data.displayName);
-    setCustomerPhone(result.data.phone);
-    toast.success("Buyer attached to this sale");
-  }, []);
-
-  function findBuyer() {
-    void resolveBuyer(buyerCode);
-  }
-
-  const attachScannedBuyer = useCallback((code: string) => {
-    setBuyerCode(code);
-    setResolvedBuyer(null);
-    void resolveBuyer(code);
-  }, [resolveBuyer]);
+  const scanProduct = async (code: string) => {
+    const byBarcode = await productsApi.lookup({ barcode: code });
+    const result = byBarcode.success ? byBarcode : await productsApi.lookup({ sku: code });
+    if (!result.success || !result.data) { toast.error(result.message || "Product not found"); return; }
+    addProduct(result.data);
+  };
 
   if (loading) {
     return (
@@ -638,79 +125,20 @@ export default function PosPage() {
     );
   }
 
-  if (completed) {
-    const shareOnWhatsApp = () => {
-      const url = buildWhatsAppReceiptUrl(completed, { storeName: store.name });
-      if (!url) {
-        toast.error("Add a valid Indian customer mobile number to share this receipt.");
-        return;
-      }
-      window.open(url, "_blank", "noopener,noreferrer");
-    };
-
+  if (checkout.completed) {
     return (
-      <div className="mx-auto max-w-md space-y-5 text-center">
-        <CheckCircle2 className="mx-auto h-14 w-14 text-status-success" />
-        <KomoMessage
-          action={completedOffline ? "offline" : completed.reward?.linked ? "reward" : "invoice"}
-          title={completedOffline ? "Sale saved safely on this device." : completed.reward?.linked ? "Your customer earned Komola Coins." : "Your receipt is ready."}
-          description={completedOffline ? "KOMOLA will sync it when the connection returns." : "The sale and receipt are ready for the next customer."}
-          compact
-        />
-        <div>
-          <h1 className="text-xl font-semibold text-foreground-heading">Purchase completed</h1>
-          <p className="text-sm text-foreground-muted">
-            {completed.receiptNo} · {formatPaise(completed.totalPaise)} · sync {completed.syncState}
-          </p>
-          {completedOffline ? (
-            <p className="mt-2 rounded-lg bg-amber-50 px-3 py-2 text-sm font-medium text-amber-800">
-              Saved on this device. Keep this browser data until the sale syncs.
-            </p>
-          ) : null}
-        </div>
-        {completed.reward?.linked ? (
-          <section className={`${cardCls} text-left`} aria-label="Authoritative purchase rewards">
-            <div className="flex items-center gap-2 text-primary"><Coins className="h-6 w-6"/><h2 className="font-semibold">Komola Coins earned</h2></div>
-            <dl className="mt-4 space-y-2 text-sm">
-              <div className="flex justify-between"><dt>Eligible purchase</dt><dd>{formatPaise(completed.reward.eligibleAmountMinor)}</dd></div>
-              <div className="flex justify-between"><dt>Base reward</dt><dd className="font-semibold">+{completed.reward.baseCoins}</dd></div>
-              {completed.reward.bonusCoins > 0 ? <div className="flex justify-between"><dt>Bonus rewards</dt><dd className="font-semibold">+{completed.reward.bonusCoins}</dd></div> : null}
-              <div className="flex justify-between border-t border-border pt-2 text-base font-bold"><dt>Total earned</dt><dd>+{completed.reward.totalCoins} Komola Coins</dd></div>
-            </dl>
-            {completed.reward.eligibleRemainderMinor > 0 ? <p className="mt-3 text-xs text-foreground-muted">{formatPaise(completed.reward.eligibleRemainderMinor)} carries toward the next coin.</p> : null}
-          </section>
-        ) : (
-          <p className="rounded-xl bg-surface-card p-4 text-sm text-foreground-muted">Purchase completed. If this customer later creates or signs in to KOMOLA with this verified mobile number, the receipt can appear in their buyer account. Seller-entered details do not verify identity or add rewards at checkout.</p>
-        )}
-        <ReceiptView
-          sale={completed}
-          orgName={store.name}
-          locationName={store.location}
-          cashierName={user?.name}
-          payments={completedPayment?.lines}
-          changePaise={completedPayment?.changePaise}
-        />
-        <div className="flex flex-wrap justify-center gap-2 no-print">
-          <button
-            className={primaryBtnCls}
-            onClick={() => {
-              setCompleted(null);
-              resetCart();
-            }}
-          >
-            <Plus className="h-4 w-4" />
-            {t("pos.new_sale")}
-          </button>
-          <button className={ghostBtnCls} onClick={() => printReceipt()}>
-            <Printer className="h-4 w-4" />
-            {t("pos.print_receipt")}
-          </button>
-          <button className={ghostBtnCls} onClick={shareOnWhatsApp}>
-            <MessageCircle className="h-4 w-4" />
-            Share via WhatsApp
-          </button>
-        </div>
-      </div>
+      <SaleCompleted
+        sale={checkout.completed}
+        offline={checkout.completedOffline}
+        store={store}
+        cashierName={user?.name}
+        payment={checkout.completedPayment}
+        t={t}
+        onNewSale={() => {
+          checkout.setCompleted(null);
+          resetCart();
+        }}
+      />
     );
   }
 
@@ -727,19 +155,22 @@ export default function PosPage() {
     );
   }
 
+  const { lines, totals } = cart;
+  const { showPay } = checkout;
+
   return (
     <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_390px]">
       {/* Left: search + results */}
       <div className="order-2 space-y-5 lg:order-none">
         <div className="flex items-end justify-between gap-3">
           <div>
-            <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-primary">Fast checkout</p>
-            <h1 className="mt-1 text-3xl font-black tracking-[-0.04em] text-foreground">{t("pos.title")}</h1>
+            <h1 className="text-3xl font-bold tracking-[-0.03em] text-foreground-heading">{t("pos.title")}</h1>
+            <p className="mt-1 text-sm text-foreground-muted">Tap a product to add it to the sale</p>
           </div>
           <select
             value={locale}
             onChange={(e) => setLocale(e.target.value as Locale)}
-            className="rounded-lg border border-border bg-surface-card px-2 py-1 text-xs"
+            className="min-h-10 rounded-full bg-surface-muted px-3 text-xs font-semibold text-foreground-body"
             aria-label="Language"
           >
             {LOCALES.map((l) => (
@@ -750,7 +181,7 @@ export default function PosPage() {
           </select>
         </div>
 
-        <div className="relative rounded-2xl border border-border bg-white p-2 shadow-sm">
+        <div className="relative flex items-center rounded-full bg-surface-card p-1.5">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-foreground-muted" />
           <input
             ref={searchRef}
@@ -758,566 +189,54 @@ export default function PosPage() {
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={onSearchKey}
             placeholder={t("pos.search")}
-            className={`${inputCls} border-0 bg-surface pl-10 shadow-none focus:ring-0`}
+            className={`${inputCls} rounded-full border-0 bg-transparent pl-10 shadow-none focus:ring-0`}
             autoComplete="off"
           />
+          <ProductBarcodeScanner disabled={!online} onScan={(code) => void scanProduct(code)} />
         </div>
 
-        <div className="flex items-center justify-between">
-          <div>
-            <h2 className="text-base font-semibold text-foreground-heading">Products</h2>
-            <p className="text-xs text-foreground-muted">Tap a product to add it to the cart</p>
-          </div>
-          <span className="rounded-full bg-surface px-3 py-1 text-xs font-medium text-foreground-muted">{results.length} available</span>
-        </div>
-
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-          {results.map((p) => (
-            <button
-              key={p._id}
-              type="button"
-              onClick={() => addProduct(p)}
-              disabled={p.availableBase <= 0}
-              className="group flex min-h-36 flex-col items-start rounded-2xl border border-border bg-white p-3 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-primary/50 hover:shadow-md disabled:cursor-not-allowed disabled:opacity-45"
-            >
-              <div className="mb-3 flex h-16 w-full items-center justify-center overflow-hidden rounded-xl bg-surface">
-                {p.imageUrl ? <img src={p.imageUrl} alt="" className="h-full w-full object-cover" /> : <span className="text-[11px] text-foreground-muted">No image</span>}
-              </div>
-              <span className="line-clamp-2 text-sm font-semibold text-foreground-heading group-hover:text-primary">
-                {p.name}
-              </span>
-              <span className="mt-1 text-sm font-semibold text-primary">
-                {typeof p.basePricePaise === "number" ? formatPaise(p.basePricePaise) : "—"} /{" "}
-                {p.saleUnit}
-              </span>
-              <span className={cx("mt-auto pt-2 text-xs font-medium", p.availableBase > 0 ? "text-status-success" : "text-status-danger")}>
-                {p.availableBase > 0 ? "Stock: " : "Out of stock · "}{formatProductQuantity(remainingStockBase(p.availableBase, lines.find((line) => line.product._id === p._id)?.qty ?? 0, lines.find((line) => line.product._id === p._id)?.saleUnit ?? p.saleUnit, p.basePerSaleUnit), p.saleUnit, p.baseUnit, p.basePerSaleUnit)}
-              </span>
-            </button>
-          ))}
-          {results.length === 0 ? (
-            query.trim() ? (
-              <p className="col-span-full py-6 text-center text-sm text-foreground-muted">
-                No products match your search.
-              </p>
-            ) : (
-              <div className="col-span-full flex flex-col items-center rounded-2xl border border-dashed border-border bg-surface-card px-5 py-8 text-center">
-                <p className="text-base font-semibold text-foreground-heading">No products added yet</p>
-                <p className="mt-1 max-w-sm text-sm text-foreground-muted">Enter your product details to start selling from this register.</p>
-                {online ? (
-                  <Link href="/products/new" className={`${primaryBtnCls} mt-4`}>
-                    <Plus className="h-4 w-4" />
-                    Enter product details
-                  </Link>
-                ) : (
-                  <p className="mt-4 text-sm font-medium text-status-warning">Connect to the internet to create products.</p>
-                )}
-              </div>
-            )
-          ) : null}
-        </div>
-
-        {held.length > 0 ? (
-          <div className={cardCls}>
-            <p className="mb-2 text-xs font-semibold text-foreground-heading">
-              {t("pos.resume")}
-            </p>
-            <ul className="space-y-1">
-              {held.map((h) => (
-                <li key={h.id} className="flex items-center justify-between text-sm">
-                  <span className="text-foreground-muted">{h.label}</span>
-                  <button
-                    className="flex items-center gap-1 text-brand"
-                    onClick={() => resumeCart(h)}
-                  >
-                    <PlayCircle className="h-4 w-4" />
-                    {t("pos.resume")}
-                  </button>
-                </li>
-              ))}
-            </ul>
-          </div>
-        ) : null}
+        <ProductGrid results={catalog} query={query} online={online} lines={lines} onAdd={addProduct} />
+        <HeldCartsList held={held} onResume={resumeCart} t={t} />
       </div>
 
-      {/* Right: cart */}
-      <div className={cx(cardCls, "order-1 flex h-fit flex-col border-primary/20 bg-white p-5 shadow-md lg:order-none lg:sticky lg:top-6")}>
-        <div className="mb-4 flex items-center justify-between border-b border-border pb-4">
-          <div>
-            <h2 className="text-lg font-bold text-foreground-heading">{t("pos.cart")}</h2>
-            <p className="mt-0.5 text-xs text-foreground-muted">Review items before payment</p>
-          </div>
-          {lines.length > 0 ? (
-            <button
-              className="flex items-center gap-1 text-xs text-foreground-muted"
-              onClick={holdCart}
-            >
-              <PauseCircle className="h-4 w-4" />
-              {t("pos.hold")}
-            </button>
-          ) : null}
-        </div>
-
-        {lines.length === 0 ? (
-          <p className="py-8 text-center text-sm text-foreground-muted">{t("pos.empty_cart")}</p>
-        ) : (
-          <ul className="divide-y divide-border">
-            {lines.map((l, i) => {
-              const baseUnit = lineBaseUnit(l);
-              const basePerSaleUnit = lineBasePerSaleUnit(l);
-              const selectedMeasurementUnit = l.measurementUnit ?? preferredMeasurementUnit(baseUnit, basePerSaleUnit, l.saleUnit);
-              const selectedMeasurementValue = l.measurementValue ?? measurementValue(basePerSaleUnit, selectedMeasurementUnit);
-              const hasMeasurement = basePerSaleUnit > 0;
-              const compatUnits = [l.product.saleUnit];
-              return (
-                <li key={l.key} className="py-2.5">
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="min-w-0">
-                      <p className="truncate text-sm font-medium text-foreground-heading">
-                        {l.product.name}
-                      </p>
-                    </div>
-                    <button
-                      onClick={() => removeLine(l.key)}
-                      aria-label={t("pos.remove")}
-                      className="rounded-md p-1 text-foreground-muted hover:text-status-danger"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </button>
-                  </div>
-                  <div className="mt-2 flex items-center gap-2">
-                    <div className="flex items-center rounded-lg border border-border">
-                      <button
-                        className="grid h-11 w-11 place-items-center rounded-l-lg text-foreground-body hover:bg-surface"
-                        onClick={() => setQty(l.key, l.qty - 1)}
-                        aria-label={`Decrease ${l.product.name} quantity`}
-                      >
-                        <Minus className="h-4 w-4" />
-                      </button>
-                      <input
-                        type="number"
-                        min="0"
-                        step="0.001"
-                        value={l.qty}
-                        onChange={(e) => setQty(l.key, Number(e.target.value))}
-                        className="h-11 w-16 border-x border-border bg-surface-card text-center text-sm"
-                      />
-                      <button
-                        className="grid h-11 w-11 place-items-center rounded-r-lg text-foreground-body hover:bg-surface"
-                        onClick={() => setQty(l.key, l.qty + 1)}
-                        aria-label={`Increase ${l.product.name} quantity`}
-                        disabled={remainingStockBase(l.product.availableBase, l.qty, l.saleUnit, basePerSaleUnit) === 0}
-                      >
-                        <Plus className="h-4 w-4" />
-                      </button>
-                    </div>
-                    <select
-                      value={l.saleUnit}
-                      onChange={(e) => setUnit(l.key, e.target.value as SaleUnit)}
-                      className="h-11 rounded-lg border border-border bg-surface-card px-2 text-sm"
-                    >
-                      {compatUnits.map((u) => (
-                        <option key={u} value={u}>
-                          {u}
-                        </option>
-                      ))}
-                    </select>
-                    <span className="ml-auto text-sm font-semibold text-foreground-heading">
-                      {formatPaise(lineTotals[i]?.netPaise ?? 0)}
-                    </span>
-                  </div>
-                  {hasMeasurement ? (
-                    <div className="mt-2 grid grid-cols-3 gap-2">
-                        <label className="text-xs text-foreground-muted">
-                          Weight / unit
-                          <input
-                            type="number"
-                            min="1"
-                            step="0.001"
-                            value={selectedMeasurementValue}
-                            onChange={(e) => setMeasurementValue(l.key, selectedMeasurementUnit, Number(e.target.value))}
-                            className={`${inputCls} mt-1 h-9 px-2 text-xs`}
-                            aria-label={`${l.product.name} weight per unit`}
-                          />
-                        </label>
-                        <label className="text-xs text-foreground-muted">
-                          Metric
-                          <select
-                          value={selectedMeasurementUnit}
-                          onChange={(e) => setMeasurementUnit(l.key, e.target.value as MeasurementUnit)}
-                          className={`${inputCls} mt-1 h-9 px-2 text-xs`}
-                          aria-label={`${l.product.name} metric`}
-                        >
-                          {MEASUREMENT_UNITS.map((unit) => (
-                            <option key={unit} value={unit} disabled={measurementMetadata(unit).baseUnit !== baseUnit}>
-                              {MEASUREMENT_UNIT_LABELS[unit]}
-                            </option>
-                          ))}
-                        </select>
-                      </label>
-                      <label className="text-xs text-foreground-muted">
-                        Price / unit
-                        <input
-                          type="number"
-                          min="0"
-                          step="0.01"
-                          value={(lineUnitPricePaise(l) / 100).toFixed(2)}
-                          onChange={(e) => setLinePrice(l.key, Number(e.target.value))}
-                          className={`${inputCls} mt-1 h-9 px-2 text-xs`}
-                          aria-label={`${l.product.name} price per unit`}
-                        />
-                      </label>
-                    </div>
-                  ) : null}
-                  <p className="mt-1 text-xs text-foreground-muted">
-                    {hasMeasurement ? `Weight / unit: ${formatMeasurementValue(selectedMeasurementValue)} ${MEASUREMENT_UNIT_LABELS[selectedMeasurementUnit]} · ` : ""}
-                    Remaining stock: {formatProductQuantity(remainingStockBase(l.product.availableBase, l.qty, l.saleUnit, basePerSaleUnit), l.saleUnit, baseUnit, basePerSaleUnit)}
-                  </p>
-                </li>
-              );
-            })}
-          </ul>
-        )}
-
-        <dl className="mt-3 space-y-1 border-t border-border pt-3 text-sm">
-          <Row label={t("pos.subtotal")} value={formatPaise(cart.grossPaise)} />
-          <Row label={t("pos.discount")} value={`- ${formatPaise(cart.discountPaise)}`} />
-          <Row label={t("pos.tax")} value={formatPaise(cart.taxPaise)} />
-          <Row label={t("pos.total")} value={formatPaise(cart.netPaise)} strong />
-        </dl>
-
-        {!showPay ? (
-          <button
-            className={`${primaryBtnCls} mt-3 w-full`}
-            disabled={lines.length === 0}
-            onClick={() => {
-              setShowPay(true);
-              setTendered((cart.netPaise / 100).toFixed(2));
-              setCashPart(String((cart.netPaise / 100).toFixed(2)));
-              setUpiPart("0");
-              setUpiAmount((cart.netPaise / 100).toFixed(2));
-            }}
-          >
-            {t("pos.pay")} · {formatPaise(cart.netPaise)}
-          </button>
-        ) : (
-          <div className="mt-3 space-y-3 border-t border-border pt-3">
-            {pendingOfflineCount > 0 ? (
-              <p className="rounded-lg bg-amber-50 px-3 py-2 text-xs font-medium text-amber-800">
-                {pendingOfflineCount} offline sale{pendingOfflineCount === 1 ? "" : "s"} waiting to sync.
-              </p>
-            ) : null}
-            {offlineSessionSavedAt ? (
-              <p className="text-xs text-foreground-muted">
-                Offline register prepared {new Date(offlineSessionSavedAt).toLocaleString()}.
-              </p>
-            ) : null}
-            {offlineShortfallLines.length > 0 ? (
-              <p role="alert" className="rounded-lg border border-status-warning/40 bg-status-warning-surface px-3 py-2 text-xs font-medium text-status-warning">
-                This offline sale exceeds the saved stock for {offlineShortfallLines.map((line) => `${line.name} by ${formatBaseQuantity(line.shortfallBase, line.unit)}`).join(", ")}. The sale can be recorded, but the shortfall will be allocated as a stock adjustment for manager review when it syncs.
-              </p>
-            ) : null}
-            <div className="grid grid-cols-3 gap-2">
-              {(["cash", "upi", "split"] as PayMethod[]).map((m) => (
-                <button
-                  key={m}
-                  onClick={() => {
-                    setPayMethod(m);
-                    if (m === "cash" && !tendered) {
-                      setTendered((cart.netPaise / 100).toFixed(2));
-                    }
-                  }}
-                  className={cx(
-                    "min-h-11 rounded-lg border px-2 text-sm font-medium capitalize",
-                    payMethod === m
-                      ? "border-primary bg-primary text-primary-foreground"
-                      : "border-border bg-surface-card text-foreground-body",
-                  )}
-                >
-                  {t(`pos.${m}`)}
-                </button>
-              ))}
-            </div>
-
-            {payMethod === "cash" ? (
-              <div>
-                <label className="mb-1 block text-xs font-medium text-foreground-body">
-                  {t("pos.amount_tendered")}
-                </label>
-                <input
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  value={tendered}
-                  onChange={(e) => setTendered(e.target.value)}
-                  className={inputCls}
-                />
-                <p className="mt-1 text-xs text-foreground-muted">
-                  Pre-filled with the sale total. Edit it if the customer pays more.
-                </p>
-                <p className="mt-1 text-xs text-foreground-muted">
-                  {t("pos.change_due")}:{" "}
-                  {formatPaise(Math.max(0, Math.round(Number(tendered || 0) * 100) - cart.netPaise))}
-                </p>
-              </div>
-            ) : null}
-
-            {payMethod === "upi" ? (
-              <div className="space-y-3">
-                <label className="block text-xs font-medium text-foreground-body">UPI amount (₹)
-                  <input type="number" min="0.01" step="0.01" value={upiAmount} onChange={(e) => setUpiAmount(e.target.value)} className={`${inputCls} mt-1`} />
-                </label>
-                <UpiQr
-                  uri={upiPaymentUri}
-                  upiId={store.upiId}
-                  payeeName={store.upiPayeeName || store.name || ""}
-                  amountPaise={qrAmountPaise}
-                  onSaved={(upiId, upiPayeeName) => setStore((current) => ({ ...current, upiId, upiPayeeName }))}
-                />
-                <input placeholder={t("pos.upi_ref")} value={upiRef} onChange={(e) => setUpiRef(e.target.value)} className={inputCls} />
-              </div>
-            ) : null}
-
-            {payMethod === "split" ? (
-              <div className="space-y-2">
-                <div className="grid grid-cols-2 gap-2">
-                  <div>
-                    <label className="mb-1 block text-xs font-medium text-foreground-body">
-                      {t("pos.cash")} (₹)
-                    </label>
-                    <input
-                      type="number"
-                      min="0"
-                      step="0.01"
-                      value={cashPart}
-                      onChange={(e) => setCashPart(e.target.value)}
-                      className={inputCls}
-                    />
-                  </div>
-                  <div>
-                    <label className="mb-1 block text-xs font-medium text-foreground-body">
-                      {t("pos.upi")} (₹)
-                    </label>
-                    <input
-                      type="number"
-                      min="0"
-                      step="0.01"
-                      value={upiPart}
-                      onChange={(e) => setUpiPart(e.target.value)}
-                      className={inputCls}
-                    />
-                  </div>
-                </div>
-                <input
-                  placeholder={t("pos.upi_ref")}
-                  value={upiRef}
-                  onChange={(e) => setUpiRef(e.target.value)}
-                  className={inputCls}
-                />
-                {Number(upiPart) > 0 ? (
-                  <UpiQr
-                    uri={upiPaymentUri}
-                    upiId={store.upiId}
-                    payeeName={store.upiPayeeName || store.name || ""}
-                    amountPaise={qrAmountPaise}
-                    onSaved={(upiId, upiPayeeName) => setStore((current) => ({ ...current, upiId, upiPayeeName }))}
-                  />
-                ) : null}
-              </div>
-            ) : null}
-
-            <div className="space-y-2 rounded-lg border border-border p-2">
-              <p className="text-xs font-medium text-foreground-body">Customer details (required)</p>
-              <div className="grid gap-2 sm:grid-cols-2" role="radiogroup" aria-label="Customer type">
-                <label className="flex cursor-pointer items-center gap-2 rounded-lg border border-border px-3 py-2 text-xs font-medium">
-                  <input
-                    type="radio"
-                    name="customer-type"
-                    checked={!guestCustomer}
-                    onChange={() => {
-                      setGuestCustomer(false);
-                      setCustomerName("");
-                      setCustomerPhone("");
-                    }}
-                  />
-                  Verified KOMOLA buyer
-                </label>
-                <label className="flex cursor-pointer items-center gap-2 rounded-lg border border-border px-3 py-2 text-xs font-medium">
-                  <input
-                    type="radio"
-                    name="customer-type"
-                    checked={guestCustomer}
-                    onChange={() => {
-                      setGuestCustomer(true);
-                      setBuyerCode("");
-                      setResolvedBuyer(null);
-                      setCustomerName("");
-                      setCustomerPhone("");
-                    }}
-                  />
-                  Guest customer
-                </label>
-              </div>
-              {!guestCustomer ? (
-                <>
-                  <div className="flex gap-2">
-                    <input
-                      aria-label="Buyer code"
-                      placeholder="Buyer code · BYR-..."
-                      value={buyerCode}
-                      onChange={(e) => {
-                        setBuyerCode(e.target.value.toUpperCase());
-                        setResolvedBuyer(null);
-                      }}
-                      className={inputCls}
-                      autoComplete="off"
-                    />
-                    <button
-                      type="button"
-                      onClick={findBuyer}
-                      disabled={resolvingBuyer || !buyerCode.trim()}
-                      className={`${ghostBtnCls} shrink-0 px-3`}
-                    >
-                      {resolvingBuyer ? <Loader2 className="h-4 w-4 animate-spin" /> : <UserRoundSearch className="h-4 w-4" />}
-                      Find
-                    </button>
-                    <BuyerQrScanner disabled={resolvingBuyer} onScan={attachScannedBuyer} />
-                  </div>
-                  {resolvedBuyer ? (
-                    <p className="rounded-lg bg-status-success-surface px-3 py-2 text-xs font-medium text-status-success">
-                      {resolvedBuyer.displayName} is attached. Their receipt and rewards will update when the sale is confirmed.
-                    </p>
-                  ) : (
-                    <p className="text-xs text-foreground-muted">Enter or scan a valid KOMOLA buyer code. Names and phone numbers cannot verify an account.</p>
-                  )}
-                </>
-              ) : (
-                <p className="rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-800">Use this for a customer without a KOMOLA account. The sale is recorded, but the entered details will not earn or attach KOMOLA rewards.</p>
-              )}
-              <input
-                placeholder={t("pos.customer_name")}
-                value={customerName}
-                onChange={(e) => setCustomerName(e.target.value)}
-                className={inputCls}
-                autoComplete="off"
-                readOnly={!guestCustomer || Boolean(resolvedBuyer)}
-                disabled={!guestCustomer && !resolvedBuyer}
-              />
-              <input
-                placeholder={t("pos.customer_phone")}
-                value={customerPhone}
-                onChange={(e) => setCustomerPhone(e.target.value.replace(/\D/g, "").slice(0, 10))}
-                className={inputCls}
-                inputMode="numeric"
-                maxLength={10}
-                pattern="[6-9][0-9]{9}"
-                required
-                autoComplete="off"
-                readOnly={!guestCustomer || Boolean(resolvedBuyer)}
-                disabled={!guestCustomer && !resolvedBuyer}
-              />
-              <label className="flex items-center gap-2 text-xs text-foreground-muted">
-                <input
-                  type="checkbox"
-                  checked={marketingConsent}
-                  onChange={(e) => setMarketingConsent(e.target.checked)}
-                />
-                Customer consents to marketing messages
-              </label>
-            </div>
-
-            <button
-              className={`${primaryBtnCls} w-full`}
-              disabled={submitting || !customerName.trim() || !normalizeIndianMobile(customerPhone) || (!guestCustomer && !resolvedBuyer)}
-              onClick={completeSale}
-            >
-              {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-              {t("pos.complete_sale")} · {formatPaise(cart.netPaise)}
-            </button>
-            <button
-              className={`${ghostBtnCls} w-full`}
-              onClick={() => setShowPay(false)}
-              disabled={submitting}
-            >
-              Back to cart
-            </button>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
-
-function Row({ label, value, strong }: { label: string; value: string; strong?: boolean }) {
-  return (
-    <div
-      className={cx(
-        "flex justify-between",
-        strong ? "text-base font-semibold text-foreground-heading" : "text-foreground-body",
-      )}
-    >
-      <dt>{label}</dt>
-      <dd>{value}</dd>
-    </div>
-  );
-}
-
-function UpiQr({
-  uri,
-  upiId,
-  payeeName,
-  amountPaise,
-  onSaved,
-}: {
-  uri: string | null;
-  upiId?: string;
-  payeeName: string;
-  amountPaise: number;
-  onSaved: (upiId: string, upiPayeeName: string) => void;
-}) {
-  const [draftUpiId, setDraftUpiId] = useState("");
-  const [draftPayeeName, setDraftPayeeName] = useState(payeeName);
-  const [saving, setSaving] = useState(false);
-
-  if (!upiId) {
-    return (
-      <div className="space-y-3 rounded-lg bg-amber-50 p-3 text-sm text-amber-900">
-        <p className="font-medium">Add this seller&apos;s UPI ID to display a payment QR.</p>
-        <input className={inputCls} value={draftUpiId} onChange={(event) => setDraftUpiId(event.target.value)} placeholder="business@bank" autoCapitalize="none" />
-        <input className={inputCls} value={draftPayeeName} onChange={(event) => setDraftPayeeName(event.target.value)} placeholder="Payee or business name" />
+      {/* Mobile sticky cart bar: one primary action per screen */}
+      {lines.length > 0 && !cartOpen && !showPay ? (
         <button
           type="button"
-          className={primaryBtnCls}
-          disabled={saving}
-          onClick={async () => {
-            if (!isValidUpiId(draftUpiId)) {
-              toast.error("Enter a valid UPI ID, for example seller@bank.");
-              return;
-            }
-            setSaving(true);
-            const result = await sellerOrgsApi.updatePaymentSettings({ upiId: draftUpiId.trim(), upiPayeeName: draftPayeeName.trim() });
-            setSaving(false);
-            if (!result.success) {
-              toast.error(result.message || "Could not save the UPI ID.");
-              return;
-            }
-            onSaved(draftUpiId.trim(), draftPayeeName.trim());
-            window.dispatchEvent(new Event("komola:payment-settings-changed"));
-            toast.success("UPI ID saved for future payments.");
-          }}
+          onClick={() => setCartOpen(true)}
+          className="fixed inset-x-3 bottom-[5.25rem] z-30 flex min-h-14 items-center justify-between rounded-full bg-primary px-6 text-primary-foreground shadow-[0_12px_30px_rgba(0,0,0,0.45)] lg:hidden"
         >
-          {saving ? "Saving…" : "Save and generate QR"}
+          <span className="text-sm font-semibold">{lines.length} item{lines.length === 1 ? "" : "s"}</span>
+          <span className="flex items-center gap-2 text-base font-bold">
+            {formatPaise(totals.netPaise)} · Review sale
+          </span>
         </button>
-        <p className="text-xs text-amber-800">This is stored for this seller and reused at future checkouts. It can be changed later in <Link href="/settings" className="font-semibold underline">Payment settings</Link>.</p>
-      </div>
-    );
-  }
-  if (!uri || amountPaise <= 0) return <p className="text-xs text-foreground-muted">Enter a UPI amount to display the QR code.</p>;
-  return (
-    <div className="rounded-xl border border-border bg-white p-4 text-center">
-      <QRCodeSVG value={uri} size={192} className="mx-auto" title={`Pay ${formatPaise(amountPaise)} by UPI`} />
-      <p className="mt-3 text-lg font-bold text-foreground-heading">Pay {formatPaise(amountPaise)}</p>
-      <p className="mt-1 text-xs text-foreground-muted">to {upiId}</p>
+      ) : null}
+
+      {/* Right: cart + checkout */}
+      <CartPanel
+        cart={cart}
+        overlay={cartOpen || showPay}
+        showPay={showPay}
+        adjustKey={adjustKey}
+        onToggleAdjust={(key) => setAdjustKey((k) => (k === key ? null : key))}
+        onBack={() => (showPay ? checkout.setShowPay(false) : setCartOpen(false))}
+        onHold={holdCart}
+        onPay={checkout.startPay}
+        t={t}
+      >
+        <CheckoutSheet
+          checkout={checkout}
+          buyer={buyer}
+          netPaise={totals.netPaise}
+          store={store}
+          onStoreChange={(patch) => setStore((current) => ({ ...current, ...patch }))}
+          pendingOfflineCount={register.pendingOfflineCount}
+          offlineSessionSavedAt={register.offlineSessionSavedAt}
+          offlineShortfallLines={offlineShortfallLines}
+          t={t}
+        />
+      </CartPanel>
     </div>
   );
 }

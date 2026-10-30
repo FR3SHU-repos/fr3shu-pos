@@ -37,7 +37,9 @@ export function SiteHeader() {
 
   // SellerShell owns the POS application chrome on these routes. Keeping the
   // public site header here would render two mobile headers and two exits.
-  if (isSellerWorkspace) return null;
+  // BuyerShell owns the chrome on buyer routes (sidebar on desktop, avatar on mobile).
+  const isBuyerWorkspace = (pathname === "/buyer" || pathname.startsWith("/buyer/")) && !pathname.startsWith("/buyer/setup");
+  if (isSellerWorkspace || isBuyerWorkspace) return null;
 
   async function handleLogout() {
     await logout();
@@ -158,18 +160,16 @@ export function SiteMobileNavigation() {
   ];
 
   return (
-    <div className="fixed inset-x-4 bottom-4 z-40 xl:hidden">
-      <nav
-        aria-label="Buyer navigation"
-        className="grid grid-cols-4 rounded-3xl border border-border bg-surface-card/95 p-2 shadow-[0_18px_50px_rgba(23,23,23,0.18)] backdrop-blur"
-      >
+    <div className="fixed inset-x-0 bottom-0 z-40 lg:hidden">
+      <nav aria-label="Buyer navigation" className="safe-area-bottom grid grid-cols-4 bg-surface-card/95 px-2 pt-2 backdrop-blur">
         {items.map(({ href, label, icon: Icon }) => {
           const active = pathname === href || (href !== "/buyer" && pathname.startsWith(`${href}/`));
           return (
             <Link
               key={href}
               href={href}
-              className={`${active ? "bg-foreground text-white" : "text-foreground-muted hover:bg-surface-muted hover:text-foreground-body"} flex min-h-14 flex-col items-center justify-center gap-1 rounded-2xl px-1 text-[11px] font-semibold`}
+              aria-current={active ? "page" : undefined}
+              className={`${active ? "text-primary" : "text-foreground-muted hover:text-foreground-heading"} flex min-h-14 flex-col items-center justify-center gap-1 rounded-2xl px-1 text-[11px] font-semibold`}
             >
               <Icon className="h-5 w-5" aria-hidden="true" />
               {label}

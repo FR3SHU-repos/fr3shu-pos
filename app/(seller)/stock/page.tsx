@@ -21,7 +21,7 @@ interface OnHand {
 }
 
 export default function StockPage() {
-  const PAGE_SIZE = 15;
+  const PAGE_SIZE = 10;
   const [products, setProducts] = useState<ProductDTO[]>([]);
   const [balances, setBalances] = useState<InventoryBalanceDTO[]>([]);
   const [adjustments, setAdjustments] = useState<OfflineStockAdjustmentDTO[]>([]);
@@ -193,7 +193,7 @@ export default function StockPage() {
       ) : null}
 
       {reviewAdjustment ? (
-        <section className={`${cardCls} border-primary/30 bg-white p-5 shadow-sm`}>
+        <section className={`${cardCls} border-primary/30 bg-surface-card p-5 shadow-sm`}>
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
               <p className="text-xs font-semibold uppercase tracking-wider text-primary">Stock reconciliation</p>
@@ -228,7 +228,7 @@ export default function StockPage() {
       ) : null}
 
       <div className="grid gap-5 lg:grid-cols-[340px_minmax(0,1fr)] lg:items-start">
-      <section className={`${cardCls} bg-white p-5 shadow-sm`}>
+      <section className={`${cardCls} bg-surface-card p-5 shadow-sm`}>
         <div className="mb-5 flex items-start gap-3">
           <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-primary/10 text-primary"><Plus className="h-5 w-5" /></div>
           <div><h2 className="text-base font-bold text-foreground-heading">Add stock</h2><p className="mt-1 text-xs text-foreground-muted">Record a new incoming batch.</p></div>
@@ -285,7 +285,7 @@ export default function StockPage() {
         )}
       </section>
 
-      <section className={`${cardCls} bg-white p-5 shadow-sm`}>
+      <section className={`${cardCls} bg-surface-card p-5 shadow-sm`}>
         <div className="mb-4 flex items-center justify-between gap-3">
           <div><h2 className="text-base font-bold text-foreground-heading">Available stock</h2><p className="mt-1 text-xs text-foreground-muted">Current sellable quantity by product.</p></div>
           <Package className="h-5 w-5 text-foreground-muted" />
@@ -309,7 +309,7 @@ export default function StockPage() {
       </section>
     </div>
 
-      <section className={`${cardCls} bg-white p-5 shadow-sm`}>
+      <section className={`${cardCls} bg-surface-card p-5 shadow-sm`}>
         <div>
           <p className="text-xs font-semibold uppercase tracking-wider text-primary">Inventory audit</p>
           <h2 className="mt-1 text-lg font-bold text-foreground-heading">Adjusted stock details</h2>
@@ -319,7 +319,7 @@ export default function StockPage() {
           <p className="mt-4 rounded-xl bg-surface p-4 text-sm text-foreground-muted">No adjusted stock records yet.</p>
         ) : (
           <div className="mt-4 grid gap-2">
-            {adjustments.slice(0, 25).map((adjustment) => (
+            {adjustments.slice(0, 10).map((adjustment) => (
               <div key={adjustment.id} className="rounded-xl border border-border bg-surface px-3 py-3 text-sm">
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div>

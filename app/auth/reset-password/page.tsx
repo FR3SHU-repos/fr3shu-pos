@@ -73,7 +73,7 @@ function ResetInner() {
           <p className="mt-4 text-sm text-foreground-muted">Checking your link…</p>
         ) : !valid ? (
           <div className="mt-4">
-            <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">
+            <p className="rounded-lg bg-status-danger-surface px-3 py-2 text-sm text-status-danger">
               This reset link is invalid or expired.
             </p>
             <button
