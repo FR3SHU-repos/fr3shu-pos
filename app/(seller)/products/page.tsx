@@ -1,5 +1,6 @@
 "use client";
 
+import { Pagination } from "@/shared/components/Pagination";
 import Image from "next/image";
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
@@ -143,7 +144,7 @@ export default function ProductsPage() {
               </li>
             ))}
           </ul>
-          {pages > 1 ? <div className="flex items-center justify-between border-t border-border pt-3 text-sm"><button disabled={page<=1} onClick={()=>setPage((p)=>p-1)}>Previous</button><span>Page {page} of {pages}</span><button disabled={page>=pages} onClick={()=>setPage((p)=>p+1)}>Next</button></div> : null}
+          {pages > 1 ? <Pagination page={page} pages={pages} onPageChange={setPage} bordered label="Product pages" className="mt-1" /> : null}
         </div>
       )}
     </div>

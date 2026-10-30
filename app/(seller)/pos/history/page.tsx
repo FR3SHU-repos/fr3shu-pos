@@ -1,5 +1,6 @@
 "use client";
 
+import { Pagination } from "@/shared/components/Pagination";
 import React, { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { Search } from "lucide-react";
@@ -238,25 +239,7 @@ export default function SalesHistoryPage() {
               </ul>
             </section>
           ))}
-          <div className="flex items-center justify-between text-sm">
-            <button
-              type="button"
-              className="min-h-11 rounded-full bg-surface-muted px-5 font-semibold text-foreground-heading disabled:cursor-not-allowed disabled:opacity-40"
-              disabled={page <= 1 || loading}
-              onClick={() => setPage((current) => Math.max(1, current - 1))}
-            >
-              Previous
-            </button>
-            <span className="text-foreground-muted">Page {page} of {totalPages}</span>
-            <button
-              type="button"
-              className="min-h-11 rounded-full bg-surface-muted px-5 font-semibold text-foreground-heading disabled:cursor-not-allowed disabled:opacity-40"
-              disabled={page >= totalPages || loading}
-              onClick={() => setPage((current) => Math.min(totalPages, current + 1))}
-            >
-              Next
-            </button>
-          </div>
+          <Pagination page={page} pages={totalPages} onPageChange={setPage} disabled={loading} label="Sales pages" />
         </div>
       )}
     </div>

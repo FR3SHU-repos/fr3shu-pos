@@ -1,5 +1,6 @@
 "use client";
 
+import { Pagination } from "@/shared/components/Pagination";
 import { useEffect, useState } from "react";
 import { authApi } from "@/shared/lib/api";
 import {
@@ -115,7 +116,7 @@ export default function PrivacyRequestsAdminPage() {
                 </article>;
               })}
             </div>}
-            {totalPages > 1 ? <div className="flex items-center justify-between border-t border-border p-4 text-sm"><button className="rounded-lg border border-border px-3 py-2 font-semibold disabled:opacity-40" disabled={page <= 1} onClick={() => setPage((current) => current - 1)}>Previous</button><span className="text-foreground-muted">Page {page} of {totalPages}</span><button className="rounded-lg border border-border px-3 py-2 font-semibold disabled:opacity-40" disabled={page >= totalPages} onClick={() => setPage((current) => current + 1)}>Next</button></div> : null}
+            {totalPages > 1 ? <Pagination page={page} pages={totalPages} onPageChange={setPage} bordered label="Request pages" className="p-4" /> : null}
           </section>
         )}
       </div>

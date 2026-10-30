@@ -1,5 +1,6 @@
 "use client";
 
+import { Pagination } from "@/shared/components/Pagination";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import toast from "react-hot-toast";
 import { Loader2 } from "lucide-react";
@@ -260,7 +261,7 @@ export default function RegisterSessionsPage() {
               );
             })}
           </ul>
-          {recentPages > 1 ? <Pagination page={recentPage} pages={recentPages} onPageChange={setRecentPage} /> : null}
+          {recentPages > 1 ? <Pagination page={recentPage} pages={recentPages} onPageChange={setRecentPage} label="Recent sessions pages" className="mt-3" /> : null}
           </>
         )}
       </section>
@@ -270,14 +271,6 @@ export default function RegisterSessionsPage() {
       </a>
     </div>
   );
-}
-
-function Pagination({ page, pages, onPageChange }: { page: number; pages: number; onPageChange: (page: number) => void }) {
-  return <div className="mt-3 flex items-center justify-between pt-1 text-sm">
-    <button type="button" className="min-h-11 rounded-full bg-surface-muted px-5 font-semibold disabled:cursor-not-allowed disabled:opacity-40" disabled={page <= 1} onClick={() => onPageChange(page - 1)}>Previous</button>
-    <span className="text-foreground-muted">Page {page} of {pages}</span>
-    <button type="button" className="min-h-11 rounded-full bg-surface-muted px-5 font-semibold disabled:cursor-not-allowed disabled:opacity-40" disabled={page >= pages} onClick={() => onPageChange(page + 1)}>Next</button>
-  </div>;
 }
 
 const NOTE_DENOMINATIONS = [500, 200, 100, 50, 20, 10] as const;

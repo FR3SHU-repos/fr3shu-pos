@@ -1,5 +1,6 @@
 "use client";
 
+import { Pagination } from "@/shared/components/Pagination";
 import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useState } from "react";
@@ -104,7 +105,7 @@ export default function BuyerCampaignsPage() {
         </div>
         {visibleAvailable.length > 0 ? <div className="grid gap-5 sm:grid-cols-2">{visibleAvailable.map((campaign) => <CampaignCard key={campaign.id} campaign={campaign} />)}</div> : <div className={`${cardCls} border-dashed text-sm text-foreground-muted`}>{filteredAvailable.length ? "No available rewards match your search." : "You have applied for all available rewards in your area."}</div>}
       </section>
-      <nav className="flex items-center justify-between border-t border-border pt-4 text-sm" aria-label="Campaign pages"><button type="button" className="rounded-full bg-surface-muted px-4 py-2 disabled:opacity-40" disabled={page <= 1} onClick={() => setPage((current) => current - 1)}>Previous</button><span className="text-foreground-muted">Page {page} of {pageCount} · {filtered.length} campaigns</span><button type="button" className="rounded-full bg-surface-muted px-4 py-2 disabled:opacity-40" disabled={page >= pageCount} onClick={() => setPage((current) => current + 1)}>Next</button></nav>
+      <Pagination page={page} pages={pageCount} onPageChange={setPage} bordered label="Campaign pages" detail={`${filtered.length} campaigns`} />
     </div> : null}
   </main>;
 }

@@ -1,5 +1,6 @@
 "use client";
 
+import { Pagination } from "@/shared/components/Pagination";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import toast from "react-hot-toast";
 import { ArrowRight, CalendarDays, Loader2, Package, Plus } from "lucide-react";
@@ -303,7 +304,7 @@ export default function StockPage() {
               </li>
             ))}
           </ul>
-          {stockPages > 1 ? <Pagination page={stockPage} pages={stockPages} onPageChange={setStockPage} /> : null}
+          {stockPages > 1 ? <Pagination page={stockPage} pages={stockPages} onPageChange={setStockPage} bordered label="Stock pages" className="mt-4" /> : null}
           </>
         )}
       </section>
@@ -347,14 +348,6 @@ export default function StockPage() {
       </section>
     </div>
   );
-}
-
-function Pagination({ page, pages, onPageChange }: { page: number; pages: number; onPageChange: (page: number) => void }) {
-  return <div className="mt-4 flex items-center justify-between border-t border-border pt-3 text-sm">
-    <button type="button" className="rounded-lg border border-border px-3 py-2 disabled:cursor-not-allowed disabled:opacity-40" disabled={page <= 1} onClick={() => onPageChange(page - 1)}>Previous</button>
-    <span className="text-foreground-muted">Page {page} of {pages}</span>
-    <button type="button" className="rounded-lg border border-border px-3 py-2 disabled:cursor-not-allowed disabled:opacity-40" disabled={page >= pages} onClick={() => onPageChange(page + 1)}>Next</button>
-  </div>;
 }
 
 function Label({ children }: { children: React.ReactNode }) {
