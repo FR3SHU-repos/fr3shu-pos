@@ -24,8 +24,12 @@ export function ProductGrid({ results, query, online, lines, onAdd }: ProductGri
   return (
     <>
       <div className="flex items-center justify-between">
-        <h2 className="text-sm font-semibold uppercase tracking-[0.12em] text-foreground-muted">Products</h2>
-        <span className="rounded-full bg-surface-muted px-3 py-1 text-xs font-semibold text-foreground-muted">{results.length} available</span>
+        <h2 className="text-sm font-semibold uppercase tracking-[0.12em] text-foreground-muted">
+          Products
+        </h2>
+        <span className="rounded-full bg-surface-muted px-3 py-1 text-xs font-semibold text-foreground-muted">
+          {results.length} available
+        </span>
       </div>
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
@@ -40,7 +44,18 @@ export function ProductGrid({ results, query, online, lines, onAdd }: ProductGri
               className="group flex min-h-36 flex-col items-start rounded-3xl bg-surface-card p-3 text-left transition active:scale-[0.98] hover:bg-surface-muted disabled:cursor-not-allowed disabled:opacity-45"
             >
               <div className="relative mb-3 flex h-16 w-full items-center justify-center overflow-hidden rounded-2xl bg-surface-muted">
-                                {p.imageUrl ? <Image src={p.imageUrl} alt="" fill sizes="(min-width: 1024px) 160px, 45vw" unoptimized className="object-cover" /> : <span className="text-[11px] text-foreground-muted">No image</span>}
+                {p.imageUrl ? (
+                  <Image
+                    src={p.imageUrl}
+                    alt=""
+                    fill
+                    sizes="(min-width: 1024px) 160px, 45vw"
+                    unoptimized
+                    className="object-cover"
+                  />
+                ) : (
+                  <span className="text-[11px] text-foreground-muted">No image</span>
+                )}
               </div>
               <span className="line-clamp-2 text-sm font-semibold text-foreground-heading ">
                 {p.name}
@@ -49,8 +64,24 @@ export function ProductGrid({ results, query, online, lines, onAdd }: ProductGri
                 {typeof p.basePricePaise === "number" ? formatPaise(p.basePricePaise) : "—"} /{" "}
                 {p.saleUnit}
               </span>
-              <span className={cx("mt-auto pt-2 text-xs font-medium", p.availableBase > 0 ? "text-status-success" : "text-status-danger")}>
-                {p.availableBase > 0 ? "Stock: " : "Out of stock · "}{formatProductQuantity(remainingStockBase(p.availableBase, inCart?.qty ?? 0, inCart?.saleUnit ?? p.saleUnit, p.basePerSaleUnit), p.saleUnit, p.baseUnit, p.basePerSaleUnit)}
+              <span
+                className={cx(
+                  "mt-auto pt-2 text-xs font-medium",
+                  p.availableBase > 0 ? "text-status-success" : "text-status-danger",
+                )}
+              >
+                {p.availableBase > 0 ? "Stock: " : "Out of stock · "}
+                {formatProductQuantity(
+                  remainingStockBase(
+                    p.availableBase,
+                    inCart?.qty ?? 0,
+                    inCart?.saleUnit ?? p.saleUnit,
+                    p.basePerSaleUnit,
+                  ),
+                  p.saleUnit,
+                  p.baseUnit,
+                  p.basePerSaleUnit,
+                )}
               </span>
             </button>
           );
@@ -62,15 +93,21 @@ export function ProductGrid({ results, query, online, lines, onAdd }: ProductGri
             </p>
           ) : (
             <div className="col-span-full flex flex-col items-center rounded-3xl bg-surface-card px-5 py-8 text-center">
-              <p className="text-base font-semibold text-foreground-heading">No products added yet</p>
-              <p className="mt-1 max-w-sm text-sm text-foreground-muted">Enter your product details to start selling from this register.</p>
+              <p className="text-base font-semibold text-foreground-heading">
+                No products added yet
+              </p>
+              <p className="mt-1 max-w-sm text-sm text-foreground-muted">
+                Enter your product details to start selling from this register.
+              </p>
               {online ? (
                 <Link href="/products/new" className={`${primaryBtnCls} mt-4`}>
                   <Plus className="h-4 w-4" />
                   Enter product details
                 </Link>
               ) : (
-                <p className="mt-4 text-sm font-medium text-status-warning">Connect to the internet to create products.</p>
+                <p className="mt-4 text-sm font-medium text-status-warning">
+                  Connect to the internet to create products.
+                </p>
               )}
             </div>
           )

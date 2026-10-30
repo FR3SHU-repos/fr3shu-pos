@@ -1,41 +1,38 @@
 "use client";
 
 import { Pagination } from "@/shared/components/Pagination";
-import React, { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { Search } from "lucide-react";
 import { salesApi } from "@/shared/lib/api";
 import { usePosUser } from "@/shared/context/PosUserContext";
 import type { SaleDTO } from "@/shared/lib/api/sales";
+import {
+  combineSummary,
+  inBounds,
+  normalizePhoneSearch,
+  periodBounds,
+  PERIODS,
+  type Period,
+} from "@/shared/lib/pos/sales-period";
 import { useApi } from "@/shared/hooks/useApi";
-import { EmptyState, ErrorState, inputCls, SkeletonRows, StatusBadge } from "@/shared/components/ui";
+import {
+  EmptyState,
+  ErrorState,
+  inputCls,
+  SkeletonRows,
+  StatusBadge,
+} from "@/shared/components/ui";
 import { formatPaise } from "@/shared/lib/money";
-import { listOfflineSales, type OfflineSaleRecord, type OfflineScope } from "@/shared/lib/offline/sales";
-import { activeOfflineCashSales, mergeSalesWithOffline } from "@/shared/lib/offline/session-summary";
-
-type Period = "today" | "yesterday" | "week" | "all";
-const PERIODS: { key: Period; label: string }[] = [
-  { key: "today", label: "Today" },
-  { key: "yesterday", label: "Yesterday" },
-  { key: "week", label: "7 days" },
-  { key: "all", label: "All" },
-];
-
-/** Local-midnight bounds as RFC3339 instants; `to` is exclusive. */
-function periodBounds(period: Period): { from?: string; to?: string } {
-  const now = new Date();
-  const midnight = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  const day = (offset: number) => new Date(midnight.getFullYear(), midnight.getMonth(), midnight.getDate() + offset).toISOString();
-  if (period === "today") return { from: day(0), to: day(1) };
-  if (period === "yesterday") return { from: day(-1), to: day(0) };
-  if (period === "week") return { from: day(-6), to: day(1) };
-  return {};
-}
-
-function normalizePhoneSearch(value: string): string {
-  const digits = value.replace(/\D/g, "");
-  return digits.length > 10 ? digits.slice(-10) : digits;
-}
+import {
+  listOfflineSales,
+  type OfflineSaleRecord,
+  type OfflineScope,
+} from "@/shared/lib/offline/sales";
+import {
+  activeOfflineCashSales,
+  mergeSalesWithOffline,
+} from "@/shared/lib/offline/session-summary";
 
 export default function SalesHistoryPage() {
   const PAGE_SIZE = 10;
@@ -72,7 +69,9 @@ export default function SalesHistoryPage() {
   // Unsynced sales stored on this device; refreshed when the sync worker reports a change.
   useEffect(() => {
     let alive = true;
-    const scope: OfflineScope | null = user ? { userId: user.id, orgId: user.orgId, locationId: user.locationId } : null;
+    const scope: OfflineScope | null = user
+      ? { userId: user.id, orgId: user.orgId, locationId: user.locationId }
+      : null;
     const loadLocal = async () => {
       const local = scope ? await listOfflineSales(scope) : [];
       if (alive) setOfflineSales(local);
@@ -97,26 +96,37 @@ export default function SalesHistoryPage() {
     const receiptQuery = receiptNo.trim().toLowerCase();
     const phoneQuery = normalizePhoneSearch(phone);
     const filteredOffline = offlineSales
-      .filter((sale) => !receiptQuery || sale.receiptNo.toLowerCase().includes(receiptQuery) || sale.serverReceiptNo?.toLowerCase().includes(receiptQuery))
-      .filter((sale) => !phoneQuery || normalizePhoneSearch(sale.customerPhone ?? "") === phoneQuery)
-      .filter((sale) => {
-        const { from, to } = periodBounds(period);
-        const at = new Date(sale.soldAt ?? sale.createdAt ?? 0).getTime();
-        return (!from || at >= new Date(from).getTime()) && (!to || at < new Date(to).getTime());
-      });
-    return mergeSalesWithOffline(items, filteredOffline, new Date().toISOString().slice(0, 10)).slice(0, PAGE_SIZE);
+      .filter(
+        (sale) =>
+          !receiptQuery ||
+          sale.receiptNo.toLowerCase().includes(receiptQuery) ||
+          sale.serverReceiptNo?.toLowerCase().includes(receiptQuery),
+      )
+      .filter(
+        (sale) => !phoneQuery || normalizePhoneSearch(sale.customerPhone ?? "") === phoneQuery,
+      )
+      .filter((sale) => inBounds(sale.soldAt ?? sale.createdAt ?? 0, periodBounds(period)));
+    return mergeSalesWithOffline(
+      items,
+      filteredOffline,
+      new Date().toISOString().slice(0, 10),
+    ).slice(0, PAGE_SIZE);
   }, [items, offlineSales, phone, receiptNo, period]);
 
   // Unsynced offline sales in the selected period. They are not in the server
   // total yet, so they are shown as a separate, clearly labelled addition.
   const pendingOffline = useMemo(() => {
-    const { from, to } = periodBounds(period);
-    const inPeriod = activeOfflineCashSales(offlineSales).filter((sale) => {
-      const at = new Date(sale.soldAt ?? sale.createdAt ?? 0).getTime();
-      return (!from || at >= new Date(from).getTime()) && (!to || at < new Date(to).getTime());
-    });
-    return { count: inPeriod.length, totalPaise: inPeriod.reduce((sum, sale) => sum + sale.totalPaise, 0) };
+    const bounds = periodBounds(period);
+    const inPeriod = activeOfflineCashSales(offlineSales).filter((sale) =>
+      inBounds(sale.soldAt ?? sale.createdAt ?? 0, bounds),
+    );
+    return {
+      count: inPeriod.length,
+      totalPaise: inPeriod.reduce((sum, sale) => sum + sale.totalPaise, 0),
+    };
   }, [offlineSales, period]);
+
+  const combined = combineSummary(summary, pendingOffline);
 
   const groups = useMemo(() => {
     const labelFor = (iso: string) => {
@@ -150,7 +160,9 @@ export default function SalesHistoryPage() {
             aria-selected={period === p.key}
             onClick={() => setPeriod(p.key)}
             className={`min-h-11 shrink-0 rounded-full px-5 text-sm font-semibold transition ${
-              period === p.key ? "bg-primary text-primary-foreground" : "bg-surface-muted text-foreground-body hover:text-foreground-heading"
+              period === p.key
+                ? "bg-primary text-primary-foreground"
+                : "bg-surface-muted text-foreground-body hover:text-foreground-heading"
             }`}
           >
             {p.label}
@@ -158,20 +170,21 @@ export default function SalesHistoryPage() {
         ))}
       </div>
 
-      {summary || pendingOffline.count > 0 ? (
+      {combined.hasData ? (
         <div className="rounded-3xl bg-surface-card p-5">
           <p className="text-xs font-semibold uppercase tracking-[0.12em] text-foreground-muted">
             {PERIODS.find((p) => p.key === period)?.label} · completed sales
           </p>
           <p className="mt-1 text-3xl font-bold text-foreground-heading">
-            {formatPaise((summary?.totalPaise ?? 0) + pendingOffline.totalPaise)}
+            {formatPaise(combined.totalPaise)}
           </p>
           <p className="text-sm text-foreground-muted">
-            {(summary?.completedCount ?? 0) + pendingOffline.count} sale{(summary?.completedCount ?? 0) + pendingOffline.count === 1 ? "" : "s"}
+            {combined.completedCount} sale{combined.completedCount === 1 ? "" : "s"}
           </p>
           {pendingOffline.count > 0 ? (
             <p className="mt-3 inline-flex rounded-full bg-status-warning-surface px-3 py-1 text-xs font-semibold text-status-warning">
-              Includes {formatPaise(pendingOffline.totalPaise)} from {pendingOffline.count} offline sale{pendingOffline.count === 1 ? "" : "s"} waiting to sync
+              Includes {formatPaise(pendingOffline.totalPaise)} from {pendingOffline.count} offline
+              sale{pendingOffline.count === 1 ? "" : "s"} waiting to sync
             </p>
           ) : null}
         </div>
@@ -200,36 +213,60 @@ export default function SalesHistoryPage() {
       {loading ? (
         <SkeletonRows rows={6} />
       ) : listError && visibleItems.length === 0 ? (
-        <ErrorState title="Could not load sales" message={listError} onRetry={() => void refetch()} />
+        <ErrorState
+          title="Could not load sales"
+          message={listError}
+          onRetry={() => void refetch()}
+        />
       ) : visibleItems.length === 0 ? (
-        <EmptyState title="No sales found" description="Completed and locally saved offline sales will appear here." />
+        <EmptyState
+          title="No sales found"
+          description="Completed and locally saved offline sales will appear here."
+        />
       ) : (
         <div className="space-y-5">
           {groups.map((group) => (
             <section key={group.label}>
-              <h2 className="mb-2 px-1 text-xs font-semibold uppercase tracking-[0.12em] text-foreground-muted">{group.label}</h2>
+              <h2 className="mb-2 px-1 text-xs font-semibold uppercase tracking-[0.12em] text-foreground-muted">
+                {group.label}
+              </h2>
               <ul className="overflow-hidden rounded-3xl bg-surface-card p-1.5">
                 {group.rows.map(({ sale: s, local, state, serverSaleId, serverReceiptNo }) => {
-                  const href = local && !serverSaleId ? null : `/pos/history/${serverSaleId ?? s._id}`;
+                  const href =
+                    local && !serverSaleId ? null : `/pos/history/${serverSaleId ?? s._id}`;
                   const itemCount = s.items.length;
                   const body = (
                     <>
                       <div className="min-w-0 flex-1">
-                        <p className="truncate text-sm font-semibold text-foreground-heading">{s.receiptNo}</p>
+                        <p className="truncate text-sm font-semibold text-foreground-heading">
+                          {s.receiptNo}
+                        </p>
                         <p className="truncate text-xs text-foreground-muted">
-                          {new Date(s.soldAt).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" })}
+                          {new Date(s.soldAt).toLocaleTimeString("en-IN", {
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          })}
                           {itemCount > 0 ? ` · ${itemCount} item${itemCount === 1 ? "" : "s"}` : ""}
-                          {local ? ` · ${serverReceiptNo ? `Server receipt ${serverReceiptNo}` : offlineSales.find((sale) => sale.operationId === s.idempotencyKey)?.syncMessage ?? "offline sale"}` : ""}
+                          {local
+                            ? ` · ${serverReceiptNo ? `Server receipt ${serverReceiptNo}` : (offlineSales.find((sale) => sale.operationId === s.idempotencyKey)?.syncMessage ?? "offline sale")}`
+                            : ""}
                         </p>
                       </div>
                       <StatusBadge status={local ? state : s.status} />
-                      <span className="w-24 text-right text-sm font-bold text-foreground-heading">{formatPaise(s.totalPaise)}</span>
+                      <span className="w-24 text-right text-sm font-bold text-foreground-heading">
+                        {formatPaise(s.totalPaise)}
+                      </span>
                     </>
                   );
                   return (
                     <li key={`${local ? "local" : "server"}:${s._id}`}>
                       {href ? (
-                        <Link href={href} className="flex min-h-16 items-center gap-3 rounded-2xl px-3 py-2 hover:bg-surface-muted">{body}</Link>
+                        <Link
+                          href={href}
+                          className="flex min-h-16 items-center gap-3 rounded-2xl px-3 py-2 hover:bg-surface-muted"
+                        >
+                          {body}
+                        </Link>
                       ) : (
                         <div className="flex min-h-16 items-center gap-3 px-3 py-2">{body}</div>
                       )}
@@ -239,7 +276,13 @@ export default function SalesHistoryPage() {
               </ul>
             </section>
           ))}
-          <Pagination page={page} pages={totalPages} onPageChange={setPage} disabled={loading} label="Sales pages" />
+          <Pagination
+            page={page}
+            pages={totalPages}
+            onPageChange={setPage}
+            disabled={loading}
+            label="Sales pages"
+          />
         </div>
       )}
     </div>

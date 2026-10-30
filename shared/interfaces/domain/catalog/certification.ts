@@ -12,11 +12,7 @@ export type CertScheme =
   | "Expired"
   | "Rejected";
 
-export type CertVerificationStatus =
-  | "PendingVerification"
-  | "Approved"
-  | "Rejected"
-  | "Expired";
+export type CertVerificationStatus = "PendingVerification" | "Approved" | "Rejected" | "Expired";
 
 export interface ICertification {
   _id?: string;

@@ -1,7 +1,6 @@
 import { request, type ApiResult } from "./client";
 
-export type BuyerFulfillmentMethod =
-  "home_delivery" | "store_pickup" | "online_redemption";
+export type BuyerFulfillmentMethod = "home_delivery" | "store_pickup" | "online_redemption";
 export type BuyerApprovalMode = "automatic" | "manual";
 
 export type BuyerCampaign = {
@@ -104,7 +103,9 @@ export const claim = (id: string): Promise<ApiResult<BuyerCampaignClaim>> =>
 export const wallet = (): Promise<ApiResult<{ items: BuyerRewardClaim[] }>> =>
   request("buyer/reward-claims");
 
-export const confirmReceipt = (claimId: string): Promise<ApiResult<{ id: string; status: "confirmed"; points: number; confirmedAt: string }>> =>
+export const confirmReceipt = (
+  claimId: string,
+): Promise<ApiResult<{ id: string; status: "confirmed"; points: number; confirmedAt: string }>> =>
   request(`buyer/reward-claims/${encodeURIComponent(claimId)}/confirm`, {
     method: "POST",
     body: {},

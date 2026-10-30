@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { authIntent, destinationForCapabilities, isBuyerExperiencePath } from "@/shared/lib/auth/intent";
+import {
+  authIntent,
+  destinationForCapabilities,
+  isBuyerExperiencePath,
+} from "@/shared/lib/auth/intent";
 
 describe("shared authentication intent", () => {
   it("routes existing accounts by their stored category", () => {
@@ -10,8 +14,12 @@ describe("shared authentication intent", () => {
   });
 
   it("uses the selected category only for a new account", () => {
-    expect(destinationForCapabilities("buyer", { buyer: false, seller: false })).toBe("/buyer/setup");
-    expect(destinationForCapabilities("seller", { buyer: false, seller: false })).toBe("/seller/onboarding");
+    expect(destinationForCapabilities("buyer", { buyer: false, seller: false })).toBe(
+      "/buyer/setup",
+    );
+    expect(destinationForCapabilities("seller", { buyer: false, seller: false })).toBe(
+      "/seller/onboarding",
+    );
   });
 
   it("keeps buyer pages out of seller onboarding guards", () => {

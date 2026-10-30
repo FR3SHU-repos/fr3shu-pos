@@ -83,12 +83,7 @@ export interface SupplierDTO {
 }
 
 export type OrganicStatus =
-  | "Verified"
-  | "InConversion"
-  | "PendingVerification"
-  | "Expired"
-  | "Rejected"
-  | "NotOrganic";
+  "Verified" | "InConversion" | "PendingVerification" | "Expired" | "Rejected" | "NotOrganic";
 
 export type ProductStatus = "active" | "inactive" | "archived";
 
@@ -137,24 +132,34 @@ export function mapProduct(p: GoProduct): ProductDTO {
     barcode: p.barcode || undefined,
     saleUnit: (p.unit || "piece") as SaleUnit,
     baseUnit: p.baseUnit ?? unitBase(p.unit),
-    basePerSaleUnit: p.basePerSaleUnit && p.basePerSaleUnit > 0 ? p.basePerSaleUnit : unitFactor(p.unit),
+    basePerSaleUnit:
+      p.basePerSaleUnit && p.basePerSaleUnit > 0 ? p.basePerSaleUnit : unitFactor(p.unit),
     basePricePaise: p.unitPriceMinor ?? undefined,
     taxRateBps: p.taxRateBps ?? 0,
     categoryId: p.categoryId || undefined,
     category: p.category || undefined,
     description: p.description || undefined,
     organicStatus: p.organicStatus ?? "PendingVerification",
-    status: (["active", "inactive", "archived"].includes(p.status) ? p.status : "active") as ProductStatus,
+    status: (["active", "inactive", "archived"].includes(p.status)
+      ? p.status
+      : "active") as ProductStatus,
     // The POS quick-pick grid keys off `isPinned`; use in-stock as the stand-in
     // since the canonical catalogue does not carry a POS pin flag.
     isPinned: p.isPinned ?? false,
-    availableBase: Math.round(Number(p.availableQty ?? 0) * (p.basePerSaleUnit && p.basePerSaleUnit > 0 ? p.basePerSaleUnit : unitFactor(p.unit))),
-    lots: (p.lots ?? []).map((lot) => ({
-      lotId: lot.lotId ?? "",
-      lotCode: lot.lotCode ?? "",
-      qty: Number(lot.qty ?? 0) * (p.basePerSaleUnit && p.basePerSaleUnit > 0 ? p.basePerSaleUnit : unitFactor(p.unit)),
-      expiresAt: lot.expiresAt,
-    })).filter((lot) => lot.lotId && Number.isFinite(lot.qty) && lot.qty > 0),
+    availableBase: Math.round(
+      Number(p.availableQty ?? 0) *
+        (p.basePerSaleUnit && p.basePerSaleUnit > 0 ? p.basePerSaleUnit : unitFactor(p.unit)),
+    ),
+    lots: (p.lots ?? [])
+      .map((lot) => ({
+        lotId: lot.lotId ?? "",
+        lotCode: lot.lotCode ?? "",
+        qty:
+          Number(lot.qty ?? 0) *
+          (p.basePerSaleUnit && p.basePerSaleUnit > 0 ? p.basePerSaleUnit : unitFactor(p.unit)),
+        expiresAt: lot.expiresAt,
+      }))
+      .filter((lot) => lot.lotId && Number.isFinite(lot.qty) && lot.qty > 0),
     producer: p.producer ?? undefined,
     imageUrl: p.imageUrl || undefined,
   };
@@ -374,7 +379,8 @@ function mapLine(l: GoSaleLine): SaleItemDTO {
     baseUnit: l.baseUnit ?? unitBase(l.unit),
     // Go returns the quantity already in canonical base units.
     qtyBase: Math.round(Number(l.qty || 0)),
-    basePerSaleUnit: l.basePerSaleUnit && l.basePerSaleUnit > 0 ? l.basePerSaleUnit : unitFactor(l.unit),
+    basePerSaleUnit:
+      l.basePerSaleUnit && l.basePerSaleUnit > 0 ? l.basePerSaleUnit : unitFactor(l.unit),
     unitPricePaise: l.unitPriceMinor,
     grossPaise: l.grossMinor,
     discountPaise: l.discountMinor,

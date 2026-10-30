@@ -98,37 +98,60 @@ function line(overrides: Partial<CartLine> = {}): CartLine {
 
 describe("offline cash sales", () => {
   it("restores a pending backup into the scoped outbox without overwriting it", async () => {
-    const sale = buildOfflineSaleRecord({
-      scope,
-      session,
-      cashierId: "cashier-1",
-      lines: [line()],
-      cashReceivedPaise: 10000,
-      customerName: "Asha",
-      customerPhone: "9999999999",
-      operationId: "restored-op-1",
-    }, 1, new Date("2026-09-13T06:30:00.000Z"));
+    const sale = buildOfflineSaleRecord(
+      {
+        scope,
+        session,
+        cashierId: "cashier-1",
+        lines: [line()],
+        cashReceivedPaise: 10000,
+        customerName: "Asha",
+        customerPhone: "9999999999",
+        operationId: "restored-op-1",
+      },
+      1,
+      new Date("2026-09-13T06:30:00.000Z"),
+    );
     sale.syncState = "uploading";
     const payload = { exportedAt: new Date().toISOString(), scope, sales: [sale] };
 
-    await expect(importOfflineSales(scope, payload)).resolves.toMatchObject({ imported: 1, skipped: 0, errors: [] });
-    expect((await listPendingOfflineSales(scope)).map((item) => item.operationId)).toEqual(["restored-op-1"]);
-    await expect(importOfflineSales(scope, payload)).resolves.toMatchObject({ imported: 0, skipped: 1, errors: [] });
-    expect((await listPendingOfflineSales(scope)).map((item) => item.operationId)).toEqual(["restored-op-1"]);
+    await expect(importOfflineSales(scope, payload)).resolves.toMatchObject({
+      imported: 1,
+      skipped: 0,
+      errors: [],
+    });
+    expect((await listPendingOfflineSales(scope)).map((item) => item.operationId)).toEqual([
+      "restored-op-1",
+    ]);
+    await expect(importOfflineSales(scope, payload)).resolves.toMatchObject({
+      imported: 0,
+      skipped: 1,
+      errors: [],
+    });
+    expect((await listPendingOfflineSales(scope)).map((item) => item.operationId)).toEqual([
+      "restored-op-1",
+    ]);
   });
 
   it("rejects a backup from another location without changing local records", async () => {
-    const sale = buildOfflineSaleRecord({
-      scope: { ...scope, locationId: "other-location" },
-      session,
-      cashierId: "cashier-1",
-      lines: [line()],
-      cashReceivedPaise: 10000,
-      customerName: "Asha",
-      customerPhone: "9999999999",
-      operationId: "foreign-op-1",
-    }, 1);
-    const result = await importOfflineSales(scope, { exportedAt: new Date().toISOString(), scope, sales: [sale] });
+    const sale = buildOfflineSaleRecord(
+      {
+        scope: { ...scope, locationId: "other-location" },
+        session,
+        cashierId: "cashier-1",
+        lines: [line()],
+        cashReceivedPaise: 10000,
+        customerName: "Asha",
+        customerPhone: "9999999999",
+        operationId: "foreign-op-1",
+      },
+      1,
+    );
+    const result = await importOfflineSales(scope, {
+      exportedAt: new Date().toISOString(),
+      scope,
+      sales: [sale],
+    });
     expect(result.imported).toBe(0);
     expect(result.errors[0]).toContain("different user, organization, or location");
     expect(await listPendingOfflineSales(scope)).toEqual([]);
@@ -217,19 +240,26 @@ describe("offline cash sales", () => {
       receivedPaise: 10000,
       changePaise: 1000,
     });
-    expect(() => validateCashPayment(9000, 8999)).toThrow("Cash received is less than the sale total.");
+    expect(() => validateCashPayment(9000, 8999)).toThrow(
+      "Cash received is less than the sale total.",
+    );
   });
 
   it("requires a customer mobile number before creating an offline sale", () => {
-    expect(() => buildOfflineSaleRecord({
-      scope,
-      session,
-      cashierId: "cashier-1",
-      lines: [line()],
-      cashReceivedPaise: 10000,
-      customerName: "Asha",
-      customerPhone: "",
-    }, 1)).toThrow("customer mobile number");
+    expect(() =>
+      buildOfflineSaleRecord(
+        {
+          scope,
+          session,
+          cashierId: "cashier-1",
+          lines: [line()],
+          cashReceivedPaise: 10000,
+          customerName: "Asha",
+          customerPhone: "",
+        },
+        1,
+      ),
+    ).toThrow("customer mobile number");
   });
 
   it("builds an immutable pending sale and receipt DTO", () => {
@@ -270,16 +300,19 @@ describe("offline cash sales", () => {
   });
 
   it("shows the canonical server receipt after offline sync", () => {
-    const sale = buildOfflineSaleRecord({
-      scope,
-      session,
-      cashierId: "cashier-1",
-      lines: [line()],
-      cashReceivedPaise: 10000,
-      customerName: "Asha",
-      customerPhone: "9999999999",
-      operationId: "canonical-receipt-op",
-    }, 8);
+    const sale = buildOfflineSaleRecord(
+      {
+        scope,
+        session,
+        cashierId: "cashier-1",
+        lines: [line()],
+        cashReceivedPaise: 10000,
+        customerName: "Asha",
+        customerPhone: "9999999999",
+        operationId: "canonical-receipt-op",
+      },
+      8,
+    );
     sale.syncState = "synced";
     sale.serverSaleId = "sale-1";
     sale.serverReceiptNo = "POS-2026-000010";
@@ -342,7 +375,10 @@ describe("offline cash sales", () => {
       createdAt: "2026-09-13T05:00:00.000Z",
       inventoryCoveredAt: "2026-09-13T05:15:00.000Z",
     };
-    const deductions = localStockDeductions([pending, syncedBeforeSnapshot], Date.parse("2026-09-13T05:30:00.000Z"));
+    const deductions = localStockDeductions(
+      [pending, syncedBeforeSnapshot],
+      Date.parse("2026-09-13T05:30:00.000Z"),
+    );
 
     expect(deductions["sku-1"]).toBe(1500);
     expect(applyLocalStockDeductions([product()], deductions)[0].availableBase).toBe(3500);
@@ -372,19 +408,19 @@ describe("offline cash sales", () => {
 
   it("allows overselling locally for later server reconciliation", () => {
     const sale = buildOfflineSaleRecord(
-        {
-          scope,
-          session,
-          cashierId: "cashier-1",
-          lines: [line({ qty: 4 })],
-          cashReceivedPaise: 24000,
-          customerName: "Asha",
-          customerPhone: "9999999999",
-        },
-        2,
-        new Date("2026-09-13T06:30:00.000Z"),
-        { "sku-1": 1500 },
-      );
+      {
+        scope,
+        session,
+        cashierId: "cashier-1",
+        lines: [line({ qty: 4 })],
+        cashReceivedPaise: 24000,
+        customerName: "Asha",
+        customerPhone: "9999999999",
+      },
+      2,
+      new Date("2026-09-13T06:30:00.000Z"),
+      { "sku-1": 1500 },
+    );
     expect(sale.lines[0].qty).toBe(4);
     expect(sale.syncState).toBe("pending");
   });
@@ -408,7 +444,11 @@ describe("offline cash sales", () => {
 
     expect(repaired.lines[0]).toMatchObject({ qty: 1, qtyBase: 1000, netPaise: 6000 });
     expect(repaired.totalPaise).toBe(6000);
-    expect(repaired.payment).toMatchObject({ receivedPaise: 12000, amountPaise: 6000, changePaise: 6000 });
+    expect(repaired.payment).toMatchObject({
+      receivedPaise: 12000,
+      amountPaise: 6000,
+      changePaise: 6000,
+    });
   });
 
   it("blocks removing every line during repair", () => {
@@ -427,7 +467,8 @@ describe("offline cash sales", () => {
       new Date("2026-09-13T08:00:00.000Z"),
     );
 
-    expect(() => applyOfflineSaleLineRepair(sale, [{ productId: "sku-1", remove: true }])).toThrow("At least one product must remain");
+    expect(() => applyOfflineSaleLineRepair(sale, [{ productId: "sku-1", remove: true }])).toThrow(
+      "At least one product must remain",
+    );
   });
-
 });

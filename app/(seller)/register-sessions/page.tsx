@@ -7,10 +7,24 @@ import { Loader2 } from "lucide-react";
 import { registersApi } from "@/shared/lib/api";
 import { usePosUser } from "@/shared/context/PosUserContext";
 import type { RegisterDTO, SessionDTO } from "@/shared/lib/api/registers";
-import { cardCls, ghostBtnCls, inputCls, primaryBtnCls, SkeletonRows, StatusBadge } from "@/shared/components/ui";
+import {
+  cardCls,
+  ghostBtnCls,
+  inputCls,
+  primaryBtnCls,
+  SkeletonRows,
+  StatusBadge,
+} from "@/shared/components/ui";
 import { formatPaise, rupeesToPaise } from "@/shared/lib/money";
-import { listOfflineSales, type OfflineSaleRecord, type OfflineScope } from "@/shared/lib/offline/sales";
-import { expectedCashWithOffline, pendingOfflineCashTotal } from "@/shared/lib/offline/session-summary";
+import {
+  listOfflineSales,
+  type OfflineSaleRecord,
+  type OfflineScope,
+} from "@/shared/lib/offline/sales";
+import {
+  expectedCashWithOffline,
+  pendingOfflineCashTotal,
+} from "@/shared/lib/offline/session-summary";
 
 export default function RegisterSessionsPage() {
   const PAGE_SIZE = 10;
@@ -29,7 +43,9 @@ export default function RegisterSessionsPage() {
   const [note, setNote] = useState("");
 
   const load = useCallback(async () => {
-    const scope: OfflineScope | null = user ? { userId: user.id, orgId: user.orgId, locationId: user.locationId } : null;
+    const scope: OfflineScope | null = user
+      ? { userId: user.id, orgId: user.orgId, locationId: user.locationId }
+      : null;
     const [res, local] = await Promise.all([
       registersApi.overview(),
       scope ? listOfflineSales(scope) : Promise.resolve([]),
@@ -83,8 +99,14 @@ export default function RegisterSessionsPage() {
   }
 
   const t = current?.totals;
-  const { amountPaise: pendingOfflineCashPaise, count: pendingOfflineCount } = useMemo(() => pendingOfflineCashTotal(offlineSales), [offlineSales]);
-  const { serverExpectedPaise: serverExpectedCashPaise, combinedExpectedPaise: combinedExpectedCashPaise } = current
+  const { amountPaise: pendingOfflineCashPaise, count: pendingOfflineCount } = useMemo(
+    () => pendingOfflineCashTotal(offlineSales),
+    [offlineSales],
+  );
+  const {
+    serverExpectedPaise: serverExpectedCashPaise,
+    combinedExpectedPaise: combinedExpectedCashPaise,
+  } = current
     ? expectedCashWithOffline({
         openingCashPaise: current.openingCashPaise,
         serverCashSalesPaise: t?.cashSalesPaise ?? 0,
@@ -96,7 +118,9 @@ export default function RegisterSessionsPage() {
   const combinedVariancePaise = countedCash ? countedCashPaise - combinedExpectedCashPaise : null;
   const recentPages = Math.max(1, Math.ceil(recent.length / PAGE_SIZE));
   const visibleRecent = recent.slice((recentPage - 1) * PAGE_SIZE, recentPage * PAGE_SIZE);
-  useEffect(() => { setRecentPage((page) => Math.min(page, recentPages)); }, [recentPages]);
+  useEffect(() => {
+    setRecentPage((page) => Math.min(page, recentPages));
+  }, [recentPages]);
 
   if (loading) return <SkeletonRows rows={4} />;
 
@@ -104,7 +128,9 @@ export default function RegisterSessionsPage() {
     <div className="mx-auto max-w-3xl space-y-6">
       <header className="space-y-1">
         <h1 className="text-3xl font-bold tracking-[-0.03em] text-foreground-heading">Register</h1>
-        <p className="max-w-xl text-sm text-foreground-muted">Cash in the drawer and online (UPI) money, counted separately.</p>
+        <p className="max-w-xl text-sm text-foreground-muted">
+          Cash in the drawer and online (UPI) money, counted separately.
+        </p>
       </header>
 
       {current ? (
@@ -115,20 +141,43 @@ export default function RegisterSessionsPage() {
           </div>
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="rounded-3xl bg-surface-muted p-5">
-              <p className="text-xs font-semibold uppercase tracking-[0.12em] text-foreground-muted">Cash in drawer</p>
-              <p className="mt-2 text-3xl font-bold text-foreground-heading">{formatPaise(combinedExpectedCashPaise)}</p>
+              <p className="text-xs font-semibold uppercase tracking-[0.12em] text-foreground-muted">
+                Cash in drawer
+              </p>
+              <p className="mt-2 text-3xl font-bold text-foreground-heading">
+                {formatPaise(combinedExpectedCashPaise)}
+              </p>
               <dl className="mt-3 space-y-1 text-xs text-foreground-muted">
-                <div className="flex justify-between"><dt>Opening cash</dt><dd>{formatPaise(current.openingCashPaise)}</dd></div>
-                <div className="flex justify-between"><dt>Cash sales (server)</dt><dd>{formatPaise(t?.cashSalesPaise ?? 0)}</dd></div>
-                <div className="flex justify-between"><dt>Offline cash pending ({pendingOfflineCount})</dt><dd>{formatPaise(pendingOfflineCashPaise)}</dd></div>
-                <div className="flex justify-between"><dt>Server expected</dt><dd>{formatPaise(serverExpectedCashPaise)}</dd></div>
+                <div className="flex justify-between">
+                  <dt>Opening cash</dt>
+                  <dd>{formatPaise(current.openingCashPaise)}</dd>
+                </div>
+                <div className="flex justify-between">
+                  <dt>Cash sales (server)</dt>
+                  <dd>{formatPaise(t?.cashSalesPaise ?? 0)}</dd>
+                </div>
+                <div className="flex justify-between">
+                  <dt>Offline cash pending ({pendingOfflineCount})</dt>
+                  <dd>{formatPaise(pendingOfflineCashPaise)}</dd>
+                </div>
+                <div className="flex justify-between">
+                  <dt>Server expected</dt>
+                  <dd>{formatPaise(serverExpectedCashPaise)}</dd>
+                </div>
               </dl>
             </div>
             <div className="rounded-3xl bg-surface-muted p-5">
-              <p className="text-xs font-semibold uppercase tracking-[0.12em] text-foreground-muted">Online (UPI)</p>
-              <p className="mt-2 text-3xl font-bold text-foreground-heading">{formatPaise(t?.upiSalesPaise ?? 0)}</p>
+              <p className="text-xs font-semibold uppercase tracking-[0.12em] text-foreground-muted">
+                Online (UPI)
+              </p>
+              <p className="mt-2 text-3xl font-bold text-foreground-heading">
+                {formatPaise(t?.upiSalesPaise ?? 0)}
+              </p>
               <dl className="mt-3 space-y-1 text-xs text-foreground-muted">
-                <div className="flex justify-between"><dt>Sales this session</dt><dd>{t?.saleCount ?? 0}</dd></div>
+                <div className="flex justify-between">
+                  <dt>Sales this session</dt>
+                  <dd>{t?.saleCount ?? 0}</dd>
+                </div>
               </dl>
               <p className="mt-3 text-xs text-foreground-muted">Not counted in the drawer.</p>
             </div>
@@ -136,8 +185,14 @@ export default function RegisterSessionsPage() {
 
           {pendingOfflineCount > 0 ? (
             <div className="mt-4 rounded-2xl bg-status-warning-surface p-4 text-sm text-status-warning">
-              <p className="font-semibold">{pendingOfflineCount} offline cash sale{pendingOfflineCount === 1 ? "" : "s"} still pending sync.</p>
-              <p className="mt-1">Physical drawer should include {formatPaise(pendingOfflineCashPaise)} extra cash. The backend close calculation will only know this amount after sync.</p>
+              <p className="font-semibold">
+                {pendingOfflineCount} offline cash sale{pendingOfflineCount === 1 ? "" : "s"} still
+                pending sync.
+              </p>
+              <p className="mt-1">
+                Physical drawer should include {formatPaise(pendingOfflineCashPaise)} extra cash.
+                The backend close calculation will only know this amount after sync.
+              </p>
             </div>
           ) : null}
 
@@ -166,7 +221,11 @@ export default function RegisterSessionsPage() {
                           : "bg-status-danger-surface text-status-danger"
                     }`}
                   >
-                    {combinedVariancePaise === 0 ? "Balanced" : combinedVariancePaise > 0 ? "Over" : "Short"}
+                    {combinedVariancePaise === 0
+                      ? "Balanced"
+                      : combinedVariancePaise > 0
+                        ? "Over"
+                        : "Short"}
                   </span>
                   Variance vs expected cash with offline: {formatPaise(combinedVariancePaise)}
                 </p>
@@ -240,28 +299,54 @@ export default function RegisterSessionsPage() {
       )}
 
       <section className={cardCls}>
-        <h2 className="mb-3 text-xs font-semibold uppercase tracking-[0.12em] text-foreground-muted">Recent closed sessions</h2>
+        <h2 className="mb-3 text-xs font-semibold uppercase tracking-[0.12em] text-foreground-muted">
+          Recent closed sessions
+        </h2>
         {recent.length === 0 ? (
           <p className="text-sm text-foreground-muted">No closed sessions yet.</p>
         ) : (
           <>
-          <ul className="space-y-2 text-sm">
-            {visibleRecent.map((s) => {
-              const v = s.cashVariancePaise ?? 0;
-              return (
-                <li key={s._id} className="rounded-2xl bg-surface-muted p-4">
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="font-semibold text-foreground-heading">{s.closedAt ? new Date(s.closedAt).toLocaleString("en-IN", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }) : "—"}</span>
-                    <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${v === 0 ? "bg-status-success-surface text-status-success" : v > 0 ? "bg-status-info-surface text-status-info" : "bg-status-danger-surface text-status-danger"}`}>
-                      {v === 0 ? "Balanced" : `${v > 0 ? "Over" : "Short"} ${formatPaise(Math.abs(v))}`}
-                    </span>
-                  </div>
-                  <p className="mt-1 text-xs text-foreground-muted">Expected {formatPaise(s.expectedCashPaise ?? 0)} · Counted {formatPaise(s.countedCashPaise ?? 0)}</p>
-                </li>
-              );
-            })}
-          </ul>
-          {recentPages > 1 ? <Pagination page={recentPage} pages={recentPages} onPageChange={setRecentPage} label="Recent sessions pages" className="mt-3" /> : null}
+            <ul className="space-y-2 text-sm">
+              {visibleRecent.map((s) => {
+                const v = s.cashVariancePaise ?? 0;
+                return (
+                  <li key={s._id} className="rounded-2xl bg-surface-muted p-4">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="font-semibold text-foreground-heading">
+                        {s.closedAt
+                          ? new Date(s.closedAt).toLocaleString("en-IN", {
+                              day: "numeric",
+                              month: "short",
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            })
+                          : "—"}
+                      </span>
+                      <span
+                        className={`rounded-full px-2.5 py-1 text-xs font-semibold ${v === 0 ? "bg-status-success-surface text-status-success" : v > 0 ? "bg-status-info-surface text-status-info" : "bg-status-danger-surface text-status-danger"}`}
+                      >
+                        {v === 0
+                          ? "Balanced"
+                          : `${v > 0 ? "Over" : "Short"} ${formatPaise(Math.abs(v))}`}
+                      </span>
+                    </div>
+                    <p className="mt-1 text-xs text-foreground-muted">
+                      Expected {formatPaise(s.expectedCashPaise ?? 0)} · Counted{" "}
+                      {formatPaise(s.countedCashPaise ?? 0)}
+                    </p>
+                  </li>
+                );
+              })}
+            </ul>
+            {recentPages > 1 ? (
+              <Pagination
+                page={recentPage}
+                pages={recentPages}
+                onPageChange={setRecentPage}
+                label="Recent sessions pages"
+                className="mt-3"
+              />
+            ) : null}
           </>
         )}
       </section>
@@ -286,7 +371,12 @@ function NoteCounter({ onTotal }: { onTotal: (rupees: number) => void }) {
   }
   return (
     <div className="mt-3">
-      <button type="button" onClick={() => setOpen((v) => !v)} aria-expanded={open} className="text-sm font-semibold text-primary">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
+        className="text-sm font-semibold text-primary"
+      >
         {open ? "Hide note counter" : "Count by notes"}
       </button>
       {open ? (
@@ -295,9 +385,23 @@ function NoteCounter({ onTotal }: { onTotal: (rupees: number) => void }) {
             <li key={d} className="flex items-center justify-between">
               <span className="text-sm font-semibold text-foreground-heading">₹{d}</span>
               <div className="flex items-center gap-3">
-                <button type="button" aria-label={`Fewer ₹${d} notes`} onClick={() => change(d, -1)} className="grid h-11 w-11 place-items-center rounded-full bg-surface-card text-lg">−</button>
+                <button
+                  type="button"
+                  aria-label={`Fewer ₹${d} notes`}
+                  onClick={() => change(d, -1)}
+                  className="grid h-11 w-11 place-items-center rounded-full bg-surface-card text-lg"
+                >
+                  −
+                </button>
                 <span className="w-8 text-center text-sm font-bold">{counts[d] ?? 0}</span>
-                <button type="button" aria-label={`More ₹${d} notes`} onClick={() => change(d, 1)} className="grid h-11 w-11 place-items-center rounded-full bg-surface-card text-lg">+</button>
+                <button
+                  type="button"
+                  aria-label={`More ₹${d} notes`}
+                  onClick={() => change(d, 1)}
+                  className="grid h-11 w-11 place-items-center rounded-full bg-surface-card text-lg"
+                >
+                  +
+                </button>
               </div>
             </li>
           ))}

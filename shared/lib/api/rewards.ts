@@ -14,7 +14,14 @@ export interface RewardSummary {
 
 export interface RewardLedgerEntry {
   id: string;
-  sourceType: "verified_sale" | "refund" | "void" | "bonus" | "redemption" | "redemption_reversal" | "admin_adjustment";
+  sourceType:
+    | "verified_sale"
+    | "refund"
+    | "void"
+    | "bonus"
+    | "redemption"
+    | "redemption_reversal"
+    | "admin_adjustment";
   sourceTransactionId: string;
   coinAmount: number;
   eligibleAmountMinor: number;
@@ -27,7 +34,10 @@ export interface RewardLedgerEntry {
   effectiveAt: string;
 }
 
-export interface RewardLedgerPage { items: RewardLedgerEntry[]; nextCursor?: string }
+export interface RewardLedgerPage {
+  items: RewardLedgerEntry[];
+  nextCursor?: string;
+}
 
 export const summary = (): Promise<ApiResult<RewardSummary>> => request("buyer/rewards/summary");
 export const ledger = (cursor?: string, limit = 10): Promise<ApiResult<RewardLedgerPage>> =>

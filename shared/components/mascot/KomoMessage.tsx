@@ -20,14 +20,25 @@ export function KomoMessage({
 }) {
   const size: KomoSize = compact ? "sm" : "md";
   return (
-    <section className={cx("flex items-center gap-4 rounded-2xl border border-border bg-surface-card p-4", align === "right" && "flex-row-reverse text-right")}>
+    <section
+      className={cx(
+        "flex items-center gap-4 rounded-2xl border border-border bg-surface-card p-4",
+        align === "right" && "flex-row-reverse text-right",
+      )}
+    >
       <Komo action={action} size={size} alt="" decorative />
       <div className="min-w-0 flex-1">
         <h2 className="font-semibold text-foreground-heading">{title}</h2>
         {description ? <p className="mt-1 text-sm text-foreground-muted">{description}</p> : null}
-        {cta ? <Link href={cta.href} className="mt-3 inline-flex text-sm font-semibold text-primary hover:underline">{cta.label}</Link> : null}
+        {cta ? (
+          <Link
+            href={cta.href}
+            className="mt-3 inline-flex text-sm font-semibold text-primary hover:underline"
+          >
+            {cta.label}
+          </Link>
+        ) : null}
       </div>
     </section>
   );
 }
-

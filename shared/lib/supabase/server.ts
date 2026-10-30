@@ -10,7 +10,9 @@ function validSupabaseUrl(value: string | undefined): string {
   }
 }
 
-const URL = validSupabaseUrl(process.env.NEXT_PUBLIC_KOMOLA_SUPABASE_URL ?? process.env.NEXT_PUBLIC_SUPABASE_URL);
+const URL = validSupabaseUrl(
+  process.env.NEXT_PUBLIC_KOMOLA_SUPABASE_URL ?? process.env.NEXT_PUBLIC_SUPABASE_URL,
+);
 const KEY =
   process.env.NEXT_PUBLIC_KOMOLA_SUPABASE_PUBLISHABLE_KEY ??
   process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ??
@@ -26,9 +28,7 @@ export async function createSupabaseServerClient() {
       },
       setAll(list) {
         try {
-          list.forEach(({ name, value, options }) =>
-            cookieStore.set(name, value, options),
-          );
+          list.forEach(({ name, value, options }) => cookieStore.set(name, value, options));
         } catch {
           /* read-only render context; middleware handles rotation */
         }

@@ -85,11 +85,20 @@ export default function PosPage() {
   });
 
   const offlineShortfallLines = useMemo(
-    () => !online ? cart.lines.map((line) => ({
-      name: line.product.name,
-      unit: line.saleUnit,
-      shortfallBase: Math.max(0, toBaseQuantity(line.qty, line.saleUnit, lineBasePerSaleUnit(line)) - line.product.availableBase),
-    })).filter((line) => line.shortfallBase > 0) : [],
+    () =>
+      !online
+        ? cart.lines
+            .map((line) => ({
+              name: line.product.name,
+              unit: line.saleUnit,
+              shortfallBase: Math.max(
+                0,
+                toBaseQuantity(line.qty, line.saleUnit, lineBasePerSaleUnit(line)) -
+                  line.product.availableBase,
+              ),
+            }))
+            .filter((line) => line.shortfallBase > 0)
+        : [],
     [cart.lines, online],
   );
 
@@ -112,7 +121,10 @@ export default function PosPage() {
   const scanProduct = async (code: string) => {
     const byBarcode = await productsApi.lookup({ barcode: code });
     const result = byBarcode.success ? byBarcode : await productsApi.lookup({ sku: code });
-    if (!result.success || !result.data) { toast.error(result.message || "Product not found"); return; }
+    if (!result.success || !result.data) {
+      toast.error(result.message || "Product not found");
+      return;
+    }
     addProduct(result.data);
   };
 
@@ -164,8 +176,12 @@ export default function PosPage() {
       <div className="order-2 space-y-5 lg:order-none">
         <div className="flex items-end justify-between gap-3">
           <div>
-            <h1 className="text-3xl font-bold tracking-[-0.03em] text-foreground-heading">{t("pos.title")}</h1>
-            <p className="mt-1 text-sm text-foreground-muted">Tap a product to add it to the sale</p>
+            <h1 className="text-3xl font-bold tracking-[-0.03em] text-foreground-heading">
+              {t("pos.title")}
+            </h1>
+            <p className="mt-1 text-sm text-foreground-muted">
+              Tap a product to add it to the sale
+            </p>
           </div>
           <select
             value={locale}
@@ -195,7 +211,13 @@ export default function PosPage() {
           <ProductBarcodeScanner disabled={!online} onScan={(code) => void scanProduct(code)} />
         </div>
 
-        <ProductGrid results={catalog} query={query} online={online} lines={lines} onAdd={addProduct} />
+        <ProductGrid
+          results={catalog}
+          query={query}
+          online={online}
+          lines={lines}
+          onAdd={addProduct}
+        />
         <HeldCartsList held={held} onResume={resumeCart} t={t} />
       </div>
 
@@ -206,7 +228,9 @@ export default function PosPage() {
           onClick={() => setCartOpen(true)}
           className="fixed inset-x-3 bottom-[5.25rem] z-30 flex min-h-14 items-center justify-between rounded-full bg-primary px-6 text-primary-foreground shadow-[0_12px_30px_rgba(0,0,0,0.45)] lg:hidden"
         >
-          <span className="text-sm font-semibold">{lines.length} item{lines.length === 1 ? "" : "s"}</span>
+          <span className="text-sm font-semibold">
+            {lines.length} item{lines.length === 1 ? "" : "s"}
+          </span>
           <span className="flex items-center gap-2 text-base font-bold">
             {formatPaise(totals.netPaise)} · Review sale
           </span>

@@ -21,7 +21,10 @@ export function KomoStatus({
   compact?: boolean;
 }) {
   return (
-    <div role="status" className="flex items-center gap-3 rounded-xl border border-border bg-surface-card p-3">
+    <div
+      role="status"
+      className="flex items-center gap-3 rounded-xl border border-border bg-surface-card p-3"
+    >
       <Komo action={STATUS_ACTIONS[status]} size={compact ? "xs" : "sm"} alt="" decorative />
       <div>
         <p className="text-sm font-semibold text-foreground-heading">{title}</p>
@@ -30,4 +33,3 @@ export function KomoStatus({
     </div>
   );
 }
-

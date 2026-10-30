@@ -1,6 +1,13 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState, type Dispatch, type SetStateAction } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+  type Dispatch,
+  type SetStateAction,
+} from "react";
 import { productsApi, registersApi, sellerOrgsApi } from "@/shared/lib/api";
 import type { ProductDTO } from "@/shared/lib/api/products";
 import type { SessionDTO } from "@/shared/lib/api/registers";
@@ -106,7 +113,8 @@ export function usePosRegister(setCatalog: Dispatch<SetStateAction<ProductDTO[]>
   }, [load]);
 
   useEffect(() => {
-    const updateOnline = () => setOnline(typeof navigator === "undefined" ? true : navigator.onLine);
+    const updateOnline = () =>
+      setOnline(typeof navigator === "undefined" ? true : navigator.onLine);
     updateOnline();
     window.addEventListener("online", updateOnline);
     window.addEventListener("offline", updateOnline);

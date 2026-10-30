@@ -38,13 +38,26 @@ interface CartPanelProps {
 }
 
 /** Cart lines, totals and the pay entry point. Becomes a full-screen sheet on mobile. */
-export function CartPanel({ cart, overlay, showPay, adjustKey, onToggleAdjust, onBack, onHold, onPay, t, children }: CartPanelProps) {
+export function CartPanel({
+  cart,
+  overlay,
+  showPay,
+  adjustKey,
+  onToggleAdjust,
+  onBack,
+  onHold,
+  onPay,
+  t,
+  children,
+}: CartPanelProps) {
   const { lines, lineTotals, totals } = cart;
   return (
-    <div className={cx(
-      "flex-col bg-surface-card lg:order-none lg:sticky lg:top-6 lg:flex lg:h-fit lg:rounded-3xl lg:p-5",
-      overlay ? "fixed inset-0 z-50 flex overflow-y-auto bg-background p-4 pb-10" : "hidden",
-    )}>
+    <div
+      className={cx(
+        "flex-col bg-surface-card lg:order-none lg:sticky lg:top-6 lg:flex lg:h-fit lg:rounded-3xl lg:p-5",
+        overlay ? "fixed inset-0 z-50 flex overflow-y-auto bg-background p-4 pb-10" : "hidden",
+      )}
+    >
       <div className="mb-4 flex items-center justify-between gap-3 pb-2">
         <button
           type="button"
@@ -55,13 +68,20 @@ export function CartPanel({ cart, overlay, showPay, adjustKey, onToggleAdjust, o
           <ArrowLeft className="h-5 w-5" />
         </button>
         <div className="min-w-0 flex-1">
-          <h2 className="text-lg font-bold text-foreground-heading">{showPay ? "Checkout" : t("pos.cart")}</h2>
+          <h2 className="text-lg font-bold text-foreground-heading">
+            {showPay ? "Checkout" : t("pos.cart")}
+          </h2>
           <p className="mt-0.5 text-xs text-foreground-muted">
-            {showPay ? "Choose customer and payment" : `${lines.length} item${lines.length === 1 ? "" : "s"} · F2 to pay`}
+            {showPay
+              ? "Choose customer and payment"
+              : `${lines.length} item${lines.length === 1 ? "" : "s"} · F2 to pay`}
           </p>
         </div>
         {lines.length > 0 ? (
-          <button className="flex items-center gap-1 text-xs text-foreground-muted" onClick={onHold}>
+          <button
+            className="flex items-center gap-1 text-xs text-foreground-muted"
+            onClick={onHold}
+          >
             <PauseCircle className="h-4 w-4" />
             {t("pos.hold")}
           </button>
@@ -94,7 +114,11 @@ export function CartPanel({ cart, overlay, showPay, adjustKey, onToggleAdjust, o
       </dl>
 
       {!showPay ? (
-        <button className={`${primaryBtnCls} mt-3 w-full`} disabled={lines.length === 0} onClick={onPay}>
+        <button
+          className={`${primaryBtnCls} mt-3 w-full`}
+          disabled={lines.length === 0}
+          onClick={onPay}
+        >
           {t("pos.pay")} · {formatPaise(totals.netPaise)}
         </button>
       ) : (
@@ -113,20 +137,27 @@ interface CartLineItemProps {
   t: PosTranslator;
 }
 
-function CartLineItem({ line: l, netPaise, adjusting, cart, onToggleAdjust, t }: CartLineItemProps) {
+function CartLineItem({
+  line: l,
+  netPaise,
+  adjusting,
+  cart,
+  onToggleAdjust,
+  t,
+}: CartLineItemProps) {
   const baseUnit = lineBaseUnit(l);
   const basePerSaleUnit = lineBasePerSaleUnit(l);
-  const selectedMeasurementUnit = l.measurementUnit ?? preferredMeasurementUnit(baseUnit, basePerSaleUnit, l.saleUnit);
-  const selectedMeasurementValue = l.measurementValue ?? measurementValue(basePerSaleUnit, selectedMeasurementUnit);
+  const selectedMeasurementUnit =
+    l.measurementUnit ?? preferredMeasurementUnit(baseUnit, basePerSaleUnit, l.saleUnit);
+  const selectedMeasurementValue =
+    l.measurementValue ?? measurementValue(basePerSaleUnit, selectedMeasurementUnit);
   const hasMeasurement = basePerSaleUnit > 0;
   const compatUnits = [l.product.saleUnit];
   return (
     <li className="rounded-2xl bg-surface-muted p-3">
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
-          <p className="truncate text-sm font-medium text-foreground-heading">
-            {l.product.name}
-          </p>
+          <p className="truncate text-sm font-medium text-foreground-heading">{l.product.name}</p>
         </div>
         <button
           onClick={() => cart.removeLine(l.key)}
@@ -157,7 +188,9 @@ function CartLineItem({ line: l, netPaise, adjusting, cart, onToggleAdjust, t }:
             className="grid h-11 w-11 place-items-center rounded-full text-foreground-body hover:bg-tertiary"
             onClick={() => cart.setQty(l.key, l.qty + 1)}
             aria-label={`Increase ${l.product.name} quantity`}
-            disabled={remainingStockBase(l.product.availableBase, l.qty, l.saleUnit, basePerSaleUnit) === 0}
+            disabled={
+              remainingStockBase(l.product.availableBase, l.qty, l.saleUnit, basePerSaleUnit) === 0
+            }
           >
             <Plus className="h-4 w-4" />
           </button>
@@ -186,7 +219,9 @@ function CartLineItem({ line: l, netPaise, adjusting, cart, onToggleAdjust, t }:
               min="1"
               step="0.001"
               value={selectedMeasurementValue}
-              onChange={(e) => cart.setMeasurementValue(l.key, selectedMeasurementUnit, Number(e.target.value))}
+              onChange={(e) =>
+                cart.setMeasurementValue(l.key, selectedMeasurementUnit, Number(e.target.value))
+              }
               className={`${inputCls} mt-1 h-9 px-2 text-xs`}
               aria-label={`${l.product.name} weight per unit`}
             />
@@ -200,7 +235,11 @@ function CartLineItem({ line: l, netPaise, adjusting, cart, onToggleAdjust, t }:
               aria-label={`${l.product.name} metric`}
             >
               {MEASUREMENT_UNITS.map((unit) => (
-                <option key={unit} value={unit} disabled={measurementMetadata(unit).baseUnit !== baseUnit}>
+                <option
+                  key={unit}
+                  value={unit}
+                  disabled={measurementMetadata(unit).baseUnit !== baseUnit}
+                >
                   {MEASUREMENT_UNIT_LABELS[unit]}
                 </option>
               ))}
@@ -221,8 +260,16 @@ function CartLineItem({ line: l, netPaise, adjusting, cart, onToggleAdjust, t }:
         </div>
       ) : null}
       <p className="mt-1 text-xs text-foreground-muted">
-        {hasMeasurement ? `Weight / unit: ${formatMeasurementValue(selectedMeasurementValue)} ${MEASUREMENT_UNIT_LABELS[selectedMeasurementUnit]} · ` : ""}
-        Remaining stock: {formatProductQuantity(remainingStockBase(l.product.availableBase, l.qty, l.saleUnit, basePerSaleUnit), l.saleUnit, baseUnit, basePerSaleUnit)}
+        {hasMeasurement
+          ? `Weight / unit: ${formatMeasurementValue(selectedMeasurementValue)} ${MEASUREMENT_UNIT_LABELS[selectedMeasurementUnit]} · `
+          : ""}
+        Remaining stock:{" "}
+        {formatProductQuantity(
+          remainingStockBase(l.product.availableBase, l.qty, l.saleUnit, basePerSaleUnit),
+          l.saleUnit,
+          baseUnit,
+          basePerSaleUnit,
+        )}
         {hasMeasurement ? (
           <button
             type="button"

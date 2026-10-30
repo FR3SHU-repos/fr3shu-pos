@@ -32,7 +32,8 @@ interface CheckoutSheetProps {
   t: PosTranslator;
 }
 
-const CHIP_CLS = "min-h-10 rounded-full bg-surface-muted px-4 text-sm font-semibold text-foreground-heading";
+const CHIP_CLS =
+  "min-h-10 rounded-full bg-surface-muted px-4 text-sm font-semibold text-foreground-heading";
 
 /** Payment method entry, customer identity and the confirm button. */
 export function CheckoutSheet({
@@ -58,8 +59,10 @@ export function CheckoutSheet({
       onSaved={(upiId, upiPayeeName) => onStoreChange({ upiId, upiPayeeName })}
     />
   );
-  const setField = (field: "tendered" | "cashPart" | "upiPart" | "upiAmount" | "upiRef") =>
-    (e: React.ChangeEvent<HTMLInputElement>) => dispatch({ type: "set", field, value: e.target.value });
+  const setField =
+    (field: "tendered" | "cashPart" | "upiPart" | "upiAmount" | "upiRef") =>
+    (e: React.ChangeEvent<HTMLInputElement>) =>
+      dispatch({ type: "set", field, value: e.target.value });
 
   return (
     <div className="mt-3 space-y-4">
@@ -74,8 +77,16 @@ export function CheckoutSheet({
         </p>
       ) : null}
       {offlineShortfallLines.length > 0 ? (
-        <p role="alert" className="rounded-lg border border-status-warning/40 bg-status-warning-surface px-3 py-2 text-xs font-medium text-status-warning">
-          This offline sale exceeds the saved stock for {offlineShortfallLines.map((line) => `${line.name} by ${formatBaseQuantity(line.shortfallBase, line.unit)}`).join(", ")}. The sale can be recorded, but the shortfall will be allocated as a stock adjustment for manager review when it syncs.
+        <p
+          role="alert"
+          className="rounded-lg border border-status-warning/40 bg-status-warning-surface px-3 py-2 text-xs font-medium text-status-warning"
+        >
+          This offline sale exceeds the saved stock for{" "}
+          {offlineShortfallLines
+            .map((line) => `${line.name} by ${formatBaseQuantity(line.shortfallBase, line.unit)}`)
+            .join(", ")}
+          . The sale can be recorded, but the shortfall will be allocated as a stock adjustment for
+          manager review when it syncs.
         </p>
       ) : null}
       <div className="grid grid-cols-3 gap-2">
@@ -109,9 +120,22 @@ export function CheckoutSheet({
             className={inputCls}
           />
           <div className="mt-2 flex flex-wrap gap-2" aria-label="Cash quick amounts">
-            <button type="button" onClick={() => dispatch({ type: "exactCash", netPaise })} className={CHIP_CLS}>Exact</button>
+            <button
+              type="button"
+              onClick={() => dispatch({ type: "exactCash", netPaise })}
+              className={CHIP_CLS}
+            >
+              Exact
+            </button>
             {[10, 20, 50, 100, 200, 500, 1000].map((n) => (
-              <button key={n} type="button" onClick={() => dispatch({ type: "addCash", rupees: n })} className={CHIP_CLS}>+{n}</button>
+              <button
+                key={n}
+                type="button"
+                onClick={() => dispatch({ type: "addCash", rupees: n })}
+                className={CHIP_CLS}
+              >
+                +{n}
+              </button>
             ))}
           </div>
           <p className="mt-1 text-xs text-foreground-muted">
@@ -123,11 +147,24 @@ export function CheckoutSheet({
 
       {payment.method === "upi" ? (
         <div className="space-y-3">
-          <label className="block text-xs font-medium text-foreground-body">UPI amount (₹)
-            <input type="number" min="0.01" step="0.01" value={payment.upiAmount} onChange={setField("upiAmount")} className={`${inputCls} mt-1`} />
+          <label className="block text-xs font-medium text-foreground-body">
+            UPI amount (₹)
+            <input
+              type="number"
+              min="0.01"
+              step="0.01"
+              value={payment.upiAmount}
+              onChange={setField("upiAmount")}
+              className={`${inputCls} mt-1`}
+            />
           </label>
           {qr}
-          <input placeholder={t("pos.upi_ref")} value={payment.upiRef} onChange={setField("upiRef")} className={inputCls} />
+          <input
+            placeholder={t("pos.upi_ref")}
+            value={payment.upiRef}
+            onChange={setField("upiRef")}
+            className={inputCls}
+          />
         </div>
       ) : null}
 
@@ -138,16 +175,35 @@ export function CheckoutSheet({
               <label className="mb-1 block text-xs font-medium text-foreground-body">
                 {t("pos.cash")} (₹)
               </label>
-              <input type="number" min="0" step="0.01" value={payment.cashPart} onChange={setField("cashPart")} className={inputCls} />
+              <input
+                type="number"
+                min="0"
+                step="0.01"
+                value={payment.cashPart}
+                onChange={setField("cashPart")}
+                className={inputCls}
+              />
             </div>
             <div>
               <label className="mb-1 block text-xs font-medium text-foreground-body">
                 {t("pos.upi")} (₹)
               </label>
-              <input type="number" min="0" step="0.01" value={payment.upiPart} onChange={setField("upiPart")} className={inputCls} />
+              <input
+                type="number"
+                min="0"
+                step="0.01"
+                value={payment.upiPart}
+                onChange={setField("upiPart")}
+                className={inputCls}
+              />
             </div>
           </div>
-          <input placeholder={t("pos.upi_ref")} value={payment.upiRef} onChange={setField("upiRef")} className={inputCls} />
+          <input
+            placeholder={t("pos.upi_ref")}
+            value={payment.upiRef}
+            onChange={setField("upiRef")}
+            className={inputCls}
+          />
           {Number(payment.upiPart) > 0 ? qr : null}
         </div>
       ) : null}
@@ -156,7 +212,12 @@ export function CheckoutSheet({
 
       <button
         className={`${primaryBtnCls} w-full`}
-        disabled={submitting || !customer.name.trim() || !normalizeIndianMobile(customer.phone) || (!customer.guest && !customer.resolved)}
+        disabled={
+          submitting ||
+          !customer.name.trim() ||
+          !normalizeIndianMobile(customer.phone) ||
+          (!customer.guest && !customer.resolved)
+        }
         onClick={checkout.completeSale}
       >
         {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : null}

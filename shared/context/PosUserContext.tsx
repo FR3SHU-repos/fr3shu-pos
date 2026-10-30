@@ -7,7 +7,11 @@ import type { Capabilities } from "@/shared/lib/api/identity";
 import { createAuthBrowserClient } from "@/shared/lib/supabase/auth-client";
 
 import { setProductScope } from "@/shared/lib/offline/products";
-import { lockOfflineScope, setOfflineActiveScope, type OfflineScope } from "@/shared/lib/offline/sales";
+import {
+  lockOfflineScope,
+  setOfflineActiveScope,
+  type OfflineScope,
+} from "@/shared/lib/offline/sales";
 import type { MyOrganization } from "@/shared/lib/api/sellerOrgs";
 
 interface PosUserContextValue {
@@ -68,7 +72,9 @@ export function PosUserProvider({ children }: { children: React.ReactNode }) {
       }
 
       if (result.status === 401) {
-        const { data: { session } } = await createAuthBrowserClient().auth.getSession();
+        const {
+          data: { session },
+        } = await createAuthBrowserClient().auth.getSession();
         // A stale API token or a short Supabase hiccup is not a user logout.
         // The auth listener will clear the workspace if Supabase really signs out.
         if (session) {
@@ -77,16 +83,19 @@ export function PosUserProvider({ children }: { children: React.ReactNode }) {
         }
       }
 
-      const nextUser = result.success ? result.data?.user ?? null : null;
-      if (userRef.current && (!nextUser || offlineScopeKey(userRef.current) !== offlineScopeKey(nextUser))) {
+      const nextUser = result.success ? (result.data?.user ?? null) : null;
+      if (
+        userRef.current &&
+        (!nextUser || offlineScopeKey(userRef.current) !== offlineScopeKey(nextUser))
+      ) {
         lockOfflineScope(toOfflineScope(userRef.current));
       }
       userRef.current = nextUser;
       setOfflineActiveScope(nextUser ? toOfflineScope(nextUser) : null);
       setProductScope(nextUser);
       setUser(nextUser);
-      setCapabilities(result.success ? result.data?.capabilities ?? null : null);
-      setOrganization(result.success ? result.data?.organization ?? null : null);
+      setCapabilities(result.success ? (result.data?.capabilities ?? null) : null);
+      setOrganization(result.success ? (result.data?.organization ?? null) : null);
       setLoading(false);
     })();
 
@@ -140,7 +149,9 @@ export function PosUserProvider({ children }: { children: React.ReactNode }) {
   }, [refresh]);
 
   return (
-    <PosUserContext.Provider value={{ user, capabilities, organization, loading, setUser, refresh, logout }}>
+    <PosUserContext.Provider
+      value={{ user, capabilities, organization, loading, setUser, refresh, logout }}
+    >
       {children}
     </PosUserContext.Provider>
   );

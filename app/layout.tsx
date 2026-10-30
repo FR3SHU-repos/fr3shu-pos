@@ -48,8 +48,7 @@ export const metadata: Metadata = {
   twitter: {
     card: "summary",
     title: "KOMOLA | Agri-tech POS and rewards platform",
-    description:
-      "Agri-tech tools for sellers and rewards for buyers of agricultural products.",
+    description: "Agri-tech tools for sellers and rewards for buyers of agricultural products.",
     images: ["/komola-logo.png"],
   },
   robots: {
@@ -80,7 +79,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en" data-theme="dark" suppressHydrationWarning>
       <head>
-        <script dangerouslySetInnerHTML={{ __html: `try{var t=localStorage.getItem("komola-theme");if(t==="light"||t==="dark")document.documentElement.setAttribute("data-theme",t)}catch(e){}` }} />
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `try{var t=localStorage.getItem("komola-theme");if(t==="light"||t==="dark")document.documentElement.setAttribute("data-theme",t)}catch(e){}`,
+          }}
+        />
         <link rel="alternate" type="text/markdown" href="/llms.txt" />
         <link rel="ai-catalog" href="/.well-known/ai-catalog.json" />
         <link rel="ard" href="/.well-known/ard.json" />
@@ -105,8 +108,18 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               border: "1px solid var(--color-border)",
               fontSize: "14px",
             },
-            success: { iconTheme: { primary: "var(--color-status-success)", secondary: "var(--color-background)" } },
-            error: { iconTheme: { primary: "var(--color-status-danger)", secondary: "var(--color-background)" } },
+            success: {
+              iconTheme: {
+                primary: "var(--color-status-success)",
+                secondary: "var(--color-background)",
+              },
+            },
+            error: {
+              iconTheme: {
+                primary: "var(--color-status-danger)",
+                secondary: "var(--color-background)",
+              },
+            },
           }}
         />
       </body>

@@ -12,10 +12,18 @@ export function usePosCatalog() {
   useEffect(() => {
     const ctrl = new AbortController();
     const timer = setTimeout(async () => {
-      const res = await productsApi.list({ q: query.trim() || undefined, limit: 10, status: "active", signal: ctrl.signal });
+      const res = await productsApi.list({
+        q: query.trim() || undefined,
+        limit: 10,
+        status: "active",
+        signal: ctrl.signal,
+      });
       if (res.success && res.data) setCatalog(res.data.items);
     }, 250);
-    return () => { clearTimeout(timer); ctrl.abort(); };
+    return () => {
+      clearTimeout(timer);
+      ctrl.abort();
+    };
   }, [query]);
 
   return { catalog, setCatalog, query, setQuery };

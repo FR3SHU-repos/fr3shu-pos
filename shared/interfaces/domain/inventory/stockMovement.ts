@@ -1,12 +1,6 @@
 /** Append-only ledger of every quantity change. Never updated in place. */
 export type StockMovementType =
-  | "opening"
-  | "receipt"
-  | "sale"
-  | "return"
-  | "transfer"
-  | "wastage"
-  | "correction";
+  "opening" | "receipt" | "sale" | "return" | "transfer" | "wastage" | "correction";
 
 export interface IStockMovement {
   _id?: string;

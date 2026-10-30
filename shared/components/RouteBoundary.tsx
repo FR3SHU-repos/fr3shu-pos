@@ -20,12 +20,18 @@ export function RouteError({ error, reset, homeHref, homeLabel }: RouteErrorProp
   }, [error]);
 
   return (
-    <div role="alert" className="mx-auto flex max-w-md flex-col items-center justify-center rounded-3xl bg-surface-card px-6 py-14 text-center">
+    <div
+      role="alert"
+      className="mx-auto flex max-w-md flex-col items-center justify-center rounded-3xl bg-surface-card px-6 py-14 text-center"
+    >
       <p className="text-lg font-bold text-foreground-heading">Something went wrong</p>
       <p className="mt-2 text-sm text-foreground-muted">
-        This screen hit an unexpected problem. Your saved data is safe. Try again, or go back to {homeLabel}.
+        This screen hit an unexpected problem. Your saved data is safe. Try again, or go back to{" "}
+        {homeLabel}.
       </p>
-      {error.digest ? <p className="mt-2 text-xs text-foreground-muted">Reference: {error.digest}</p> : null}
+      {error.digest ? (
+        <p className="mt-2 text-xs text-foreground-muted">Reference: {error.digest}</p>
+      ) : null}
       <div className="mt-6 flex flex-wrap justify-center gap-2">
         <button type="button" onClick={reset} className={primaryBtnCls}>
           Try again
@@ -43,7 +49,9 @@ export function RouteNotFound({ homeHref, homeLabel }: { homeHref: string; homeL
   return (
     <div className="mx-auto flex max-w-md flex-col items-center justify-center rounded-3xl bg-surface-card px-6 py-14 text-center">
       <p className="text-lg font-bold text-foreground-heading">Page not found</p>
-      <p className="mt-2 text-sm text-foreground-muted">The page you opened does not exist or has moved.</p>
+      <p className="mt-2 text-sm text-foreground-muted">
+        The page you opened does not exist or has moved.
+      </p>
       <Link href={homeHref} className={`${primaryBtnCls} mt-6`}>
         Go to {homeLabel}
       </Link>

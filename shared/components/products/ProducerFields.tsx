@@ -1,6 +1,5 @@
 "use client";
 
-import React from "react";
 import type { Producer, SupplierDTO } from "@/shared/lib/api/products";
 import { inputCls } from "@/shared/components/ui";
 import { cx } from "@/shared/lib/utils";
@@ -104,13 +103,16 @@ export function ProducerFields({
                   placeholder="Village (optional)"
                   aria-label="New farmer village"
                   value={value.village ?? ""}
-                  onChange={(e) => onChange({ ...value, kind: "supplier", village: e.target.value })}
+                  onChange={(e) =>
+                    onChange({ ...value, kind: "supplier", village: e.target.value })
+                  }
                 />
               </div>
             </>
           ) : picked ? (
             <p className="text-xs text-foreground-muted">
-              {[picked.phone, picked.village].filter(Boolean).join(" · ") || "No contact details on file"}
+              {[picked.phone, picked.village].filter(Boolean).join(" · ") ||
+                "No contact details on file"}
             </p>
           ) : null}
         </div>

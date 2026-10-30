@@ -45,7 +45,8 @@ export function paymentReducer(state: PaymentState, action: PaymentAction): Paym
       return {
         ...state,
         method: action.method,
-        tendered: action.method === "cash" && !state.tendered ? rupees2(action.netPaise) : state.tendered,
+        tendered:
+          action.method === "cash" && !state.tendered ? rupees2(action.netPaise) : state.tendered,
       };
     case "set":
       return { ...state, [action.field]: action.value };

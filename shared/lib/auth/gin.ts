@@ -30,7 +30,9 @@ export async function ginFetch(
   });
 }
 
-export async function reconcileIdentity(accessToken?: string): Promise<{ onboardingComplete: boolean; error?: string; status?: number } | null> {
+export async function reconcileIdentity(
+  accessToken?: string,
+): Promise<{ onboardingComplete: boolean; error?: string; status?: number } | null> {
   const res = await request<{ onboardingComplete: boolean }>("auth/reconcile", {
     method: "POST",
     body: {},

@@ -2,12 +2,7 @@
 
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import Link from "next/link";
-import {
-  Coins,
-  Link2,
-  Store,
-  UsersRound,
-} from "lucide-react";
+import { Coins, Link2, Store, UsersRound } from "lucide-react";
 import { identityApi } from "@/shared/lib/api";
 import type { BuyerReferral } from "@/shared/lib/api/identity";
 import { cardCls, Skeleton } from "@/shared/components/ui";
@@ -33,10 +28,7 @@ export default function BuyerReferralsPage() {
     () => ({
       linked: referrals.length,
       active: referrals.filter((referral) => referral.status === "active").length,
-      awardedCoins: referrals.reduce(
-        (total, referral) => total + referral.awardedCoins,
-        0,
-      ),
+      awardedCoins: referrals.reduce((total, referral) => total + referral.awardedCoins, 0),
       eligibleSalesMinor: referrals.reduce(
         (total, referral) => total + referral.eligibleSalesMinor,
         0,
@@ -64,7 +56,9 @@ export default function BuyerReferralsPage() {
     <main className="mx-auto min-h-screen max-w-5xl bg-background p-4 pb-32 sm:p-8 sm:pb-32 xl:pb-8">
       <header className="mb-5">
         <h1 className="text-3xl font-bold tracking-[-0.03em] text-foreground-heading">Referrals</h1>
-        <p className="mt-1 text-sm text-foreground-muted">Sellers linked to your buyer code and the coins they earned you.</p>
+        <p className="mt-1 text-sm text-foreground-muted">
+          Sellers linked to your buyer code and the coins they earned you.
+        </p>
       </header>
 
       {error ? (
@@ -73,10 +67,7 @@ export default function BuyerReferralsPage() {
         </p>
       ) : null}
 
-      <section
-        className="grid grid-cols-2 gap-3 sm:grid-cols-3"
-        aria-label="Referral totals"
-      >
+      <section className="grid grid-cols-2 gap-3 sm:grid-cols-3" aria-label="Referral totals">
         <MetricCard
           icon={<UsersRound className="h-5 w-5" />}
           label="Linked sellers"
@@ -103,10 +94,7 @@ export default function BuyerReferralsPage() {
             <Link2 className="h-5 w-5" />
           </div>
           <div>
-            <h2
-              id="linked-sellers-title"
-              className="text-xl font-semibold text-foreground-heading"
-            >
+            <h2 id="linked-sellers-title" className="text-xl font-semibold text-foreground-heading">
               Sellers using your code
             </h2>
             <p className="mt-1 text-sm text-foreground-muted">
@@ -118,12 +106,10 @@ export default function BuyerReferralsPage() {
         {referrals.length === 0 ? (
           <div className="mt-6 rounded-xl border border-dashed border-border p-8 text-center">
             <UsersRound className="mx-auto h-9 w-9 text-primary" />
-            <h3 className="mt-3 font-semibold text-foreground-heading">
-              No linked sellers yet
-            </h3>
+            <h3 className="mt-3 font-semibold text-foreground-heading">No linked sellers yet</h3>
             <p className="mx-auto mt-1 max-w-md text-sm text-foreground-muted">
-              Share your buyer code with an eligible agricultural seller. Their
-              account will appear here after they link it.
+              Share your buyer code with an eligible agricultural seller. Their account will appear
+              here after they link it.
             </p>
             <Link
               href="/buyer"
@@ -142,9 +128,9 @@ export default function BuyerReferralsPage() {
       </section>
 
       <p className="mt-4 text-sm text-foreground-muted">
-        Referral points are credited when the seller completes eligible sales.
-        The referring buyer&apos;s own purchases are excluded from seller
-        referral rewards to reduce self-referral abuse.
+        Referral points are credited when the seller completes eligible sales. The referring
+        buyer&apos;s own purchases are excluded from seller referral rewards to reduce self-referral
+        abuse.
       </p>
     </main>
   );
@@ -174,11 +160,12 @@ function MetricCard({
 }
 
 function ReferralRow({ referral }: { referral: BuyerReferral }) {
-  const status = referral.status === "active"
-    ? "Active"
-    : referral.status === "pending"
-      ? "Pending first eligible sale"
-      : "Paused";
+  const status =
+    referral.status === "active"
+      ? "Active"
+      : referral.status === "pending"
+        ? "Pending first eligible sale"
+        : "Paused";
 
   return (
     <li className="rounded-2xl bg-surface-muted bg-surface-card p-4">

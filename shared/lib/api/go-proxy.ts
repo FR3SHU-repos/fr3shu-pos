@@ -40,7 +40,10 @@ async function relay(upstream: Response): Promise<NextResponse> {
   );
 }
 
-function relayHeaders(request: NextRequest, extra: Record<string, string> = {}): Record<string, string> {
+function relayHeaders(
+  request: NextRequest,
+  extra: Record<string, string> = {},
+): Record<string, string> {
   const headers: Record<string, string> = { Accept: "application/json", ...extra };
   const cookie = request.headers.get("cookie");
   const authorization = request.headers.get("authorization");

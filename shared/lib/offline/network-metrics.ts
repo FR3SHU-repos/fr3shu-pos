@@ -31,7 +31,9 @@ function empty(): OfflineNetworkMetrics {
 export function readOfflineNetworkMetrics(): OfflineNetworkMetrics {
   if (typeof window === "undefined") return empty();
   try {
-    const parsed = JSON.parse(window.sessionStorage.getItem(STORAGE_KEY) ?? "null") as Partial<OfflineNetworkMetrics> | null;
+    const parsed = JSON.parse(
+      window.sessionStorage.getItem(STORAGE_KEY) ?? "null",
+    ) as Partial<OfflineNetworkMetrics> | null;
     return { ...empty(), ...parsed };
   } catch {
     return empty();
@@ -40,7 +42,14 @@ export function readOfflineNetworkMetrics(): OfflineNetworkMetrics {
 
 function update(patch: Partial<OfflineNetworkMetrics>) {
   if (typeof window === "undefined") return;
-  try { window.sessionStorage.setItem(STORAGE_KEY, JSON.stringify({ ...readOfflineNetworkMetrics(), ...patch })); } catch { /* diagnostics must never affect checkout */ }
+  try {
+    window.sessionStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify({ ...readOfflineNetworkMetrics(), ...patch }),
+    );
+  } catch {
+    /* diagnostics must never affect checkout */
+  }
 }
 
 export function recordCatalogueRefresh(downloadedBytes = 0) {

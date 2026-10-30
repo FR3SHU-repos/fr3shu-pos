@@ -1,4 +1,14 @@
-import { createProductSnapshot, isOffline, lookupProduct, OFFLINE_CATALOGUE_STALE_MS, productScope, productSnapshotIsStale, readProducts, searchProducts, writeProducts } from "../offline/products";
+import {
+  createProductSnapshot,
+  isOffline,
+  lookupProduct,
+  OFFLINE_CATALOGUE_STALE_MS,
+  productScope,
+  productSnapshotIsStale,
+  readProducts,
+  searchProducts,
+  writeProducts,
+} from "../offline/products";
 import type { ProductSnapshot } from "../offline/products";
 import { goRequest, type ApiResult } from "./client";
 import {
@@ -56,34 +66,44 @@ export const list = async (params?: {
 }): Promise<ApiResult<ProductListResult>> => {
   if (isOffline()) {
     const snapshot = await readProducts();
-    return snapshot ? cached(searchProducts(await applyOfflineStockOverlay(snapshot.items, snapshot.savedAt), params)) : unavailable();
+    return snapshot
+      ? cached(
+          searchProducts(await applyOfflineStockOverlay(snapshot.items, snapshot.savedAt), params),
+        )
+      : unavailable();
   }
-  const res = await goRequest<{ items: GoProduct[]; meta: PageMeta; inventoryCursor?: string }>("catalogue/products", {
-    query: { q: params?.q, page: params?.page, limit: params?.limit, status: params?.status },
-    signal: params?.signal,
-  });
+  const res = await goRequest<{ items: GoProduct[]; meta: PageMeta; inventoryCursor?: string }>(
+    "catalogue/products",
+    {
+      query: { q: params?.q, page: params?.page, limit: params?.limit, status: params?.status },
+      signal: params?.signal,
+    },
+  );
   if ((res.status === 0 || res.status >= 500) && !params?.signal?.aborted) {
     const snapshot = await readProducts();
-    if (snapshot) return cached(searchProducts(await applyOfflineStockOverlay(snapshot.items, snapshot.savedAt), params));
+    if (snapshot)
+      return cached(
+        searchProducts(await applyOfflineStockOverlay(snapshot.items, snapshot.savedAt), params),
+      );
   }
   return {
     ...res,
-    data: res.data
-      ? { items: res.data.items.map(mapProduct), meta: res.data.meta }
-      : null,
+    data: res.data ? { items: res.data.items.map(mapProduct), meta: res.data.meta } : null,
   };
 };
 
 export const get = async (id: string): Promise<ApiResult<ProductDTO>> => {
-  if (isOffline()) return offlineProduct(p => p._id === id);
+  if (isOffline()) return offlineProduct((p) => p._id === id);
   const res = await goRequest<GoProduct>(`catalogue/products/${id}`);
-  if (res.status === 0 || res.status >= 500) return offlineProduct(p => p._id === id);
+  if (res.status === 0 || res.status >= 500) return offlineProduct((p) => p._id === id);
   return { ...res, data: res.data ? mapProduct(res.data) : null };
 };
 
 /** Barcode / SKU scanner lookup. */
-export const lookup = async (opts: { barcode?: string; sku?: string }): Promise<ApiResult<ProductDTO>> => {
-  const matches = (p: ProductDTO) => Boolean((opts.barcode && p.barcode === opts.barcode) || (opts.sku && p.sku === opts.sku));
+export const lookup = async (opts: {
+  barcode?: string;
+  sku?: string;
+}): Promise<ApiResult<ProductDTO>> => {
   if (isOffline()) return offlineLookup(opts);
   const res = await goRequest<GoProduct>("catalogue/lookup", { query: opts });
   if (res.status === 0 || res.status >= 500) return offlineLookup(opts);
@@ -92,32 +112,48 @@ export const lookup = async (opts: { barcode?: string; sku?: string }): Promise<
 
 export const create = async (body: ProductMutation): Promise<ApiResult<ProductDTO>> => {
   if (isOffline()) {
-    return unavailable("Connect to the internet to create products. Offline product creation is disabled so catalogue data stays consistent.");
+    return unavailable(
+      "Connect to the internet to create products. Offline product creation is disabled so catalogue data stays consistent.",
+    );
   }
   const res = await goRequest<GoProduct>("catalogue/products", { method: "POST", body });
   return { ...res, data: res.data ? mapProduct(res.data) : null };
 };
 
 export const update = async (id: string, body: ProductMutation): Promise<ApiResult<ProductDTO>> => {
-  if (isOffline()) return unavailable("Connect to the internet to edit products. Changes have not been saved.");
+  if (isOffline())
+    return unavailable("Connect to the internet to edit products. Changes have not been saved.");
   const res = await goRequest<GoProduct>(`catalogue/products/${id}`, { method: "PATCH", body });
   return { ...res, data: res.data ? mapProduct(res.data) : null };
 };
 
 function cached<T>(data: T): ApiResult<T> {
-  return { success: true, data, status: 200, code: "offline_cache", message: "Saved catalogue · prices and stock may have changed" };
+  return {
+    success: true,
+    data,
+    status: 200,
+    code: "offline_cache",
+    message: "Saved catalogue · prices and stock may have changed",
+  };
 }
-function unavailable<T>(message = "No saved product data. Connect and sync the catalogue first."): ApiResult<T> {
+function unavailable<T>(
+  message = "No saved product data. Connect and sync the catalogue first.",
+): ApiResult<T> {
   return { success: false, data: null, status: 0, code: "offline_unavailable", message };
 }
 async function offlineProduct(matches: (p: ProductDTO) => boolean): Promise<ApiResult<ProductDTO>> {
   const snapshot = await readProducts();
   const items = snapshot ? await applyOfflineStockOverlay(snapshot.items, snapshot.savedAt) : [];
   const product = items.find(matches);
-  return product ? cached(product) : unavailable("Product unavailable in the saved catalogue. Connect and sync to refresh it.");
+  return product
+    ? cached(product)
+    : unavailable("Product unavailable in the saved catalogue. Connect and sync to refresh it.");
 }
 
-async function offlineLookup(opts: { barcode?: string; sku?: string }): Promise<ApiResult<ProductDTO>> {
+async function offlineLookup(opts: {
+  barcode?: string;
+  sku?: string;
+}): Promise<ApiResult<ProductDTO>> {
   const snapshot = await readProducts();
   const product = snapshot ? lookupProduct(snapshot.items, opts) : undefined;
   if (snapshot && product) {
@@ -139,7 +175,10 @@ function currentOfflineScope(): OfflineScope | null {
   }
 }
 
-async function applyOfflineStockOverlay(items: ProductDTO[], snapshotSavedAt: number): Promise<ProductDTO[]> {
+async function applyOfflineStockOverlay(
+  items: ProductDTO[],
+  snapshotSavedAt: number,
+): Promise<ProductDTO[]> {
   const scope = currentOfflineScope();
   if (!scope) return items;
   const sales = await listOfflineSales(scope);
@@ -155,16 +194,21 @@ export async function refreshOfflineProducts(
   if (!key || isOffline()) return null;
   if (!options.force) {
     const cached = await readProducts(key);
-    if (!productSnapshotIsStale(cached, Date.now(), options.maxAgeMs ?? OFFLINE_CATALOGUE_STALE_MS)) return cached;
+    if (!productSnapshotIsStale(cached, Date.now(), options.maxAgeMs ?? OFFLINE_CATALOGUE_STALE_MS))
+      return cached;
   }
   const items: ProductDTO[] = [];
   let downloadedBytes = 0;
   let inventoryCursor = "0";
   for (let page = 1; ; page++) {
     if (signal?.aborted || key !== productScope()) return null;
-    const res = await goRequest<{ items: GoProduct[]; meta: PageMeta; inventoryCursor?: string }>("catalogue/products", {
-      query: { page, limit: 100, status: "all" }, signal,
-    });
+    const res = await goRequest<{ items: GoProduct[]; meta: PageMeta; inventoryCursor?: string }>(
+      "catalogue/products",
+      {
+        query: { page, limit: 100, status: "all" },
+        signal,
+      },
+    );
     if (!res.success || !res.data || signal?.aborted || key !== productScope()) return null;
     downloadedBytes += res.responseBytes ?? 0;
     items.push(...res.data.items.map(mapProduct));
@@ -172,7 +216,7 @@ export async function refreshOfflineProducts(
     if (page >= res.data.meta.totalPages) break;
     if (res.data.items.length === 0 || page >= 10000) return null;
   }
-  const uniqueItems = Array.from(new Map(items.map(p => [p._id, p])).values());
+  const uniqueItems = Array.from(new Map(items.map((p) => [p._id, p])).values());
   const snapshot = createProductSnapshot(uniqueItems, Date.now(), inventoryCursor);
   const saved = await writeProducts(uniqueItems, key, snapshot);
   if (saved) recordCatalogueRefresh(downloadedBytes);

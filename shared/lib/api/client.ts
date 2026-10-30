@@ -55,7 +55,8 @@ async function normalize<T>(res: Response): Promise<ApiResult<T>> {
     status: res.status,
     code: b.code,
     retryAfterMs: parseRetryAfter(res.headers?.get?.("Retry-After") ?? null),
-    responseBytes: contentLength && Number.isFinite(Number(contentLength)) ? Number(contentLength) : undefined,
+    responseBytes:
+      contentLength && Number.isFinite(Number(contentLength)) ? Number(contentLength) : undefined,
     requestId: res.headers?.get?.("X-Request-ID") ?? undefined,
   };
 }
@@ -84,9 +85,7 @@ const inFlightGets = new Map<string, Promise<ApiResult<unknown>>>();
 async function supabaseBearer(): Promise<string | null> {
   if (typeof window === "undefined") return null;
   try {
-    const { createAuthBrowserClient } = await import(
-      "@/shared/lib/supabase/auth-client"
-    );
+    const { createAuthBrowserClient } = await import("@/shared/lib/supabase/auth-client");
     const {
       data: { session },
     } = await createAuthBrowserClient().auth.getSession();
@@ -99,9 +98,7 @@ async function supabaseBearer(): Promise<string | null> {
 async function refreshSupabaseBearer(): Promise<string | null> {
   if (typeof window === "undefined") return null;
   try {
-    const { createAuthBrowserClient } = await import(
-      "@/shared/lib/supabase/auth-client"
-    );
+    const { createAuthBrowserClient } = await import("@/shared/lib/supabase/auth-client");
     const {
       data: { session },
     } = await createAuthBrowserClient().auth.refreshSession();
@@ -111,7 +108,11 @@ async function refreshSupabaseBearer(): Promise<string | null> {
   }
 }
 
-async function requestAt<T>(base: string, path: string, opts: RequestOptions = {}): Promise<ApiResult<T>> {
+async function requestAt<T>(
+  base: string,
+  path: string,
+  opts: RequestOptions = {},
+): Promise<ApiResult<T>> {
   const { method = "GET", body, query, signal, headers, idempotencyKey } = opts;
 
   let target = apiURL(path, base);
@@ -133,35 +134,38 @@ async function requestAt<T>(base: string, path: string, opts: RequestOptions = {
     if (existing) return existing as Promise<ApiResult<T>>;
   }
 
-  const requestPromise = (async () => { try {
-    const requestWithBearer = (token: string | null) => fetch(target, {
-      method,
-      credentials: "include",
-      headers: {
-        ...(body !== undefined ? { "Content-Type": "application/json" } : {}),
-        ...(idempotencyKey ? { "Idempotency-Key": idempotencyKey } : {}),
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        ...headers,
-      },
-      body: body !== undefined ? JSON.stringify(body) : undefined,
-      signal,
-    });
-    let res = await requestWithBearer(bearer);
-    if (res.status === 401) {
-      const refreshedBearer = await refreshSupabaseBearer();
-      if (refreshedBearer && refreshedBearer !== bearer) {
-        res = await requestWithBearer(refreshedBearer);
+  const requestPromise = (async () => {
+    try {
+      const requestWithBearer = (token: string | null) =>
+        fetch(target, {
+          method,
+          credentials: "include",
+          headers: {
+            ...(body !== undefined ? { "Content-Type": "application/json" } : {}),
+            ...(idempotencyKey ? { "Idempotency-Key": idempotencyKey } : {}),
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+            ...headers,
+          },
+          body: body !== undefined ? JSON.stringify(body) : undefined,
+          signal,
+        });
+      let res = await requestWithBearer(bearer);
+      if (res.status === 401) {
+        const refreshedBearer = await refreshSupabaseBearer();
+        if (refreshedBearer && refreshedBearer !== bearer) {
+          res = await requestWithBearer(refreshedBearer);
+        }
       }
+      return normalize<T>(res);
+    } catch (err) {
+      return {
+        success: false,
+        message: err instanceof Error ? err.message : "Network error",
+        data: null,
+        status: 0,
+      };
     }
-    return normalize<T>(res);
-  } catch (err) {
-    return {
-      success: false,
-      message: err instanceof Error ? err.message : "Network error",
-      data: null,
-      status: 0,
-    };
-  } })();
+  })();
   if (cacheKey) {
     inFlightGets.set(cacheKey, requestPromise as Promise<ApiResult<unknown>>);
     void requestPromise.then(

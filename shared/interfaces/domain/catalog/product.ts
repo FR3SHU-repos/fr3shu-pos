@@ -2,12 +2,7 @@ import type { BaseUnit, SaleUnit } from "@/shared/lib/units";
 
 export type ProductStatus = "active" | "inactive" | "archived";
 export type OrganicStatus =
-  | "Verified"
-  | "InConversion"
-  | "PendingVerification"
-  | "Expired"
-  | "Rejected"
-  | "NotOrganic";
+  "Verified" | "InConversion" | "PendingVerification" | "Expired" | "Rejected" | "NotOrganic";
 
 export interface IProduct {
   _id?: string;

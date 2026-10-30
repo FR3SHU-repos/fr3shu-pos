@@ -90,7 +90,13 @@ export function useCheckout({
 
   async function completeSale() {
     if (submitting || lines.length === 0) return;
-    const { name: customerName, phone: customerPhone, guest: guestCustomer, resolved: resolvedBuyer, marketingConsent } = customer;
+    const {
+      name: customerName,
+      phone: customerPhone,
+      guest: guestCustomer,
+      resolved: resolvedBuyer,
+      marketingConsent,
+    } = customer;
     const payMethod = payment.method;
     if (!customerName.trim()) {
       toast.error("Enter the customer's name");
@@ -128,7 +134,11 @@ export function useCheckout({
         toast.error("Add the seller UPI ID in Payment settings first.");
         return;
       }
-      payments.push({ method: "upi", amountPaise: upi, upiRef: payment.upiRef.trim() || undefined });
+      payments.push({
+        method: "upi",
+        amountPaise: upi,
+        upiRef: payment.upiRef.trim() || undefined,
+      });
     } else {
       const cash = Math.round(Number(payment.cashPart || 0) * 100);
       const upi = Math.round(Number(payment.upiPart || 0) * 100);
@@ -141,7 +151,12 @@ export function useCheckout({
         return;
       }
       if (cash > 0) payments.push({ method: "cash", amountPaise: cash });
-      if (upi > 0) payments.push({ method: "upi", amountPaise: upi, upiRef: payment.upiRef.trim() || undefined });
+      if (upi > 0)
+        payments.push({
+          method: "upi",
+          amountPaise: upi,
+          upiRef: payment.upiRef.trim() || undefined,
+        });
     }
 
     if (typeof navigator !== "undefined" && !navigator.onLine) {
@@ -172,7 +187,9 @@ export function useCheckout({
             const soldBase = sale.lines
               .filter((line) => line.productId === product._id)
               .reduce((sum, line) => sum + line.qtyBase, 0);
-            return soldBase > 0 ? { ...product, availableBase: Math.max(0, product.availableBase - soldBase) } : product;
+            return soldBase > 0
+              ? { ...product, availableBase: Math.max(0, product.availableBase - soldBase) }
+              : product;
           }),
         );
         setCompletedPayment({
@@ -229,9 +246,7 @@ export function useCheckout({
         reference: p.upiRef,
       })),
       changePaise:
-        payMethod === "cash"
-          ? Math.max(0, (cashReceivedPaise ?? netPaise) - netPaise)
-          : 0,
+        payMethod === "cash" ? Math.max(0, (cashReceivedPaise ?? netPaise) - netPaise) : 0,
     });
     setCompleted(res.data.sale);
     setCompletedOffline(false);

@@ -46,7 +46,10 @@ export interface Capabilities {
   seller: boolean;
   availableExperiences: Array<"buyer" | "seller">;
 }
-export interface DiscoveryCode { code: string; url: string }
+export interface DiscoveryCode {
+  code: string;
+  url: string;
+}
 export interface BuyerReferral {
   id: string;
   sellerName: string;
@@ -90,16 +93,43 @@ export const capabilities = (accessToken?: string): Promise<ApiResult<Capabiliti
   request("me/capabilities", {
     headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : undefined,
   });
-export const updateProfile = (displayName: string, buyer: boolean, phoneE164: string | undefined, locationCode: string | undefined, address: UserAddress): Promise<ApiResult<PersonProfile>> =>
-  request("me/profile", { method: "PUT", body: { displayName, buyer, phoneE164, locationCode, address } });
-export const locations = (): Promise<ApiResult<{ items: PlatformLocation[] }>> => request("locations");
+export const updateProfile = (
+  displayName: string,
+  buyer: boolean,
+  phoneE164: string | undefined,
+  locationCode: string | undefined,
+  address: UserAddress,
+): Promise<ApiResult<PersonProfile>> =>
+  request("me/profile", {
+    method: "PUT",
+    body: { displayName, buyer, phoneE164, locationCode, address },
+  });
+export const locations = (): Promise<ApiResult<{ items: PlatformLocation[] }>> =>
+  request("locations");
 export const discoveryCode = (): Promise<ApiResult<DiscoveryCode>> => request("me/discovery-code");
-export const rotateDiscoveryCode = (): Promise<ApiResult<DiscoveryCode>> => request("me/discovery-code/rotate", { method: "POST" });
-export const referrals = (): Promise<ApiResult<{ items: BuyerReferral[] }>> => request("me/referrals");
-export const privacyConsents = (): Promise<ApiResult<{ items: PrivacyConsent[] }>> => request("me/privacy/consents");
-export const recordPrivacyConsent = (purposeCode: PrivacyPurpose, granted: boolean, noticeVersion = "1.0.0", source = "web"): Promise<ApiResult<PrivacyConsent>> =>
-  request("me/privacy/consents", { method: "POST", body: { purposeCode, action: granted ? "granted" : "withdrawn", noticeVersion, source } });
-export const privacyRequests = (): Promise<ApiResult<{ items: PrivacyRequest[]; notifications?: PrivacyNotification[] }>> => request("me/privacy/requests");
-export const submitPrivacyRequest = (requestType: PrivacyRequestType, details: string): Promise<ApiResult<PrivacyRequest>> =>
+export const rotateDiscoveryCode = (): Promise<ApiResult<DiscoveryCode>> =>
+  request("me/discovery-code/rotate", { method: "POST" });
+export const referrals = (): Promise<ApiResult<{ items: BuyerReferral[] }>> =>
+  request("me/referrals");
+export const privacyConsents = (): Promise<ApiResult<{ items: PrivacyConsent[] }>> =>
+  request("me/privacy/consents");
+export const recordPrivacyConsent = (
+  purposeCode: PrivacyPurpose,
+  granted: boolean,
+  noticeVersion = "1.0.0",
+  source = "web",
+): Promise<ApiResult<PrivacyConsent>> =>
+  request("me/privacy/consents", {
+    method: "POST",
+    body: { purposeCode, action: granted ? "granted" : "withdrawn", noticeVersion, source },
+  });
+export const privacyRequests = (): Promise<
+  ApiResult<{ items: PrivacyRequest[]; notifications?: PrivacyNotification[] }>
+> => request("me/privacy/requests");
+export const submitPrivacyRequest = (
+  requestType: PrivacyRequestType,
+  details: string,
+): Promise<ApiResult<PrivacyRequest>> =>
   request("me/privacy/requests", { method: "POST", body: { requestType, details } });
-export const privacyExport = (): Promise<ApiResult<Record<string, unknown>>> => request("me/privacy/export");
+export const privacyExport = (): Promise<ApiResult<Record<string, unknown>>> =>
+  request("me/privacy/export");

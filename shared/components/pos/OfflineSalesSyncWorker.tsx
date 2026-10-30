@@ -44,88 +44,116 @@ export function OfflineSalesSyncWorker() {
     return { userId: user.id, orgId: user.orgId, locationId: user.locationId };
   }, [user]);
 
-  const sync = useCallback(async (automatic: boolean, forceRetry = false) => {
-    if (!scope || syncingRef.current) return;
-    if (typeof navigator !== "undefined" && !navigator.onLine) return;
-    syncingRef.current = true;
-    try {
-      const mutations = await syncOfflineMutations();
-      if (mutations.synced > 0) await productsApi.refreshOfflineProducts(undefined, { force: true });
-      if (!mutations.salesReady) {
-        const message = mutations.messages.join(" ") || "Offline product and stock changes must sync before this sale can be uploaded.";
+  const sync = useCallback(
+    async (automatic: boolean, forceRetry = false) => {
+      if (!scope || syncingRef.current) return;
+      if (typeof navigator !== "undefined" && !navigator.onLine) return;
+      syncingRef.current = true;
+      try {
+        const mutations = await syncOfflineMutations();
+        if (mutations.synced > 0)
+          await productsApi.refreshOfflineProducts(undefined, { force: true });
+        if (!mutations.salesReady) {
+          const message =
+            mutations.messages.join(" ") ||
+            "Offline product and stock changes must sync before this sale can be uploaded.";
+          const detail: OfflineSalesSyncDetail = {
+            attempted: 0,
+            synced: 0,
+            blocked: 0,
+            authRequired: false,
+            message,
+            at: new Date().toISOString(),
+            automatic,
+          };
+          if (typeof window !== "undefined") {
+            window.dispatchEvent(
+              new CustomEvent<OfflineSalesSyncDetail>(OFFLINE_SALES_SYNC_EVENT, { detail }),
+            );
+          }
+          if (!automatic) toast.error(message);
+          return;
+        }
+        const result = await salesApi.syncPendingOfflineSales(scope, { forceRetry });
+        if (result.synced > 0) await cleanupOfflineSales(scope, 0);
+        const detail: OfflineSalesSyncDetail = {
+          ...result,
+          at: new Date().toISOString(),
+          automatic,
+          message: mutations.messages.join(" ") || result.message,
+        };
+        if (typeof window !== "undefined") {
+          if (result.synced > 0 || result.attempted > 0) {
+            localStorage.setItem(offlineSalesLastSyncKey(scope), detail.at);
+          }
+          window.dispatchEvent(
+            new CustomEvent<OfflineSalesSyncDetail>(OFFLINE_SALES_SYNC_EVENT, { detail }),
+          );
+        }
+        if (!automatic) return;
+        if (result.synced > 0) {
+          const adjustmentMessage = result.stockAdjustments
+            ? ` ${result.stockAdjustments} stock adjustment${result.stockAdjustments === 1 ? "" : "s"} require manager review.`
+            : "";
+          if (result.stockAdjustments) toast(`Offline sale completed.${adjustmentMessage}`);
+          else
+            toast.success(
+              `${result.synced} offline sale${result.synced === 1 ? "" : "s"} completed`,
+            );
+        }
+        if (mutations.synced > 0 && result.synced === 0)
+          toast.success(
+            `${mutations.synced} offline change${mutations.synced === 1 ? "" : "s"} synced`,
+          );
+      } catch (error) {
+        const message =
+          error instanceof Error ? error.message : "Offline sync failed unexpectedly.";
         const detail: OfflineSalesSyncDetail = {
           attempted: 0,
           synced: 0,
           blocked: 0,
           authRequired: false,
+          failed: true,
+          failureCode: "offline_sync_failed",
           message,
           at: new Date().toISOString(),
           automatic,
         };
         if (typeof window !== "undefined") {
-          window.dispatchEvent(new CustomEvent<OfflineSalesSyncDetail>(OFFLINE_SALES_SYNC_EVENT, { detail }));
+          window.dispatchEvent(
+            new CustomEvent<OfflineSalesSyncDetail>(OFFLINE_SALES_SYNC_EVENT, { detail }),
+          );
         }
-        if (!automatic) toast.error(message);
-        return;
+        toast.error(automatic ? "Offline sync failed. The sale is still saved locally." : message);
+      } finally {
+        syncingRef.current = false;
       }
-      const result = await salesApi.syncPendingOfflineSales(scope, { forceRetry });
-      if (result.synced > 0) await cleanupOfflineSales(scope, 0);
-      const detail: OfflineSalesSyncDetail = { ...result, at: new Date().toISOString(), automatic, message: mutations.messages.join(" ") || result.message };
-      if (typeof window !== "undefined") {
-        if (result.synced > 0 || result.attempted > 0) {
-          localStorage.setItem(offlineSalesLastSyncKey(scope), detail.at);
-        }
-        window.dispatchEvent(new CustomEvent<OfflineSalesSyncDetail>(OFFLINE_SALES_SYNC_EVENT, { detail }));
-      }
-      if (!automatic) return;
-      if (result.synced > 0) {
-        const adjustmentMessage = result.stockAdjustments
-          ? ` ${result.stockAdjustments} stock adjustment${result.stockAdjustments === 1 ? "" : "s"} require manager review.`
-          : "";
-        if (result.stockAdjustments) toast(`Offline sale completed.${adjustmentMessage}`);
-        else toast.success(`${result.synced} offline sale${result.synced === 1 ? "" : "s"} completed`);
-      }
-      if (mutations.synced > 0 && result.synced === 0) toast.success(`${mutations.synced} offline change${mutations.synced === 1 ? "" : "s"} synced`);
-    } catch (error) {
-      const message = error instanceof Error ? error.message : "Offline sync failed unexpectedly.";
-      const detail: OfflineSalesSyncDetail = {
-        attempted: 0,
-        synced: 0,
-        blocked: 0,
-        authRequired: false,
-        failed: true,
-        failureCode: "offline_sync_failed",
-        message,
-        at: new Date().toISOString(),
-        automatic,
-      };
-      if (typeof window !== "undefined") {
-        window.dispatchEvent(new CustomEvent<OfflineSalesSyncDetail>(OFFLINE_SALES_SYNC_EVENT, { detail }));
-      }
-      toast.error(automatic ? "Offline sync failed. The sale is still saved locally." : message);
-    } finally {
-      syncingRef.current = false;
-    }
-  }, [scope]);
+    },
+    [scope],
+  );
 
   useEffect(() => {
     if (!scope) return;
-    void Promise.all([cleanupOfflineSales(scope), cleanupExpiredHeldCarts(scope)]).catch((error) => {
-      const message = error instanceof Error ? error.message : "Offline storage cleanup failed.";
-      window.dispatchEvent(new CustomEvent<OfflineSalesSyncDetail>(OFFLINE_SALES_SYNC_EVENT, {
-        detail: {
-          attempted: 0,
-          synced: 0,
-          blocked: 0,
-          authRequired: false,
-          failed: true,
-          failureCode: "offline_storage_cleanup_failed",
-          message,
-          at: new Date().toISOString(),
-          automatic: true,
-        },
-      }));
-    });
+    void Promise.all([cleanupOfflineSales(scope), cleanupExpiredHeldCarts(scope)]).catch(
+      (error) => {
+        const message = error instanceof Error ? error.message : "Offline storage cleanup failed.";
+        window.dispatchEvent(
+          new CustomEvent<OfflineSalesSyncDetail>(OFFLINE_SALES_SYNC_EVENT, {
+            detail: {
+              attempted: 0,
+              synced: 0,
+              blocked: 0,
+              authRequired: false,
+              failed: true,
+              failureCode: "offline_storage_cleanup_failed",
+              message,
+              at: new Date().toISOString(),
+              automatic: true,
+            },
+          }),
+        );
+      },
+    );
     void Promise.resolve().then(() => sync(true));
     const onOnline = () => void sync(true, true);
     const onOfflineSaleChanged = () => void sync(true);

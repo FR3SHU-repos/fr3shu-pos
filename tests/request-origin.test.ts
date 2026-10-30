@@ -11,9 +11,13 @@ describe("requestOrigin", () => {
   });
 
   it("uses the public forwarded host instead of a Netlify deploy host", () => {
-    expect(requestOrigin(request("https://deploy-id--fr3shu-pos.netlify.app/auth/callback", {
-      "x-forwarded-host": "pos.komola.in",
-      "x-forwarded-proto": "https",
-    }))).toBe("https://pos.komola.in");
+    expect(
+      requestOrigin(
+        request("https://deploy-id--fr3shu-pos.netlify.app/auth/callback", {
+          "x-forwarded-host": "pos.komola.in",
+          "x-forwarded-proto": "https",
+        }),
+      ),
+    ).toBe("https://pos.komola.in");
   });
 });

@@ -87,7 +87,11 @@ export const list = async (params?: {
   /** RFC3339 instant, exclusive. */
   to?: string;
 }): Promise<ApiResult<SaleListResult>> => {
-  const res = await goRequest<{ items: GoSale[]; meta: PageMeta; summary?: { completedCount: number; totalMinor: number } }>("sales", { query: params });
+  const res = await goRequest<{
+    items: GoSale[];
+    meta: PageMeta;
+    summary?: { completedCount: number; totalMinor: number };
+  }>("sales", { query: params });
   return {
     ...res,
     data: res.data
@@ -95,7 +99,10 @@ export const list = async (params?: {
           items: res.data.items.map(mapSale),
           meta: res.data.meta,
           summary: res.data.summary
-            ? { completedCount: res.data.summary.completedCount, totalPaise: res.data.summary.totalMinor }
+            ? {
+                completedCount: res.data.summary.completedCount,
+                totalPaise: res.data.summary.totalMinor,
+              }
             : undefined,
         }
       : null,
@@ -111,14 +118,21 @@ export interface DailySalesTotal {
 
 /** Server-computed completed-sale totals for the last `days` local days, oldest first. */
 export const daily = async (days = 6): Promise<ApiResult<DailySalesTotal[]>> => {
-  const tz = typeof Intl !== "undefined" ? Intl.DateTimeFormat().resolvedOptions().timeZone : undefined;
-  const res = await goRequest<{ days: { date: string; completedCount: number; totalMinor: number }[] }>("sales/daily", {
+  const tz =
+    typeof Intl !== "undefined" ? Intl.DateTimeFormat().resolvedOptions().timeZone : undefined;
+  const res = await goRequest<{
+    days: { date: string; completedCount: number; totalMinor: number }[];
+  }>("sales/daily", {
     query: { days, tz },
   });
   return {
     ...res,
     data: res.data
-      ? res.data.days.map((d) => ({ date: d.date, completedCount: d.completedCount, totalPaise: d.totalMinor }))
+      ? res.data.days.map((d) => ({
+          date: d.date,
+          completedCount: d.completedCount,
+          totalPaise: d.totalMinor,
+        }))
       : null,
   };
 };
@@ -168,7 +182,7 @@ async function resolveOpenRegisterId(): Promise<string | null> {
 export const create = async (
   body: CreateSaleBody,
 ): Promise<ApiResult<{ sale: SaleDTO; reused: boolean }>> => {
-  const registerId = body.registerId ?? await resolveOpenRegisterId();
+  const registerId = body.registerId ?? (await resolveOpenRegisterId());
   if (!registerId) {
     return {
       success: false,
@@ -290,14 +304,16 @@ function automaticSyncMessage(reason?: string): string {
     case "server_error":
       return "Server could not complete sync. The sale will retry automatically.";
     default:
-      return reason ? `Automatic check failed: ${reason}.` : "Automatic check failed. This sale was not synced.";
+      return reason
+        ? `Automatic check failed: ${reason}.`
+        : "Automatic check failed. This sale was not synced.";
   }
 }
 
 function retryDelayMs(sale: { syncAttempts?: number }, retryAfterMs?: number): number {
   if (retryAfterMs !== undefined) return Math.min(15 * 60_000, Math.max(1_000, retryAfterMs));
   const attempt = Math.max(1, sale.syncAttempts ?? 1);
-  const base = Math.min(15 * 60_000, 1_000 * (2 ** Math.min(attempt - 1, 10)));
+  const base = Math.min(15 * 60_000, 1_000 * 2 ** Math.min(attempt - 1, 10));
   return Math.round(base * (0.875 + Math.random() * 0.25));
 }
 
@@ -314,7 +330,10 @@ function scheduleOfflineSaleRetry(
   return incrementOfflineSaleAttempt(scope, operationId, retryInMs, message);
 }
 
-export async function syncPendingOfflineSales(scope: OfflineScope, options: { forceRetry?: boolean } = {}): Promise<{
+export async function syncPendingOfflineSales(
+  scope: OfflineScope,
+  options: { forceRetry?: boolean } = {},
+): Promise<{
   attempted: number;
   synced: number;
   blocked: number;
@@ -327,10 +346,15 @@ export async function syncPendingOfflineSales(scope: OfflineScope, options: { fo
   const empty = { attempted: 0, synced: 0, blocked: 0, authRequired: false, blockedMessages: [] };
   if (options.forceRetry) await requeueRetryableOfflineSales(scope);
   const localSales = await listOfflineSales(scope);
-  const hasLocalSyncWork = localSales.some((sale) => ["pending", "uploading", "retry_wait", "auth_required", "blocked", "needs_review"].includes(sale.syncState));
+  const hasLocalSyncWork = localSales.some((sale) =>
+    ["pending", "uploading", "retry_wait", "auth_required", "blocked", "needs_review"].includes(
+      sale.syncState,
+    ),
+  );
   if (!hasLocalSyncWork) return empty;
   const refreshed = await refreshOfflineProducts();
-  if (refreshed) await requeueBlockedOfflineSalesWithAvailableStock(scope, refreshed.items, refreshed.savedAt);
+  if (refreshed)
+    await requeueBlockedOfflineSalesWithAvailableStock(scope, refreshed.items, refreshed.savedAt);
   const pending = await claimPendingOfflineSales(scope, 10);
   if (pending.length === 0) return empty;
   const claimedBatch = pending.slice(0, 10);
@@ -346,37 +370,57 @@ export async function syncPendingOfflineSales(scope: OfflineScope, options: { fo
     body: syncPayload,
     idempotencyKey: `offline-sync:${batch.map((sale) => sale.operationId).join(",")}`,
   });
-  recordOfflineSyncAttempt(Date.now() - startedAt, jsonByteLength(syncPayload), !res.success || res.data?.results?.some((result) => result.outcome === "retry") === true);
+  recordOfflineSyncAttempt(
+    Date.now() - startedAt,
+    jsonByteLength(syncPayload),
+    !res.success || res.data?.results?.some((result) => result.outcome === "retry") === true,
+  );
   if (res.status === 401 || res.status === 403) {
-    await Promise.all(batch.map((sale) => markOfflineSaleSyncState(scope, sale.operationId, "auth_required", { message: "Sign in again before syncing this sale." })));
+    await Promise.all(
+      batch.map((sale) =>
+        markOfflineSaleSyncState(scope, sale.operationId, "auth_required", {
+          message: "Sign in again before syncing this sale.",
+        }),
+      ),
+    );
     return { attempted: claimedBatch.length, synced: 0, blocked: 0, authRequired: true };
   }
   if (res.status === 404) {
-    await Promise.all(batch.map((sale) => scheduleOfflineSaleRetry(
-      scope,
-      sale.operationId,
-      retryDelayMs(sale, res.retryAfterMs),
-      res.message || "The backend sync endpoint is unavailable. The sale will retry automatically.",
-      { requestId: res.requestId },
-    )));
+    await Promise.all(
+      batch.map((sale) =>
+        scheduleOfflineSaleRetry(
+          scope,
+          sale.operationId,
+          retryDelayMs(sale, res.retryAfterMs),
+          res.message ||
+            "The backend sync endpoint is unavailable. The sale will retry automatically.",
+          { requestId: res.requestId },
+        ),
+      ),
+    );
     return {
       attempted: claimedBatch.length,
       synced: 0,
       blocked: 0,
       authRequired: false,
       unavailable: true,
-      message: "The backend sync endpoint is not available. Restart or update the Go API, then try Sync again.",
+      message:
+        "The backend sync endpoint is not available. Restart or update the Go API, then try Sync again.",
       blockedMessages: [],
     };
   }
   if (!res.success || !res.data) {
-    await Promise.all(batch.map((sale) => scheduleOfflineSaleRetry(
-      scope,
-      sale.operationId,
-      retryDelayMs(sale, res.retryAfterMs),
-      res.message || "Offline sale sync did not complete. The sale will retry automatically.",
-      { requestId: res.requestId },
-    )));
+    await Promise.all(
+      batch.map((sale) =>
+        scheduleOfflineSaleRetry(
+          scope,
+          sale.operationId,
+          retryDelayMs(sale, res.retryAfterMs),
+          res.message || "Offline sale sync did not complete. The sale will retry automatically.",
+          { requestId: res.requestId },
+        ),
+      ),
+    );
     return {
       attempted: claimedBatch.length,
       synced: 0,
@@ -391,67 +435,97 @@ export async function syncPendingOfflineSales(scope: OfflineScope, options: { fo
   let authRequired = false;
   let stockAdjustments = 0;
   const blockedMessages: string[] = [];
-  const accepted: Array<{ operationId: string; message: string; serverSaleId?: string; serverReceiptNo?: string; serverInventoryCursor?: string }> = [];
+  const accepted: Array<{
+    operationId: string;
+    message: string;
+    serverSaleId?: string;
+    serverReceiptNo?: string;
+    serverInventoryCursor?: string;
+  }> = [];
   for (const result of res.data.results ?? []) {
     if (result.outcome === "accepted" || result.outcome === "already_accepted") {
       const adjustmentMessage = result.stockAdjustments?.length
         ? ` ${result.stockAdjustments.length} stock adjustment${result.stockAdjustments.length === 1 ? "" : "s"} require review.`
         : "";
       stockAdjustments += result.stockAdjustments?.length ?? 0;
-      if (await markOfflineSaleSyncState(scope, result.operationId, "synced", {
-        message: result.sale?.receiptNo
-          ? `Synced to the server as ${result.sale.receiptNo}.${adjustmentMessage}`
-          : result.outcome === "already_accepted" ? `Already accepted by the server.${adjustmentMessage}` : `Synced to the server.${adjustmentMessage}`,
-        serverSaleId: result.sale?.id,
-        serverReceiptNo: result.sale?.receiptNo,
-        serverInventoryCursor: result.inventoryCursor,
-      })) synced += 1;
+      if (
+        await markOfflineSaleSyncState(scope, result.operationId, "synced", {
+          message: result.sale?.receiptNo
+            ? `Synced to the server as ${result.sale.receiptNo}.${adjustmentMessage}`
+            : result.outcome === "already_accepted"
+              ? `Already accepted by the server.${adjustmentMessage}`
+              : `Synced to the server.${adjustmentMessage}`,
+          serverSaleId: result.sale?.id,
+          serverReceiptNo: result.sale?.receiptNo,
+          serverInventoryCursor: result.inventoryCursor,
+        })
+      )
+        synced += 1;
       accepted.push({
         operationId: result.operationId,
         message: result.sale?.receiptNo
           ? `Synced to the server as ${result.sale.receiptNo}.${adjustmentMessage}`
-          : result.outcome === "already_accepted" ? `Already accepted by the server.${adjustmentMessage}` : `Synced to the server.${adjustmentMessage}`,
+          : result.outcome === "already_accepted"
+            ? `Already accepted by the server.${adjustmentMessage}`
+            : `Synced to the server.${adjustmentMessage}`,
         serverSaleId: result.sale?.id,
         serverReceiptNo: result.sale?.receiptNo,
         serverInventoryCursor: result.inventoryCursor,
       });
     } else if (result.reason === "auth_required") {
       authRequired = true;
-      await markOfflineSaleSyncState(scope, result.operationId, "auth_required", { message: "Sign in again before syncing this sale." });
+      await markOfflineSaleSyncState(scope, result.operationId, "auth_required", {
+        message: "Sign in again before syncing this sale.",
+      });
     } else if (result.outcome === "rejected" || result.outcome === "needs_review") {
       blocked += 1;
       const message = automaticSyncMessage(result.reason);
       blockedMessages.push(message);
-      await markOfflineSaleSyncState(scope, result.operationId, result.outcome === "needs_review" ? "needs_review" : "blocked", {
-        message,
-        failureStage: result.failureStage,
-        failureCode: result.failureCode,
-        failureDetail: result.failureDetail,
-        requestId: result.requestId ?? res.requestId,
-        traceId: result.traceId,
-        reviewId: result.reviewId,
-      });
+      await markOfflineSaleSyncState(
+        scope,
+        result.operationId,
+        result.outcome === "needs_review" ? "needs_review" : "blocked",
+        {
+          message,
+          failureStage: result.failureStage,
+          failureCode: result.failureCode,
+          failureDetail: result.failureDetail,
+          requestId: result.requestId ?? res.requestId,
+          traceId: result.traceId,
+          reviewId: result.reviewId,
+        },
+      );
     } else {
       const sale = batch.find((item) => item.operationId === result.operationId);
-      await scheduleOfflineSaleRetry(scope, result.operationId, retryDelayMs(sale ?? {}, res.retryAfterMs), automaticSyncMessage(result.reason), {
-        failureStage: result.failureStage,
-        failureCode: result.failureCode,
-        failureDetail: result.failureDetail,
-        requestId: result.requestId ?? res.requestId,
-        traceId: result.traceId,
-      });
+      await scheduleOfflineSaleRetry(
+        scope,
+        result.operationId,
+        retryDelayMs(sale ?? {}, res.retryAfterMs),
+        automaticSyncMessage(result.reason),
+        {
+          failureStage: result.failureStage,
+          failureCode: result.failureCode,
+          failureDetail: result.failureDetail,
+          requestId: result.requestId ?? res.requestId,
+          traceId: result.traceId,
+        },
+      );
     }
   }
   if (accepted.length > 0) {
     const postSyncCatalogue = await refreshOfflineProducts(undefined, { force: true });
     if (postSyncCatalogue) {
-      await Promise.all(accepted.map((item) => markOfflineSaleSyncState(scope, item.operationId, "synced", {
-        message: item.message,
-        serverSaleId: item.serverSaleId,
-        serverReceiptNo: item.serverReceiptNo,
-        serverInventoryCursor: item.serverInventoryCursor,
-        inventoryCoveredAt: postSyncCatalogue.effectiveAt,
-      })));
+      await Promise.all(
+        accepted.map((item) =>
+          markOfflineSaleSyncState(scope, item.operationId, "synced", {
+            message: item.message,
+            serverSaleId: item.serverSaleId,
+            serverReceiptNo: item.serverReceiptNo,
+            serverInventoryCursor: item.serverInventoryCursor,
+            inventoryCoveredAt: postSyncCatalogue.effectiveAt,
+          }),
+        ),
+      );
     }
   }
   return {
@@ -487,8 +561,20 @@ export const returnSale = (
   goRequest(`sales/${id}/returns`, { method: "POST", body, idempotencyKey: body.idempotencyKey });
 
 export interface OfflineManualResolutionInput {
-  items: Array<{ skuId: string; qty: string; unit: string; discountMinor?: number; lotId?: string; lotOverrideReason?: string }>;
-  tenders: Array<{ kind: "cash" | "manual"; amountMinor: number; reference?: string; reason?: string }>;
+  items: Array<{
+    skuId: string;
+    qty: string;
+    unit: string;
+    discountMinor?: number;
+    lotId?: string;
+    lotOverrideReason?: string;
+  }>;
+  tenders: Array<{
+    kind: "cash" | "manual";
+    amountMinor: number;
+    reference?: string;
+    reason?: string;
+  }>;
   cartDiscountMinor: number;
   customerName: string;
   customerPhone: string;
@@ -500,11 +586,14 @@ export const resolveOfflineTransactionReview = async (
   reviewId: string,
   input: OfflineManualResolutionInput,
 ): Promise<ApiResult<{ sale: SaleDTO; reviewId: string }>> => {
-  const res = await goRequest<{ sale: GoSale; reviewId: string }>(`offline/reviews/${reviewId}/resolve`, {
-    method: "POST",
-    body: input,
-    idempotencyKey: `offline-review:${reviewId}`,
-  });
+  const res = await goRequest<{ sale: GoSale; reviewId: string }>(
+    `offline/reviews/${reviewId}/resolve`,
+    {
+      method: "POST",
+      body: input,
+      idempotencyKey: `offline-review:${reviewId}`,
+    },
+  );
   return {
     ...res,
     data: res.data ? { sale: mapSale(res.data.sale), reviewId: res.data.reviewId } : null,

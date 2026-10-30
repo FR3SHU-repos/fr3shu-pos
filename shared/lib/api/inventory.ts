@@ -55,18 +55,33 @@ export const list = async (params?: {
 }): Promise<ApiResult<{ items: InventoryBalanceDTO[] }>> => {
   if (isOffline()) {
     const snapshot = await readProducts();
-    if (!snapshot) return { success: false, data: null, status: 0, code: "offline_unavailable", message: "No saved stock data is available on this device." };
-    const items = snapshot.items.flatMap((product) => (product.lots ?? []).map((lot) => ({
-      _id: `${product._id}:${lot.lotId}`,
-      productId: product._id,
-      productName: product.name,
-      lotId: lot.lotId,
-      lotCode: lot.lotCode,
-      saleUnit: product.saleUnit,
-      availableBase: Math.round(lot.qty * product.basePerSaleUnit),
-      expiryDate: lot.expiresAt,
-    })));
-    return { success: true, data: { items }, status: 200, code: "offline_cache", message: "Showing stock saved on this device." };
+    if (!snapshot)
+      return {
+        success: false,
+        data: null,
+        status: 0,
+        code: "offline_unavailable",
+        message: "No saved stock data is available on this device.",
+      };
+    const items = snapshot.items.flatMap((product) =>
+      (product.lots ?? []).map((lot) => ({
+        _id: `${product._id}:${lot.lotId}`,
+        productId: product._id,
+        productName: product.name,
+        lotId: lot.lotId,
+        lotCode: lot.lotCode,
+        saleUnit: product.saleUnit,
+        availableBase: Math.round(lot.qty * product.basePerSaleUnit),
+        expiryDate: lot.expiresAt,
+      })),
+    );
+    return {
+      success: true,
+      data: { items },
+      status: 200,
+      code: "offline_cache",
+      message: "Showing stock saved on this device.",
+    };
   }
   const res = await goRequest<{ items: GoInvRow[] }>("inventory", {
     query: { skuId: params?.productId },
@@ -74,7 +89,8 @@ export const list = async (params?: {
   if (!res.data) return { ...res, data: null };
   const items: InventoryBalanceDTO[] = [];
   for (const row of res.data.items) {
-    const factor = row.basePerSaleUnit && row.basePerSaleUnit > 0 ? row.basePerSaleUnit : unitFactor(row.unit);
+    const factor =
+      row.basePerSaleUnit && row.basePerSaleUnit > 0 ? row.basePerSaleUnit : unitFactor(row.unit);
     for (const lot of row.lots ?? []) {
       items.push({
         _id: `${row.skuId}:${lot.lotId ?? "none"}`,
@@ -99,8 +115,14 @@ export const offlineAdjustments = (): Promise<ApiResult<{ items: OfflineStockAdj
 export const resolveOfflineAdjustment = (
   id: string,
   note: string,
-): Promise<ApiResult<{ item: Pick<OfflineStockAdjustmentDTO, "id" | "status" | "reviewedAt" | "resolutionNote"> }>> =>
-  goRequest<{ item: Pick<OfflineStockAdjustmentDTO, "id" | "status" | "reviewedAt" | "resolutionNote"> }>(`inventory/offline-adjustments/${id}/resolve`, {
+): Promise<
+  ApiResult<{
+    item: Pick<OfflineStockAdjustmentDTO, "id" | "status" | "reviewedAt" | "resolutionNote">;
+  }>
+> =>
+  goRequest<{
+    item: Pick<OfflineStockAdjustmentDTO, "id" | "status" | "reviewedAt" | "resolutionNote">;
+  }>(`inventory/offline-adjustments/${id}/resolve`, {
     method: "POST",
     body: { note },
   });

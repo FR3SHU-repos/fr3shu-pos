@@ -14,7 +14,12 @@ interface CustomerBlockProps {
 /** "Who is buying?": KOMOLA buyer (by code) or walk-in customer details. */
 export function CustomerBlock({ buyer, t }: CustomerBlockProps) {
   const { customer, dispatch, findBuyer, attachScannedBuyer } = buyer;
-  const { guest: guestCustomer, resolved: resolvedBuyer, buyerCode, resolving: resolvingBuyer } = customer;
+  const {
+    guest: guestCustomer,
+    resolved: resolvedBuyer,
+    buyerCode,
+    resolving: resolvingBuyer,
+  } = customer;
 
   return (
     <div className="space-y-3 rounded-3xl bg-surface-muted p-4">
@@ -56,21 +61,32 @@ export function CustomerBlock({ buyer, t }: CustomerBlockProps) {
               disabled={resolvingBuyer || !buyerCode.trim()}
               className={`${ghostBtnCls} shrink-0 px-3`}
             >
-              {resolvingBuyer ? <Loader2 className="h-4 w-4 animate-spin" /> : <UserRoundSearch className="h-4 w-4" />}
+              {resolvingBuyer ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <UserRoundSearch className="h-4 w-4" />
+              )}
               Find
             </button>
             <BuyerQrScanner disabled={resolvingBuyer} onScan={attachScannedBuyer} />
           </div>
           {resolvedBuyer ? (
             <p className="rounded-lg bg-status-success-surface px-3 py-2 text-xs font-medium text-status-success">
-              {resolvedBuyer.displayName} is attached. Their receipt and rewards will update when the sale is confirmed.
+              {resolvedBuyer.displayName} is attached. Their receipt and rewards will update when
+              the sale is confirmed.
             </p>
           ) : (
-            <p className="text-xs text-foreground-muted">Enter or scan a valid KOMOLA buyer code. Names and phone numbers cannot verify an account.</p>
+            <p className="text-xs text-foreground-muted">
+              Enter or scan a valid KOMOLA buyer code. Names and phone numbers cannot verify an
+              account.
+            </p>
           )}
         </>
       ) : (
-        <p className="rounded-2xl bg-status-warning-surface px-3 py-2 text-xs text-status-warning">Use this for a customer without a KOMOLA account. The sale is recorded, but the entered details will not earn or attach KOMOLA rewards.</p>
+        <p className="rounded-2xl bg-status-warning-surface px-3 py-2 text-xs text-status-warning">
+          Use this for a customer without a KOMOLA account. The sale is recorded, but the entered
+          details will not earn or attach KOMOLA rewards.
+        </p>
       )}
       <input
         placeholder={t("pos.customer_name")}
@@ -84,7 +100,9 @@ export function CustomerBlock({ buyer, t }: CustomerBlockProps) {
       <input
         placeholder={t("pos.customer_phone")}
         value={customer.phone}
-        onChange={(e) => dispatch({ type: "setPhone", value: e.target.value.replace(/\D/g, "").slice(0, 10) })}
+        onChange={(e) =>
+          dispatch({ type: "setPhone", value: e.target.value.replace(/\D/g, "").slice(0, 10) })
+        }
         className={`${inputCls} !bg-surface-card`}
         inputMode="numeric"
         maxLength={10}

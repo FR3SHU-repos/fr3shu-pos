@@ -7,11 +7,7 @@ import toast from "react-hot-toast";
 import { cardCls, primaryBtnCls } from "@/shared/components/ui";
 import { createAuthBrowserClient } from "@/shared/lib/supabase/auth-client";
 import { ginFetch } from "@/shared/lib/auth/gin";
-import {
-  PasswordField,
-  StrengthMeter,
-  passwordScore,
-} from "@/shared/components/auth/parts";
+import { PasswordField, StrengthMeter, passwordScore } from "@/shared/components/auth/parts";
 
 function ResetInner() {
   const router = useRouter();
@@ -66,9 +62,7 @@ function ResetInner() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-surface px-4">
       <div className={`${cardCls} w-full max-w-sm`}>
-        <h1 className="text-lg font-semibold text-foreground-heading">
-          Set a new password
-        </h1>
+        <h1 className="text-lg font-semibold text-foreground-heading">Set a new password</h1>
         {!ready ? (
           <p className="mt-4 text-sm text-foreground-muted">Checking your link…</p>
         ) : !valid ? (

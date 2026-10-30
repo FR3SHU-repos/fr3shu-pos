@@ -24,27 +24,44 @@ export default function BuyerSetupPage() {
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
-    void createAuthBrowserClient().auth.getUser().then(({ data }) => {
-      const metadata = data.user?.user_metadata as Record<string, unknown> | undefined;
-      const metadataName = typeof metadata?.display_name === "string"
-        ? metadata.display_name
-        : typeof metadata?.full_name === "string"
-          ? metadata.full_name
-          : typeof metadata?.name === "string" ? metadata.name : "";
-      const metadataPhone = typeof data.user?.phone === "string" && data.user.phone
-        ? data.user.phone
-        : typeof metadata?.phone_e164 === "string" ? metadata.phone_e164 : "";
-      if (metadataName.trim()) setName((current) => current || metadataName.trim());
-      if (metadataPhone.trim()) setPhone((current) => current || metadataPhone.replace(/^\+91/, "").replace(/\D/g, "").slice(0, 10));
-    });
+    void createAuthBrowserClient()
+      .auth.getUser()
+      .then(({ data }) => {
+        const metadata = data.user?.user_metadata as Record<string, unknown> | undefined;
+        const metadataName =
+          typeof metadata?.display_name === "string"
+            ? metadata.display_name
+            : typeof metadata?.full_name === "string"
+              ? metadata.full_name
+              : typeof metadata?.name === "string"
+                ? metadata.name
+                : "";
+        const metadataPhone =
+          typeof data.user?.phone === "string" && data.user.phone
+            ? data.user.phone
+            : typeof metadata?.phone_e164 === "string"
+              ? metadata.phone_e164
+              : "";
+        if (metadataName.trim()) setName((current) => current || metadataName.trim());
+        if (metadataPhone.trim())
+          setPhone(
+            (current) =>
+              current || metadataPhone.replace(/^\+91/, "").replace(/\D/g, "").slice(0, 10),
+          );
+      });
     void identityApi.profile().then((result) => {
       const profile = result.data;
       if (!result.success || !profile) return;
       if (profile.displayName.trim()) setName(profile.displayName);
-      const existingPhone = profile.contacts.find((contact) => contact.type === "phone" && contact.primary)
-        ?? profile.contacts.find((contact) => contact.type === "phone");
-      if (existingPhone) setPhone(existingPhone.value.replace(/^\+91/, "").replace(/\D/g, "").slice(0, 10));
-      if (profile.locationCode && LOCALITIES.some((location) => location.code === profile.locationCode)) {
+      const existingPhone =
+        profile.contacts.find((contact) => contact.type === "phone" && contact.primary) ??
+        profile.contacts.find((contact) => contact.type === "phone");
+      if (existingPhone)
+        setPhone(existingPhone.value.replace(/^\+91/, "").replace(/\D/g, "").slice(0, 10));
+      if (
+        profile.locationCode &&
+        LOCALITIES.some((location) => location.code === profile.locationCode)
+      ) {
         setLocationCode(profile.locationCode);
       }
       if (profile.address) {
@@ -70,73 +87,241 @@ export default function BuyerSetupPage() {
       return;
     }
     if (!coreServiceConsent) {
-      setError("Please review the privacy notice and agree to the processing needed for your buyer account.");
+      setError(
+        "Please review the privacy notice and agree to the processing needed for your buyer account.",
+      );
       return;
     }
     setBusy(true);
-    const result = await identityApi.updateProfile(name.trim(), true, phoneE164, locationCode, { line1: line1.trim(), line2: line2.trim(), city: city.trim(), state: state.trim(), postalCode: postalCode.trim(), country: "India" });
+    const result = await identityApi.updateProfile(name.trim(), true, phoneE164, locationCode, {
+      line1: line1.trim(),
+      line2: line2.trim(),
+      city: city.trim(),
+      state: state.trim(),
+      postalCode: postalCode.trim(),
+      country: "India",
+    });
     if (!result.success) {
       setBusy(false);
-      setError(result.status === 409 ? "This mobile number is already linked to another KOMOLA account." : result.message);
+      setError(
+        result.status === 409
+          ? "This mobile number is already linked to another KOMOLA account."
+          : result.message,
+      );
       return;
     }
     const coreConsent = await identityApi.recordPrivacyConsent("core_service", true);
-    const intelligenceConsent = await identityApi.recordPrivacyConsent("market_intelligence", marketIntelligenceConsent);
+    const intelligenceConsent = await identityApi.recordPrivacyConsent(
+      "market_intelligence",
+      marketIntelligenceConsent,
+    );
     setBusy(false);
     if (!coreConsent.success || !intelligenceConsent.success) {
-      setError("Your profile was saved, but we could not record your privacy choices. Please try again.");
+      setError(
+        "Your profile was saved, but we could not record your privacy choices. Please try again.",
+      );
       return;
     }
     router.replace("/buyer");
   }
 
-  return <main className="flex min-h-screen items-center justify-center bg-background p-4 pb-32 xl:pb-4">
-    <form onSubmit={submit} className={`${cardCls} w-full max-w-md space-y-5`}>
-      <div>
-        <p className="font-semibold text-primary">Buyer profile</p>
-        <h1 className="mt-1 text-2xl font-semibold">Your details</h1>
-        <p className="mt-2 text-sm text-foreground-muted">Sellers use these details to attach receipts and rewards to your account. Guest purchases recorded with this mobile number become available after you verify the number through KOMOLA sign-in.</p>
-      </div>
-      <div>
-        <label className="block text-sm font-semibold" htmlFor="buyer-name">Full name <span className="text-primary">*</span></label>
-        <input id="buyer-name" className={inputCls} value={name} onChange={(event) => setName(event.target.value)} required minLength={2} autoComplete="name" />
-      </div>
-      <div>
-        <label className="block text-sm font-semibold" htmlFor="buyer-phone">Mobile number <span className="text-primary">*</span></label>
-        <input id="buyer-phone" className={inputCls} type="tel" inputMode="numeric" autoComplete="tel-national" placeholder="98765 43210" maxLength={10} pattern="[6-9][0-9]{9}" value={phone} onChange={(event) => setPhone(event.target.value.replace(/\D/g, "").slice(0, 10))} required />
-        <p className="mt-1.5 text-xs text-foreground-muted">Enter 10 digits. This number is used for seller contact, sign-in, and rewards.</p>
-      </div>
-      <div>
-        <label className="block text-sm font-semibold" htmlFor="buyer-location">Location <span className="text-primary">*</span></label>
-        <select id="buyer-location" className={inputCls} value={locationCode} onChange={(event) => {
-          setLocationCode(event.target.value);
-          const selected = LOCALITIES.find((location) => location.code === event.target.value);
-          if (selected) setCity(selected.name);
-        }} required>
-          {LOCALITIES.map((location) => <option key={location.code} value={location.code}>{location.name}</option>)}
-        </select>
-        <p className="mt-1.5 text-xs text-foreground-muted">You will see rewards and offers enabled for this location.</p>
-      </div>
-      <fieldset className="space-y-4 rounded-2xl bg-surface-muted p-4">
-        <legend className="px-1 text-sm font-semibold">Address <span className="text-primary">*</span></legend>
-        <div><label className="block text-sm font-semibold" htmlFor="buyer-line1">Address line 1 <span className="text-primary">*</span></label><input id="buyer-line1" className={inputCls} value={line1} onChange={(event) => setLine1(event.target.value)} autoComplete="address-line1" required /></div>
-        <div><label className="block text-sm font-semibold" htmlFor="buyer-line2">Address line 2 <span className="text-xs font-normal text-foreground-muted">(optional)</span></label><input id="buyer-line2" className={inputCls} value={line2} onChange={(event) => setLine2(event.target.value)} autoComplete="address-line2" /></div>
-        <div className="grid gap-4 sm:grid-cols-2"><div><label className="block text-sm font-semibold" htmlFor="buyer-city">City <span className="text-primary">*</span></label><input id="buyer-city" className={inputCls} value={city} onChange={(event) => setCity(event.target.value)} autoComplete="address-level2" required /></div><div><label className="block text-sm font-semibold" htmlFor="buyer-state">State <span className="text-primary">*</span></label><input id="buyer-state" className={inputCls} value={state} onChange={(event) => setState(event.target.value)} autoComplete="address-level1" required /></div></div>
-        <div><label className="block text-sm font-semibold" htmlFor="buyer-postal-code">PIN code <span className="text-primary">*</span></label><input id="buyer-postal-code" className={inputCls} value={postalCode} onChange={(event) => setPostalCode(event.target.value.replace(/\D/g, "").slice(0, 6))} inputMode="numeric" autoComplete="postal-code" maxLength={6} required /></div>
-      </fieldset>
-      <fieldset className="space-y-3 rounded-2xl bg-surface-muted bg-surface p-4">
-        <legend className="px-1 text-sm font-semibold">Privacy choices</legend>
-        <label className="flex items-start gap-3 text-sm text-foreground-muted">
-          <input type="checkbox" className="mt-1 h-4 w-4 accent-primary" checked={coreServiceConsent} onChange={(event) => setCoreServiceConsent(event.target.checked)} required />
-          <span>I agree that KOMOLA may use my name, mobile number, location, and address to create my buyer account, connect purchases, issue receipts and rewards, show location-based offers, and fulfill reward claims. <a href="/privacy" target="_blank" rel="noreferrer" className="font-semibold text-primary underline">Read the privacy notice</a>. <span className="text-primary">*</span></span>
-        </label>
-        <label className="flex items-start gap-3 text-sm text-foreground-muted">
-          <input type="checkbox" className="mt-1 h-4 w-4 accent-primary" checked={marketIntelligenceConsent} onChange={(event) => setMarketIntelligenceConsent(event.target.checked)} />
-          <span>I allow KOMOLA to use pseudonymised purchase and location patterns to build aggregated agricultural market insights and improve the service. This is optional and can be withdrawn later.</span>
-        </label>
-      </fieldset>
-      {error && <p role="alert" className="rounded-lg bg-status-danger-surface p-3 text-sm text-status-danger">{error}</p>}
-      <button className={`${primaryBtnCls} min-h-12 w-full`} disabled={busy}>{busy ? "Saving…" : "Save and continue"}</button>
-    </form>
-  </main>;
+  return (
+    <main className="flex min-h-screen items-center justify-center bg-background p-4 pb-32 xl:pb-4">
+      <form onSubmit={submit} className={`${cardCls} w-full max-w-md space-y-5`}>
+        <div>
+          <p className="font-semibold text-primary">Buyer profile</p>
+          <h1 className="mt-1 text-2xl font-semibold">Your details</h1>
+          <p className="mt-2 text-sm text-foreground-muted">
+            Sellers use these details to attach receipts and rewards to your account. Guest
+            purchases recorded with this mobile number become available after you verify the number
+            through KOMOLA sign-in.
+          </p>
+        </div>
+        <div>
+          <label className="block text-sm font-semibold" htmlFor="buyer-name">
+            Full name <span className="text-primary">*</span>
+          </label>
+          <input
+            id="buyer-name"
+            className={inputCls}
+            value={name}
+            onChange={(event) => setName(event.target.value)}
+            required
+            minLength={2}
+            autoComplete="name"
+          />
+        </div>
+        <div>
+          <label className="block text-sm font-semibold" htmlFor="buyer-phone">
+            Mobile number <span className="text-primary">*</span>
+          </label>
+          <input
+            id="buyer-phone"
+            className={inputCls}
+            type="tel"
+            inputMode="numeric"
+            autoComplete="tel-national"
+            placeholder="98765 43210"
+            maxLength={10}
+            pattern="[6-9][0-9]{9}"
+            value={phone}
+            onChange={(event) => setPhone(event.target.value.replace(/\D/g, "").slice(0, 10))}
+            required
+          />
+          <p className="mt-1.5 text-xs text-foreground-muted">
+            Enter 10 digits. This number is used for seller contact, sign-in, and rewards.
+          </p>
+        </div>
+        <div>
+          <label className="block text-sm font-semibold" htmlFor="buyer-location">
+            Location <span className="text-primary">*</span>
+          </label>
+          <select
+            id="buyer-location"
+            className={inputCls}
+            value={locationCode}
+            onChange={(event) => {
+              setLocationCode(event.target.value);
+              const selected = LOCALITIES.find((location) => location.code === event.target.value);
+              if (selected) setCity(selected.name);
+            }}
+            required
+          >
+            {LOCALITIES.map((location) => (
+              <option key={location.code} value={location.code}>
+                {location.name}
+              </option>
+            ))}
+          </select>
+          <p className="mt-1.5 text-xs text-foreground-muted">
+            You will see rewards and offers enabled for this location.
+          </p>
+        </div>
+        <fieldset className="space-y-4 rounded-2xl bg-surface-muted p-4">
+          <legend className="px-1 text-sm font-semibold">
+            Address <span className="text-primary">*</span>
+          </legend>
+          <div>
+            <label className="block text-sm font-semibold" htmlFor="buyer-line1">
+              Address line 1 <span className="text-primary">*</span>
+            </label>
+            <input
+              id="buyer-line1"
+              className={inputCls}
+              value={line1}
+              onChange={(event) => setLine1(event.target.value)}
+              autoComplete="address-line1"
+              required
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-semibold" htmlFor="buyer-line2">
+              Address line 2{" "}
+              <span className="text-xs font-normal text-foreground-muted">(optional)</span>
+            </label>
+            <input
+              id="buyer-line2"
+              className={inputCls}
+              value={line2}
+              onChange={(event) => setLine2(event.target.value)}
+              autoComplete="address-line2"
+            />
+          </div>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div>
+              <label className="block text-sm font-semibold" htmlFor="buyer-city">
+                City <span className="text-primary">*</span>
+              </label>
+              <input
+                id="buyer-city"
+                className={inputCls}
+                value={city}
+                onChange={(event) => setCity(event.target.value)}
+                autoComplete="address-level2"
+                required
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-semibold" htmlFor="buyer-state">
+                State <span className="text-primary">*</span>
+              </label>
+              <input
+                id="buyer-state"
+                className={inputCls}
+                value={state}
+                onChange={(event) => setState(event.target.value)}
+                autoComplete="address-level1"
+                required
+              />
+            </div>
+          </div>
+          <div>
+            <label className="block text-sm font-semibold" htmlFor="buyer-postal-code">
+              PIN code <span className="text-primary">*</span>
+            </label>
+            <input
+              id="buyer-postal-code"
+              className={inputCls}
+              value={postalCode}
+              onChange={(event) => setPostalCode(event.target.value.replace(/\D/g, "").slice(0, 6))}
+              inputMode="numeric"
+              autoComplete="postal-code"
+              maxLength={6}
+              required
+            />
+          </div>
+        </fieldset>
+        <fieldset className="space-y-3 rounded-2xl bg-surface-muted bg-surface p-4">
+          <legend className="px-1 text-sm font-semibold">Privacy choices</legend>
+          <label className="flex items-start gap-3 text-sm text-foreground-muted">
+            <input
+              type="checkbox"
+              className="mt-1 h-4 w-4 accent-primary"
+              checked={coreServiceConsent}
+              onChange={(event) => setCoreServiceConsent(event.target.checked)}
+              required
+            />
+            <span>
+              I agree that KOMOLA may use my name, mobile number, location, and address to create my
+              buyer account, connect purchases, issue receipts and rewards, show location-based
+              offers, and fulfill reward claims.{" "}
+              <a
+                href="/privacy"
+                target="_blank"
+                rel="noreferrer"
+                className="font-semibold text-primary underline"
+              >
+                Read the privacy notice
+              </a>
+              . <span className="text-primary">*</span>
+            </span>
+          </label>
+          <label className="flex items-start gap-3 text-sm text-foreground-muted">
+            <input
+              type="checkbox"
+              className="mt-1 h-4 w-4 accent-primary"
+              checked={marketIntelligenceConsent}
+              onChange={(event) => setMarketIntelligenceConsent(event.target.checked)}
+            />
+            <span>
+              I allow KOMOLA to use pseudonymised purchase and location patterns to build aggregated
+              agricultural market insights and improve the service. This is optional and can be
+              withdrawn later.
+            </span>
+          </label>
+        </fieldset>
+        {error && (
+          <p
+            role="alert"
+            className="rounded-lg bg-status-danger-surface p-3 text-sm text-status-danger"
+          >
+            {error}
+          </p>
+        )}
+        <button className={`${primaryBtnCls} min-h-12 w-full`} disabled={busy}>
+          {busy ? "Saving…" : "Save and continue"}
+        </button>
+      </form>
+    </main>
+  );
 }

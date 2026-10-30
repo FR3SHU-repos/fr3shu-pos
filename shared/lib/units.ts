@@ -8,10 +8,35 @@
 
 export type BaseUnit = "g" | "ml" | "count";
 export type SaleUnit = "kg" | "g" | "l" | "ml" | "piece" | "bunch" | "pack";
-export type MeasurementUnit = "kg" | "g" | "l" | "ml" | "count" | "piece" | "each" | "bunch" | "bundle" | "pack" | "packet" | "dozen" | "box";
+export type MeasurementUnit =
+  | "kg"
+  | "g"
+  | "l"
+  | "ml"
+  | "count"
+  | "piece"
+  | "each"
+  | "bunch"
+  | "bundle"
+  | "pack"
+  | "packet"
+  | "dozen"
+  | "box";
 
 export const MEASUREMENT_UNITS: readonly MeasurementUnit[] = [
-  "kg", "g", "l", "ml", "count", "piece", "each", "bunch", "bundle", "pack", "packet", "dozen", "box",
+  "kg",
+  "g",
+  "l",
+  "ml",
+  "count",
+  "piece",
+  "each",
+  "bunch",
+  "bundle",
+  "pack",
+  "packet",
+  "dozen",
+  "box",
 ];
 
 export const MEASUREMENT_UNIT_LABELS: Record<MeasurementUnit, string> = {
@@ -71,10 +96,15 @@ export function measurementMetadata(unit: MeasurementUnit): { baseUnit: BaseUnit
   return MEASUREMENT_UNIT_METADATA[unit];
 }
 
-export function preferredMeasurementUnit(baseUnit: BaseUnit, basePerSaleUnit: number, saleUnit?: string): MeasurementUnit {
+export function preferredMeasurementUnit(
+  baseUnit: BaseUnit,
+  basePerSaleUnit: number,
+  saleUnit?: string,
+): MeasurementUnit {
   if (baseUnit === "g" && basePerSaleUnit >= 1000 && basePerSaleUnit % 1000 === 0) return "kg";
   if (baseUnit === "ml" && basePerSaleUnit >= 1000 && basePerSaleUnit % 1000 === 0) return "l";
-  if (baseUnit === "count" && saleUnit && saleUnit in MEASUREMENT_UNIT_METADATA) return saleUnit as MeasurementUnit;
+  if (baseUnit === "count" && saleUnit && saleUnit in MEASUREMENT_UNIT_METADATA)
+    return saleUnit as MeasurementUnit;
   return baseUnit;
 }
 
@@ -83,35 +113,60 @@ export function measurementValue(basePerSaleUnit: number, unit: MeasurementUnit)
 }
 
 export function formatMeasurementValue(value: number): string {
-  return Number.isInteger(value) ? value.toString() : value.toFixed(3).replace(/0+$/, "").replace(/\.$/, "");
+  return Number.isInteger(value)
+    ? value.toString()
+    : value.toFixed(3).replace(/0+$/, "").replace(/\.$/, "");
 }
 
-export function defaultBaseMetadata(unit: SaleUnit): { baseUnit: BaseUnit; basePerSaleUnit: number } {
+export function defaultBaseMetadata(unit: SaleUnit): {
+  baseUnit: BaseUnit;
+  basePerSaleUnit: number;
+} {
   return { baseUnit: SALE_UNIT_BASE[unit], basePerSaleUnit: BASE_PER_SALE_UNIT[unit] };
 }
 
 /** Convert a quantity expressed in a sale unit into integer base units. */
-export function toBaseQuantity(qty: number, unit: SaleUnit, basePerSaleUnit = BASE_PER_SALE_UNIT[unit]): number {
+export function toBaseQuantity(
+  qty: number,
+  unit: SaleUnit,
+  basePerSaleUnit = BASE_PER_SALE_UNIT[unit],
+): number {
   return Math.round(qty * basePerSaleUnit);
 }
 
 /** Convert an integer base quantity back into a (possibly fractional) sale-unit quantity. */
-export function fromBaseQuantity(qtyBase: number, unit: SaleUnit, basePerSaleUnit = BASE_PER_SALE_UNIT[unit]): number {
+export function fromBaseQuantity(
+  qtyBase: number,
+  unit: SaleUnit,
+  basePerSaleUnit = BASE_PER_SALE_UNIT[unit],
+): number {
   return qtyBase / basePerSaleUnit;
 }
 
 /** Human label for a base quantity in a given sale unit, e.g. 1500 g as "kg" -> "1.5 kg". */
-export function formatBaseQuantity(qtyBase: number, unit: SaleUnit, basePerSaleUnit = BASE_PER_SALE_UNIT[unit]): string {
+export function formatBaseQuantity(
+  qtyBase: number,
+  unit: SaleUnit,
+  basePerSaleUnit = BASE_PER_SALE_UNIT[unit],
+): string {
   const v = fromBaseQuantity(qtyBase, unit, basePerSaleUnit);
-  const rounded = Number.isInteger(v) ? v.toString() : v.toFixed(3).replace(/0+$/, "").replace(/\.$/, "");
+  const rounded = Number.isInteger(v)
+    ? v.toString()
+    : v.toFixed(3).replace(/0+$/, "").replace(/\.$/, "");
   return `${rounded} ${unit}`;
 }
 
 /** Human label for a configurable pack, e.g. "2 units × 250 g". */
-export function formatPackQuantity(qtyBase: number, baseUnit: BaseUnit, basePerSaleUnit: number): string {
+export function formatPackQuantity(
+  qtyBase: number,
+  baseUnit: BaseUnit,
+  basePerSaleUnit: number,
+): string {
   if (basePerSaleUnit <= 0) return "0 units";
   const units = fromBaseQuantity(qtyBase, "pack", basePerSaleUnit);
-  const roundedUnits = Number.isInteger(units) ? units.toString() : units.toFixed(3).replace(/0+$/, "").replace(/\.$/, "");
+  const roundedUnits = Number.isInteger(units)
+    ? units.toString()
+    : units.toFixed(3).replace(/0+$/, "").replace(/\.$/, "");
   return `${roundedUnits} units × ${basePerSaleUnit} ${baseUnit}`;
 }
 
@@ -119,7 +174,9 @@ export function formatPackQuantity(qtyBase: number, baseUnit: BaseUnit, basePerS
 export function formatProductUnitCount(qtyBase: number, basePerSaleUnit = 1): string {
   if (basePerSaleUnit <= 0) return "0 units";
   const units = qtyBase / basePerSaleUnit;
-  const rounded = Number.isInteger(units) ? units.toString() : units.toFixed(3).replace(/0+$/, "").replace(/\.$/, "");
+  const rounded = Number.isInteger(units)
+    ? units.toString()
+    : units.toFixed(3).replace(/0+$/, "").replace(/\.$/, "");
   return `${rounded} units`;
 }
 

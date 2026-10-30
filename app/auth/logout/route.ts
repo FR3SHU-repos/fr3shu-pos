@@ -14,7 +14,11 @@ export async function POST(request: NextRequest) {
     },
   );
   for (const cookie of request.cookies.getAll()) {
-    if (cookie.name.startsWith("sb-") || cookie.name === "token" || cookie.name === "komola_auth_intent") {
+    if (
+      cookie.name.startsWith("sb-") ||
+      cookie.name === "token" ||
+      cookie.name === "komola_auth_intent"
+    ) {
       response.cookies.set(cookie.name, "", { path: "/", maxAge: 0, expires: new Date(0) });
     }
   }

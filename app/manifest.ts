@@ -5,8 +5,7 @@ export default function manifest(): MetadataRoute.Manifest {
     id: "/",
     name: "KOMOLA — Agri-tech rewards",
     short_name: "KOMOLA",
-    description:
-      "Agri-tech POS for sellers and rewards for buyers of agricultural products.",
+    description: "Agri-tech POS for sellers and rewards for buyers of agricultural products.",
     start_url: "/pos",
     scope: "/",
     display: "standalone",

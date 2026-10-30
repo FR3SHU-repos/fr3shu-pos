@@ -26,7 +26,12 @@ describe("addProductToLines", () => {
     const r = addProductToLines([], product(), false);
     expect(r.error).toBeUndefined();
     expect(r.lines).toHaveLength(1);
-    expect(r.lines[0]).toMatchObject({ qty: 1, saleUnit: "kg", unitPricePaise: 6000, discountPaise: 0 });
+    expect(r.lines[0]).toMatchObject({
+      qty: 1,
+      saleUnit: "kg",
+      unitPricePaise: 6000,
+      discountPaise: 0,
+    });
   });
 
   it("bumps the quantity of an existing line", () => {
@@ -38,7 +43,10 @@ describe("addProductToLines", () => {
 
   it("refuses out-of-stock products online but allows them offline", () => {
     const oos = product({ availableBase: 0 });
-    expect(addProductToLines([], oos, false)).toMatchObject({ lines: [], error: "This product is out of stock" });
+    expect(addProductToLines([], oos, false)).toMatchObject({
+      lines: [],
+      error: "This product is out of stock",
+    });
     expect(addProductToLines([], oos, true).lines).toHaveLength(1);
   });
 

@@ -7,7 +7,15 @@ import next from "eslint-config-next";
 const eslintConfig = [
   ...next,
   {
-    ignores: [".next/**", ".netlify/**", "node_modules/**", "next-env.d.ts", "coverage/**"],
+    ignores: [
+      ".next/**",
+      ".netlify/**",
+      "e2e/**",
+      "playwright.config.ts",
+      "node_modules/**",
+      "next-env.d.ts",
+      "coverage/**",
+    ],
   },
   {
     // Scoped to the same files eslint-config-next lints, so the react-hooks

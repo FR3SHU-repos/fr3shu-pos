@@ -12,14 +12,19 @@ const DISMISSED_KEY = "komola:pwa-install-dismissed:v1";
 
 function isStandalone(): boolean {
   if (typeof window === "undefined") return false;
-  return window.matchMedia("(display-mode: standalone)").matches ||
-    ("standalone" in navigator && Boolean((navigator as Navigator & { standalone?: boolean }).standalone));
+  return (
+    window.matchMedia("(display-mode: standalone)").matches ||
+    ("standalone" in navigator &&
+      Boolean((navigator as Navigator & { standalone?: boolean }).standalone))
+  );
 }
 
 function isAppleMobile(): boolean {
   if (typeof navigator === "undefined") return false;
-  return /iPad|iPhone|iPod/.test(navigator.userAgent) ||
-    (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+  return (
+    /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+    (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1)
+  );
 }
 
 export function PwaInstallPrompt() {
@@ -91,23 +96,39 @@ export function PwaInstallPrompt() {
         <p className="font-semibold text-foreground-heading">Install KOMOLA POS</p>
         {appleMobile ? (
           <p className="mt-1 text-foreground-muted">
-            Tap <Share2 className="mx-0.5 inline h-4 w-4 align-text-bottom" aria-hidden="true" /> Share, then choose <strong>Add to Home Screen</strong>.
+            Tap <Share2 className="mx-0.5 inline h-4 w-4 align-text-bottom" aria-hidden="true" />{" "}
+            Share, then choose <strong>Add to Home Screen</strong>.
           </p>
         ) : (
-          <p className="mt-1 text-foreground-muted">Open POS faster in its own app window on this device.</p>
+          <p className="mt-1 text-foreground-muted">
+            Open POS faster in its own app window on this device.
+          </p>
         )}
         <div className="mt-3 flex flex-wrap gap-2">
           {installEvent ? (
-            <button type="button" onClick={() => void install()} className="rounded-lg bg-primary px-3 py-2 font-semibold text-primary-foreground hover:bg-primary-hover">
+            <button
+              type="button"
+              onClick={() => void install()}
+              className="rounded-lg bg-primary px-3 py-2 font-semibold text-primary-foreground hover:bg-primary-hover"
+            >
               Install app
             </button>
           ) : null}
-          <button type="button" onClick={dismiss} className="rounded-lg border border-border bg-surface-card px-3 py-2 font-medium text-foreground-body hover:bg-surface">
+          <button
+            type="button"
+            onClick={dismiss}
+            className="rounded-lg border border-border bg-surface-card px-3 py-2 font-medium text-foreground-body hover:bg-surface"
+          >
             Not now
           </button>
         </div>
       </div>
-      <button type="button" onClick={dismiss} aria-label="Dismiss install message" className="rounded-lg p-1 text-foreground-muted hover:bg-surface-card hover:text-foreground-body">
+      <button
+        type="button"
+        onClick={dismiss}
+        aria-label="Dismiss install message"
+        className="rounded-lg p-1 text-foreground-muted hover:bg-surface-card hover:text-foreground-body"
+      >
         <X className="h-4 w-4" aria-hidden="true" />
       </button>
     </aside>

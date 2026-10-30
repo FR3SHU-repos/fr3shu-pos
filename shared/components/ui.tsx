@@ -102,7 +102,10 @@ export function ErrorState({
   onRetry?: () => void;
 }) {
   return (
-    <div role="alert" className="flex flex-col items-center justify-center rounded-3xl bg-surface-card px-6 py-12 text-center">
+    <div
+      role="alert"
+      className="flex flex-col items-center justify-center rounded-3xl bg-surface-card px-6 py-12 text-center"
+    >
       <p className="text-sm font-semibold text-foreground-heading">{title}</p>
       {message ? <p className="mt-1 max-w-sm text-sm text-foreground-muted">{message}</p> : null}
       {onRetry ? (

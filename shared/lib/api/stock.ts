@@ -30,7 +30,8 @@ export const add = async (body: AddStockBody): Promise<ApiResult<AddStockResult>
       data: null,
       status: 0,
       code: "offline_unavailable",
-      message: "Connect to the internet to update stock. Offline stock changes are disabled so inventory stays consistent.",
+      message:
+        "Connect to the internet to update stock. Offline stock changes are disabled so inventory stays consistent.",
     };
   }
   return goRequest<AddStockResult>("inventory/receipts", { method: "POST", body });

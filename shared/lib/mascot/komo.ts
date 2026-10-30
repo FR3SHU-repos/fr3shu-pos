@@ -26,4 +26,3 @@ export const komoAssets = {
 } as const;
 
 export type KomoAction = keyof typeof komoAssets;
-

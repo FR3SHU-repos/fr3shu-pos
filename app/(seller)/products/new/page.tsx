@@ -9,12 +9,7 @@ import type { Producer, SupplierDTO } from "@/shared/lib/api/products";
 import { CATEGORY_LIST, type CategorySlug } from "@/shared/lib/catalogue-categories";
 import { defaultBaseMetadata, type BaseUnit, type SaleUnit } from "@/shared/lib/units";
 import { rupeesToPaise } from "@/shared/lib/money";
-import {
-  cardCls,
-  ghostBtnCls,
-  inputCls,
-  primaryBtnCls,
-} from "@/shared/components/ui";
+import { cardCls, ghostBtnCls, inputCls, primaryBtnCls } from "@/shared/components/ui";
 import { ProducerFields, toProducerPayload } from "@/shared/components/products/ProducerFields";
 import { uploadProductImage } from "@/shared/lib/supabase/product-images";
 
@@ -49,19 +44,22 @@ export default function NewProductPage() {
 
   useEffect(() => {
     let cancelled = false;
-    const updateOnline = () => setOnline(typeof navigator === "undefined" ? true : navigator.onLine);
+    const updateOnline = () =>
+      setOnline(typeof navigator === "undefined" ? true : navigator.onLine);
     updateOnline();
     window.addEventListener("online", updateOnline);
     window.addEventListener("offline", updateOnline);
 
-    void suppliersApi.list()
+    void suppliersApi
+      .list()
       .then((res) => {
         if (cancelled) return;
         if (res.success && res.data) setSuppliers(res.data.items);
         else toast.error(res.message);
       })
       .catch((error: unknown) => {
-        if (!cancelled) toast.error(error instanceof Error ? error.message : "Could not load suppliers.");
+        if (!cancelled)
+          toast.error(error instanceof Error ? error.message : "Could not load suppliers.");
       });
 
     return () => {
@@ -76,20 +74,28 @@ export default function NewProductPage() {
 
   function selectSaleUnit(unit: SaleUnit) {
     const defaults = defaultBaseMetadata(unit);
-    setForm((f) => ({ ...f, saleUnit: unit, baseUnit: defaults.baseUnit, basePerSaleUnit: String(defaults.basePerSaleUnit) }));
+    setForm((f) => ({
+      ...f,
+      saleUnit: unit,
+      baseUnit: defaults.baseUnit,
+      basePerSaleUnit: String(defaults.basePerSaleUnit),
+    }));
   }
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (busy) return;
     if (!online) {
-      toast.error("Connect to the internet to create products. Offline product creation is disabled.");
+      toast.error(
+        "Connect to the internet to create products. Offline product creation is disabled.",
+      );
       return;
     }
     setBusy(true);
     let imageUrl: string | undefined;
     try {
-      const categoryName = CATEGORY_LIST.find((c) => c.slug === form.categorySlug)?.name ?? "uncategorized";
+      const categoryName =
+        CATEGORY_LIST.find((c) => c.slug === form.categorySlug)?.name ?? "uncategorized";
       if (image) imageUrl = await uploadProductImage(image, categoryName);
     } catch (error) {
       setBusy(false);
@@ -120,8 +126,12 @@ export default function NewProductPage() {
     <div className="mx-auto max-w-xl space-y-5 pb-24">
       <h1 className="text-xl font-semibold text-foreground-heading">New agri product</h1>
       {!online ? (
-        <p role="status" className="rounded-xl border border-status-warning/40 bg-status-warning-surface p-3 text-sm text-status-warning">
-          Product creation is unavailable offline. Reconnect to upload this product to the shared catalogue.
+        <p
+          role="status"
+          className="rounded-xl border border-status-warning/40 bg-status-warning-surface p-3 text-sm text-status-warning"
+        >
+          Product creation is unavailable offline. Reconnect to upload this product to the shared
+          catalogue.
         </p>
       ) : null}
 
@@ -211,8 +221,15 @@ export default function NewProductPage() {
 
         <div>
           <Label>Product image (optional)</Label>
-          <input type="file" accept="image/jpeg,image/png,image/webp" onChange={(e) => setImage(e.target.files?.[0] ?? null)} className={inputCls} />
-          <p className="mt-1 text-xs text-foreground-muted">JPG, PNG, or WebP up to 5 MB. Stored under the selected category.</p>
+          <input
+            type="file"
+            accept="image/jpeg,image/png,image/webp"
+            onChange={(e) => setImage(e.target.files?.[0] ?? null)}
+            className={inputCls}
+          />
+          <p className="mt-1 text-xs text-foreground-muted">
+            JPG, PNG, or WebP up to 5 MB. Stored under the selected category.
+          </p>
         </div>
 
         <div className="flex gap-2 pt-2">

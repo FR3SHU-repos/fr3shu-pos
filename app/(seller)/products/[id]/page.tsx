@@ -9,7 +9,14 @@ import { productsApi, suppliersApi } from "@/shared/lib/api";
 import type { Producer, ProductDTO, SupplierDTO } from "@/shared/lib/api/products";
 import { rupeesToPaise, paiseToRupees } from "@/shared/lib/money";
 import { defaultBaseMetadata, type BaseUnit, type SaleUnit } from "@/shared/lib/units";
-import { cardCls, ghostBtnCls, inputCls, primaryBtnCls, Skeleton, StatusBadge } from "@/shared/components/ui";
+import {
+  cardCls,
+  ghostBtnCls,
+  inputCls,
+  primaryBtnCls,
+  Skeleton,
+  StatusBadge,
+} from "@/shared/components/ui";
 import { ProducerFields, toProducerPayload } from "@/shared/components/products/ProducerFields";
 import { uploadProductImage } from "@/shared/lib/supabase/product-images";
 
@@ -35,7 +42,8 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
   const [saleUnit, setSaleUnit] = useState<SaleUnit>("piece");
   const [baseUnit, setBaseUnit] = useState<BaseUnit>("count");
   const [basePerSaleUnit, setBasePerSaleUnit] = useState("1");
-  const [organicStatus, setOrganicStatus] = useState<(typeof ORGANIC)[number]>("PendingVerification");
+  const [organicStatus, setOrganicStatus] =
+    useState<(typeof ORGANIC)[number]>("PendingVerification");
   const [status, setStatus] = useState<"active" | "inactive" | "archived">("active");
   const [producer, setProducer] = useState<Producer>({ kind: "self" });
   const [suppliers, setSuppliers] = useState<SupplierDTO[]>([]);
@@ -46,17 +54,20 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
     let cancelled = false;
     setLoading(true);
 
-    void suppliersApi.list()
+    void suppliersApi
+      .list()
       .then((res) => {
         if (cancelled) return;
         if (res.success && res.data) setSuppliers(res.data.items);
         else toast.error(res.message);
       })
       .catch((error: unknown) => {
-        if (!cancelled) toast.error(error instanceof Error ? error.message : "Could not load suppliers.");
+        if (!cancelled)
+          toast.error(error instanceof Error ? error.message : "Could not load suppliers.");
       });
 
-    void productsApi.get(id)
+    void productsApi
+      .get(id)
       .then((res) => {
         if (cancelled) return;
         if (res.success && res.data) {
@@ -82,7 +93,8 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
         }
       })
       .catch((error: unknown) => {
-        if (!cancelled) toast.error(error instanceof Error ? error.message : "Could not load product.");
+        if (!cancelled)
+          toast.error(error instanceof Error ? error.message : "Could not load product.");
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
@@ -134,7 +146,9 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
   }
 
   async function copyProductLink() {
-    await navigator.clipboard.writeText(`${window.location.origin}/products/${product?.slug ?? id}`);
+    await navigator.clipboard.writeText(
+      `${window.location.origin}/products/${product?.slug ?? id}`,
+    );
     setCopied(true);
     window.setTimeout(() => setCopied(false), 1800);
   }
@@ -151,36 +165,80 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
             SKU {product.sku}
             {product.barcode ? ` · barcode ${product.barcode}` : ""} · {saleUnit}
           </p>
-          <p className="mt-1 text-xs text-foreground-muted">Product link: /products/{product.slug}</p>
+          <p className="mt-1 text-xs text-foreground-muted">
+            Product link: /products/{product.slug}
+          </p>
         </div>
         <StatusBadge status={product.organicStatus} />
       </header>
 
       <form onSubmit={save} className={`${cardCls} space-y-4`}>
         <div className="grid gap-4 sm:grid-cols-[160px_1fr] sm:items-start">
-          {product.imageUrl ? <Image src={product.imageUrl} alt={product.name} width={160} height={160} unoptimized className="h-40 w-40 rounded-xl object-cover ring-1 ring-border" /> : <div className="flex h-40 w-40 items-center justify-center rounded-xl border border-dashed border-border text-center text-sm text-foreground-muted">No product image yet</div>}
+          {product.imageUrl ? (
+            <Image
+              src={product.imageUrl}
+              alt={product.name}
+              width={160}
+              height={160}
+              unoptimized
+              className="h-40 w-40 rounded-xl object-cover ring-1 ring-border"
+            />
+          ) : (
+            <div className="flex h-40 w-40 items-center justify-center rounded-xl border border-dashed border-border text-center text-sm text-foreground-muted">
+              No product image yet
+            </div>
+          )}
           <div>
-            <label className="mb-1 block text-xs font-medium text-foreground-body">Product image</label>
-            <input type="file" accept="image/jpeg,image/png,image/webp" onChange={(e) => setImage(e.target.files?.[0] ?? null)} className={`${inputCls} w-full`} />
-            <p className="mt-1 text-xs text-foreground-muted">Optional · JPG, PNG, or WebP up to 5 MB.</p>
+            <label className="mb-1 block text-xs font-medium text-foreground-body">
+              Product image
+            </label>
+            <input
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              onChange={(e) => setImage(e.target.files?.[0] ?? null)}
+              className={`${inputCls} w-full`}
+            />
+            <p className="mt-1 text-xs text-foreground-muted">
+              Optional · JPG, PNG, or WebP up to 5 MB.
+            </p>
           </div>
         </div>
 
         <div className="grid gap-4 sm:grid-cols-3">
           <div>
-            <label className="mb-1 block text-xs font-medium text-foreground-body">Product unit</label>
-            <select value={saleUnit} onChange={(e) => selectSaleUnit(e.target.value as SaleUnit)} className={inputCls}>
+            <label className="mb-1 block text-xs font-medium text-foreground-body">
+              Product unit
+            </label>
+            <select
+              value={saleUnit}
+              onChange={(e) => selectSaleUnit(e.target.value as SaleUnit)}
+              className={inputCls}
+            >
               {SALE_UNITS.map((unit) => (
-                <option key={unit} value={unit}>{unit}</option>
+                <option key={unit} value={unit}>
+                  {unit}
+                </option>
               ))}
             </select>
           </div>
           <div>
-            <label className="mb-1 block text-xs font-medium text-foreground-body">Weight per unit</label>
-            <input type="number" min="1" step="1" value={basePerSaleUnit} onChange={(e) => setBasePerSaleUnit(e.target.value)} className={inputCls} />
+            <label className="mb-1 block text-xs font-medium text-foreground-body">
+              Weight per unit
+            </label>
+            <input
+              type="number"
+              min="1"
+              step="1"
+              value={basePerSaleUnit}
+              onChange={(e) => setBasePerSaleUnit(e.target.value)}
+              className={inputCls}
+            />
           </div>
         </div>
-        <p className="-mt-2 text-xs text-foreground-muted">Enter how much one product unit represents. Existing stock or sales prevent changing the measurement because it would reinterpret historical quantities.</p>
+        <p className="-mt-2 text-xs text-foreground-muted">
+          Enter how much one product unit represents. Existing stock or sales prevent changing the
+          measurement because it would reinterpret historical quantities.
+        </p>
         <div>
           <label className="mb-1 block text-xs font-medium text-foreground-body">
             Base price (₹ per unit)
@@ -195,7 +253,9 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
           />
         </div>
         <div>
-          <label className="mb-1 block text-xs font-medium text-foreground-body">Organic status</label>
+          <label className="mb-1 block text-xs font-medium text-foreground-body">
+            Organic status
+          </label>
           <select
             value={organicStatus}
             onChange={(e) => setOrganicStatus(e.target.value as (typeof ORGANIC)[number])}

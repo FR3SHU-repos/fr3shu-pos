@@ -46,7 +46,12 @@ export function Pagination({
         className,
       )}
     >
-      <button type="button" className={BTN} disabled={disabled || page <= 1} onClick={() => onPageChange(page - 1)}>
+      <button
+        type="button"
+        className={BTN}
+        disabled={disabled || page <= 1}
+        onClick={() => onPageChange(page - 1)}
+      >
         {chevrons ? <ChevronLeft className="h-4 w-4" aria-hidden /> : null}
         Previous
       </button>
@@ -55,7 +60,12 @@ export function Pagination({
         {pages !== undefined ? ` of ${pages}` : ""}
         {detail ? ` · ${detail}` : ""}
       </span>
-      <button type="button" className={BTN} disabled={disabled || !(hasNext ?? page < (pages ?? 1))} onClick={() => onPageChange(page + 1)}>
+      <button
+        type="button"
+        className={BTN}
+        disabled={disabled || !(hasNext ?? page < (pages ?? 1))}
+        onClick={() => onPageChange(page + 1)}
+      >
         Next
         {chevrons ? <ChevronRight className="h-4 w-4" aria-hidden /> : null}
       </button>

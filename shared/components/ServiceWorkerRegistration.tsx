@@ -26,16 +26,21 @@ export function ServiceWorkerRegistration() {
     };
     const reloadAfterActivation = () => window.location.reload();
     window.addEventListener("komola:pwa-activate-update", activateUpdate);
-    navigator.serviceWorker.addEventListener("controllerchange", reloadAfterActivation, { once: true });
+    navigator.serviceWorker.addEventListener("controllerchange", reloadAfterActivation, {
+      once: true,
+    });
 
     const register = () => {
-      void navigator.serviceWorker.register("/sw.js").then((registration) => {
-        if (disposed) return;
-        watchForUpdates(registration);
-        registration.addEventListener("updatefound", () => watchForUpdates(registration));
-      }).catch(() => {
-        /* The UI still works online if registration is unavailable. */
-      });
+      void navigator.serviceWorker
+        .register("/sw.js")
+        .then((registration) => {
+          if (disposed) return;
+          watchForUpdates(registration);
+          registration.addEventListener("updatefound", () => watchForUpdates(registration));
+        })
+        .catch(() => {
+          /* The UI still works online if registration is unavailable. */
+        });
     };
 
     if (document.readyState === "complete") register();

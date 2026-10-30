@@ -38,9 +38,9 @@ describe("resolveUnitPricePaise", () => {
   });
 
   it("throws when there is no price at all", () => {
-    expect(() =>
-      resolveUnitPricePaise({ _id: "p1", name: "X" }, [], new Date()),
-    ).toThrow(/No active price/);
+    expect(() => resolveUnitPricePaise({ _id: "p1", name: "X" }, [], new Date())).toThrow(
+      /No active price/,
+    );
   });
 });
 

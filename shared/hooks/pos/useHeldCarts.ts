@@ -8,7 +8,11 @@ import type { CartLine, HeldCart } from "@/shared/components/pos/types";
 import { loadHeldCarts, saveHeldCarts } from "@/shared/lib/offline/held-carts";
 import type { OfflineScope } from "@/shared/lib/offline/sales";
 import { formatPaise } from "@/shared/lib/money";
-import { defaultBaseMetadata, measurementValue, preferredMeasurementUnit } from "@/shared/lib/units";
+import {
+  defaultBaseMetadata,
+  measurementValue,
+  preferredMeasurementUnit,
+} from "@/shared/lib/units";
 import { newUuid } from "@/shared/lib/uuid";
 import { lineBasePerSaleUnit, lineBaseUnit, lineUnitPricePaise } from "@/shared/lib/pos/cart-lines";
 
@@ -23,7 +27,14 @@ interface Options {
 }
 
 /** Parked ("held") carts persisted on this device. */
-export function useHeldCarts({ offlineScope, lines, netPaise, catalog, setLines, onHeld }: Options) {
+export function useHeldCarts({
+  offlineScope,
+  lines,
+  netPaise,
+  catalog,
+  setLines,
+  onHeld,
+}: Options) {
   const [held, setHeld] = useState<HeldCart[]>([]);
 
   useEffect(() => {
@@ -32,9 +43,15 @@ export function useHeldCarts({ offlineScope, lines, netPaise, catalog, setLines,
     }
     let current = true;
     void loadHeldCarts(offlineScope)
-      .then((carts) => { if (current) setHeld(carts); })
-      .catch(() => { if (current) toast.error("Held carts could not be loaded on this device."); });
-    return () => { current = false; };
+      .then((carts) => {
+        if (current) setHeld(carts);
+      })
+      .catch(() => {
+        if (current) toast.error("Held carts could not be loaded on this device.");
+      });
+    return () => {
+      current = false;
+    };
   }, [offlineScope]);
 
   async function persistHeld(next: HeldCart[]) {
@@ -81,10 +98,25 @@ export function useHeldCarts({ offlineScope, lines, netPaise, catalog, setLines,
         toast.error("This held cart cannot be resumed until all of its products are available.");
         return;
       }
-      const restoredBaseUnit = l.baseUnit ?? product.baseUnit ?? defaultBaseMetadata(l.saleUnit).baseUnit;
+      const restoredBaseUnit =
+        l.baseUnit ?? product.baseUnit ?? defaultBaseMetadata(l.saleUnit).baseUnit;
       const restoredFactor = l.basePerSaleUnit ?? product.basePerSaleUnit;
-      const restoredMeasurementUnit = l.measurementUnit ?? preferredMeasurementUnit(restoredBaseUnit, restoredFactor, l.saleUnit);
-      restored.push({ key: newUuid(), product, qty: l.qty, saleUnit: l.saleUnit, baseUnit: restoredBaseUnit, basePerSaleUnit: restoredFactor, measurementUnit: restoredMeasurementUnit, measurementValue: l.measurementValue ?? measurementValue(restoredFactor, restoredMeasurementUnit), unitPricePaise: l.unitPricePaise, priceOverridden: l.priceOverridden, discountPaise: l.discountPaise });
+      const restoredMeasurementUnit =
+        l.measurementUnit ?? preferredMeasurementUnit(restoredBaseUnit, restoredFactor, l.saleUnit);
+      restored.push({
+        key: newUuid(),
+        product,
+        qty: l.qty,
+        saleUnit: l.saleUnit,
+        baseUnit: restoredBaseUnit,
+        basePerSaleUnit: restoredFactor,
+        measurementUnit: restoredMeasurementUnit,
+        measurementValue:
+          l.measurementValue ?? measurementValue(restoredFactor, restoredMeasurementUnit),
+        unitPricePaise: l.unitPricePaise,
+        priceOverridden: l.priceOverridden,
+        discountPaise: l.discountPaise,
+      });
     }
     try {
       await persistHeld(held.filter((h) => h.id !== entry.id));

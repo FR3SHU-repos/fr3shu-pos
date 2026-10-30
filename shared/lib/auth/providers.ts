@@ -1,5 +1,6 @@
 export function googleAuthEnabled(
-  value = process.env.NEXT_PUBLIC_KOMOLA_AUTH_GOOGLE_ENABLED ?? process.env.NEXT_PUBLIC_AUTH_GOOGLE_ENABLED,
+  value = process.env.NEXT_PUBLIC_KOMOLA_AUTH_GOOGLE_ENABLED ??
+    process.env.NEXT_PUBLIC_AUTH_GOOGLE_ENABLED,
 ): boolean {
   return value === "true";
 }

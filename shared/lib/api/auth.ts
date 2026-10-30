@@ -23,7 +23,9 @@ export const me = (accessToken?: string): Promise<ApiResult<SessionUser>> =>
 export const logout = async (): Promise<ApiResult<null>> => {
   const { createAuthBrowserClient } = await import("@/shared/lib/supabase/auth-client");
   const { error } = await createAuthBrowserClient().auth.signOut({ scope: "local" });
-  const serverLogout = await fetch("/auth/logout", { method: "POST", cache: "no-store" }).catch(() => null);
+  const serverLogout = await fetch("/auth/logout", { method: "POST", cache: "no-store" }).catch(
+    () => null,
+  );
 
   // Keep compatibility with older API cookie sessions without letting that
   // optional cleanup prevent the Supabase session from being cleared.

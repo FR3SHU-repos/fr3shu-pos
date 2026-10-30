@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import React, { useEffect, useState } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
@@ -50,20 +50,33 @@ function matchActive(pathname: string, href: string) {
   return hit?.href === href;
 }
 
+function subscribeTheme(onChange: () => void) {
+  const observer = new MutationObserver(onChange);
+  observer.observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+  return () => observer.disconnect();
+}
+
+function readTheme(): "dark" | "light" {
+  return document.documentElement.getAttribute("data-theme") === "light" ? "light" : "dark";
+}
+
 export default function SellerShell({ children }: { children: React.ReactNode }) {
   const { user, capabilities, organization, loading, logout } = usePosUser();
   const router = useRouter();
   const pathname = usePathname();
-  const [moreOpen, setMoreOpen] = useState(false);
-  const [theme, setTheme] = useState<"dark" | "light">("dark");
-
-  useEffect(() => {
-    setTheme(document.documentElement.getAttribute("data-theme") === "light" ? "light" : "dark");
-  }, []);
+  // The More menu closes whenever the route changes: remember which path opened it.
+  const [moreOpenPath, setMoreOpenPath] = useState<string | null>(null);
+  const moreOpen = moreOpenPath === pathname;
+  const setMoreOpen = (update: boolean | ((open: boolean) => boolean)) =>
+    setMoreOpenPath((current) => {
+      const next = typeof update === "function" ? update(current === pathname) : update;
+      return next ? pathname : null;
+    });
+  // Theme lives on <html data-theme> (set before hydration by the init script).
+  const theme = useSyncExternalStore(subscribeTheme, readTheme, () => "dark" as const);
 
   function toggleTheme() {
     const next = theme === "dark" ? "light" : "dark";
-    setTheme(next);
     document.documentElement.setAttribute("data-theme", next);
     try {
       localStorage.setItem("komola-theme", next);
@@ -95,10 +108,6 @@ export default function SellerShell({ children }: { children: React.ReactNode })
     const destination = sellerDestination(organization.approvalStatus);
     if (destination && destination !== pathname) router.replace(destination);
   }, [capabilities, loading, organization, pathname, router, user]);
-
-  useEffect(() => {
-    setMoreOpen(false);
-  }, [pathname]);
 
   const nav = (
     <nav className="flex flex-col gap-1">
@@ -135,7 +144,11 @@ export default function SellerShell({ children }: { children: React.ReactNode })
           <p className="mt-2 text-xs text-foreground-muted">Seller workspace</p>
         </div>
         <div className="mt-5 flex-1">{nav}</div>
-        {user ? <UserFooter name={user.name} role={user.role} onLogout={handleLogout} /> : <Skeleton className="h-10 w-full" />}
+        {user ? (
+          <UserFooter name={user.name} role={user.role} onLogout={handleLogout} />
+        ) : (
+          <Skeleton className="h-10 w-full" />
+        )}
       </aside>
 
       {/* Application shell */}
@@ -143,7 +156,6 @@ export default function SellerShell({ children }: { children: React.ReactNode })
         <header className="sticky top-0 z-30 flex items-center justify-between gap-3 bg-background/90 px-4 py-3 backdrop-blur lg:hidden">
           <div className="min-w-0">
             <Brand compact />
-
           </div>
           <button
             type="button"
@@ -156,8 +168,19 @@ export default function SellerShell({ children }: { children: React.ReactNode })
         </header>
 
         <main className="min-w-0 flex-1 bg-background px-4 pb-32 pt-4 sm:p-6 sm:pb-32 lg:p-8 lg:pb-8">
-          {user ? <OfflineSalesSyncWorker key={`sales-sync:${user.id}:${user.orgId}:${user.locationId}`} /> : null}
-          {user ? <OfflineCatalogue key={`catalogue:${user.id}:${user.orgId}:${user.locationId}`} compact active={pathname !== "/offline-operations"} visible={false} /> : null}
+          {user ? (
+            <OfflineSalesSyncWorker
+              key={`sales-sync:${user.id}:${user.orgId}:${user.locationId}`}
+            />
+          ) : null}
+          {user ? (
+            <OfflineCatalogue
+              key={`catalogue:${user.id}:${user.orgId}:${user.locationId}`}
+              compact
+              active={pathname !== "/offline-operations"}
+              visible={false}
+            />
+          ) : null}
           {user ? <PwaStatusBar /> : null}
           {children}
         </main>
@@ -181,8 +204,14 @@ export default function SellerShell({ children }: { children: React.ReactNode })
                 onClick={toggleTheme}
                 className="flex min-h-14 w-full items-center gap-3 rounded-2xl px-3 text-sm font-semibold text-foreground-heading hover:bg-surface-muted"
               >
-                {theme === "dark" ? <Sun className="h-5 w-5 text-foreground-muted" /> : <Moon className="h-5 w-5 text-foreground-muted" />}
-                <span className="flex-1 text-left">{theme === "dark" ? "Light theme" : "Dark theme"}</span>
+                {theme === "dark" ? (
+                  <Sun className="h-5 w-5 text-foreground-muted" />
+                ) : (
+                  <Moon className="h-5 w-5 text-foreground-muted" />
+                )}
+                <span className="flex-1 text-left">
+                  {theme === "dark" ? "Light theme" : "Dark theme"}
+                </span>
               </button>
               <button
                 type="button"
@@ -194,7 +223,10 @@ export default function SellerShell({ children }: { children: React.ReactNode })
               </button>
             </div>
           ) : null}
-          <nav aria-label="Seller navigation" className="safe-area-bottom grid grid-cols-5 bg-surface-card/95 px-2 pt-2 backdrop-blur">
+          <nav
+            aria-label="Seller navigation"
+            className="safe-area-bottom grid grid-cols-5 bg-surface-card/95 px-2 pt-2 backdrop-blur"
+          >
             {mobilePrimaryNav.map(({ href, label, icon: Icon }) => {
               const active = matchActive(pathname, href);
               return (
@@ -242,8 +274,21 @@ export default function SellerShell({ children }: { children: React.ReactNode })
 function Brand({ compact = false }: { compact?: boolean }) {
   return (
     <Link href="/dashboard" className="flex min-w-0 items-center gap-2">
-      <Image src="/komola-logo.png" alt="KOMOLA" width={40} height={40} className={cx("shrink-0 rounded-lg object-cover", compact ? "h-10 w-10" : "h-8 w-8")} />
-      <span className={cx("truncate font-semibold text-foreground-heading", compact ? "text-base" : "text-sm")}>KOMOLA POS</span>
+      <Image
+        src="/komola-logo.png"
+        alt="KOMOLA"
+        width={40}
+        height={40}
+        className={cx("shrink-0 rounded-lg object-cover", compact ? "h-10 w-10" : "h-8 w-8")}
+      />
+      <span
+        className={cx(
+          "truncate font-semibold text-foreground-heading",
+          compact ? "text-base" : "text-sm",
+        )}
+      >
+        KOMOLA POS
+      </span>
     </Link>
   );
 }

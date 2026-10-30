@@ -37,7 +37,12 @@ export function addProductToLines(prev: CartLine[], p: ProductDTO, offline: bool
     const copy = [...prev];
     const next = offline
       ? copy[idx].qty + 1
-      : clampQuantityToStock(copy[idx].qty + 1, copy[idx].saleUnit, p.availableBase, p.basePerSaleUnit);
+      : clampQuantityToStock(
+          copy[idx].qty + 1,
+          copy[idx].saleUnit,
+          p.availableBase,
+          p.basePerSaleUnit,
+        );
     if (!offline && next === copy[idx].qty) {
       return { lines: prev, error: "No more stock is available for this product" };
     }
@@ -47,7 +52,9 @@ export function addProductToLines(prev: CartLine[], p: ProductDTO, offline: bool
   if (!offline && p.availableBase <= 0) {
     return { lines: prev, error: "This product is out of stock" };
   }
-  const initialQty = offline ? 1 : clampQuantityToStock(1, p.saleUnit, p.availableBase, p.basePerSaleUnit);
+  const initialQty = offline
+    ? 1
+    : clampQuantityToStock(1, p.saleUnit, p.availableBase, p.basePerSaleUnit);
   const unit = preferredMeasurementUnit(
     p.baseUnit ?? defaultBaseMetadata(p.saleUnit).baseUnit,
     p.basePerSaleUnit,
@@ -72,26 +79,43 @@ export function addProductToLines(prev: CartLine[], p: ProductDTO, offline: bool
   };
 }
 
-export function setLineQty(prev: CartLine[], key: string, qty: number, offline: boolean): CartLine[] {
+export function setLineQty(
+  prev: CartLine[],
+  key: string,
+  qty: number,
+  offline: boolean,
+): CartLine[] {
   return prev.map((l) =>
     l.key === key
       ? {
           ...l,
           qty: offline
             ? Math.max(0, qty)
-            : clampQuantityToStock(qty, l.saleUnit, l.product.availableBase, lineBasePerSaleUnit(l)),
+            : clampQuantityToStock(
+                qty,
+                l.saleUnit,
+                l.product.availableBase,
+                lineBasePerSaleUnit(l),
+              ),
         }
       : l,
   );
 }
 
-export function setLineUnit(prev: CartLine[], key: string, unit: SaleUnit, offline: boolean): CartLine[] {
+export function setLineUnit(
+  prev: CartLine[],
+  key: string,
+  unit: SaleUnit,
+  offline: boolean,
+): CartLine[] {
   return prev.map((l) =>
     l.key === key
       ? {
           ...l,
           saleUnit: unit,
-          qty: offline ? l.qty : clampQuantityToStock(l.qty, unit, l.product.availableBase, lineBasePerSaleUnit(l)),
+          qty: offline
+            ? l.qty
+            : clampQuantityToStock(l.qty, unit, l.product.availableBase, lineBasePerSaleUnit(l)),
         }
       : l,
   );
@@ -109,17 +133,31 @@ export function setLineMeasurementValue(
   if (!Number.isInteger(basePerSaleUnit) || basePerSaleUnit <= 0) return prev;
   return prev.map((l) =>
     l.key === key && metadata.baseUnit === lineBaseUnit(l)
-      ? { ...l, baseUnit: metadata.baseUnit, basePerSaleUnit, measurementUnit: unit, measurementValue: value }
+      ? {
+          ...l,
+          baseUnit: metadata.baseUnit,
+          basePerSaleUnit,
+          measurementUnit: unit,
+          measurementValue: value,
+        }
       : l,
   );
 }
 
-export function setLineMeasurementUnit(prev: CartLine[], key: string, unit: MeasurementUnit): CartLine[] {
+export function setLineMeasurementUnit(
+  prev: CartLine[],
+  key: string,
+  unit: MeasurementUnit,
+): CartLine[] {
   return prev.map((l) => {
     if (l.key !== key) return l;
     const metadata = measurementMetadata(unit);
     if (metadata.baseUnit !== lineBaseUnit(l)) return l;
-    return { ...l, measurementUnit: unit, measurementValue: measurementValue(lineBasePerSaleUnit(l), unit) };
+    return {
+      ...l,
+      measurementUnit: unit,
+      measurementValue: measurementValue(lineBasePerSaleUnit(l), unit),
+    };
   });
 }
 

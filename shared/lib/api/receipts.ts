@@ -46,7 +46,10 @@ export interface ReceiptPageMeta {
   totalPages: number;
 }
 
-export const list = (limit = 25, page = 1): Promise<ApiResult<{ items: BuyerReceiptSummary[]; meta: ReceiptPageMeta }>> =>
+export const list = (
+  limit = 25,
+  page = 1,
+): Promise<ApiResult<{ items: BuyerReceiptSummary[]; meta: ReceiptPageMeta }>> =>
   request("buyer/receipts", { query: { page, limit } });
 
 export const get = (id: string): Promise<ApiResult<BuyerReceiptDetail>> =>

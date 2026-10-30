@@ -30,8 +30,19 @@ export function UpiQr({
     return (
       <div className="space-y-3 rounded-lg bg-status-warning-surface p-3 text-sm text-status-warning">
         <p className="font-medium">Add this seller&apos;s UPI ID to display a payment QR.</p>
-        <input className={inputCls} value={draftUpiId} onChange={(event) => setDraftUpiId(event.target.value)} placeholder="business@bank" autoCapitalize="none" />
-        <input className={inputCls} value={draftPayeeName} onChange={(event) => setDraftPayeeName(event.target.value)} placeholder="Payee or business name" />
+        <input
+          className={inputCls}
+          value={draftUpiId}
+          onChange={(event) => setDraftUpiId(event.target.value)}
+          placeholder="business@bank"
+          autoCapitalize="none"
+        />
+        <input
+          className={inputCls}
+          value={draftPayeeName}
+          onChange={(event) => setDraftPayeeName(event.target.value)}
+          placeholder="Payee or business name"
+        />
         <button
           type="button"
           className={primaryBtnCls}
@@ -42,7 +53,10 @@ export function UpiQr({
               return;
             }
             setSaving(true);
-            const result = await sellerOrgsApi.updatePaymentSettings({ upiId: draftUpiId.trim(), upiPayeeName: draftPayeeName.trim() });
+            const result = await sellerOrgsApi.updatePaymentSettings({
+              upiId: draftUpiId.trim(),
+              upiPayeeName: draftPayeeName.trim(),
+            });
             setSaving(false);
             if (!result.success) {
               toast.error(result.message || "Could not save the UPI ID.");
@@ -55,15 +69,31 @@ export function UpiQr({
         >
           {saving ? "Saving…" : "Save and generate QR"}
         </button>
-        <p className="text-xs text-status-warning">This is stored for this seller and reused at future checkouts. It can be changed later in <Link href="/settings" className="font-semibold underline">Payment settings</Link>.</p>
+        <p className="text-xs text-status-warning">
+          This is stored for this seller and reused at future checkouts. It can be changed later in{" "}
+          <Link href="/settings" className="font-semibold underline">
+            Payment settings
+          </Link>
+          .
+        </p>
       </div>
     );
   }
-  if (!uri || amountPaise <= 0) return <p className="text-xs text-foreground-muted">Enter a UPI amount to display the QR code.</p>;
+  if (!uri || amountPaise <= 0)
+    return (
+      <p className="text-xs text-foreground-muted">Enter a UPI amount to display the QR code.</p>
+    );
   return (
     <div className="rounded-xl border border-border bg-surface-card p-4 text-center">
-      <QRCodeSVG value={uri} size={192} className="mx-auto" title={`Pay ${formatPaise(amountPaise)} by UPI`} />
-      <p className="mt-3 text-lg font-bold text-foreground-heading">Pay {formatPaise(amountPaise)}</p>
+      <QRCodeSVG
+        value={uri}
+        size={192}
+        className="mx-auto"
+        title={`Pay ${formatPaise(amountPaise)} by UPI`}
+      />
+      <p className="mt-3 text-lg font-bold text-foreground-heading">
+        Pay {formatPaise(amountPaise)}
+      </p>
       <p className="mt-1 text-xs text-foreground-muted">to {upiId}</p>
     </div>
   );

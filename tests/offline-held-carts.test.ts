@@ -49,7 +49,10 @@ describe("offline held carts", () => {
         const db = request.result;
         const transaction = db.transaction("sales", "readwrite");
         transaction.objectStore("sales").put({ id: "pending-sale", syncState: "pending" });
-        transaction.oncomplete = () => { db.close(); resolve(); };
+        transaction.oncomplete = () => {
+          db.close();
+          resolve();
+        };
         transaction.onerror = () => reject(transaction.error);
       };
     });

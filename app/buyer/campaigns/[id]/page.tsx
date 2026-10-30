@@ -4,15 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
-import {
-  ArrowLeft,
-  CheckCircle2,
-  Gift,
-  MapPin,
-  Phone,
-  Share2,
-  Timer,
-} from "lucide-react";
+import { ArrowLeft, CheckCircle2, Gift, MapPin, Phone, Share2, Timer } from "lucide-react";
 import toast from "react-hot-toast";
 import { campaignsApi } from "@/shared/lib/api";
 import type {
@@ -139,11 +131,8 @@ export default function BuyerCampaignDetailPage() {
       </main>
     );
 
-  const fulfillmentMethod: BuyerFulfillmentMethod =
-    campaign.deliveryOptions[0] ?? "home_delivery";
-  const hasApplied = Boolean(
-    campaign.buyerClaim && campaign.buyerClaim.status !== "cancelled",
-  );
+  const fulfillmentMethod: BuyerFulfillmentMethod = campaign.deliveryOptions[0] ?? "home_delivery";
+  const hasApplied = Boolean(campaign.buyerClaim && campaign.buyerClaim.status !== "cancelled");
   const hasDeliveryAddress = isCompleteAddress(campaign.buyerProfile?.address);
   const upcoming = isUpcoming(campaign);
   const canClaim =
@@ -194,15 +183,12 @@ export default function BuyerCampaignDetailPage() {
                 Claimed · {campaign.status}
               </p>
             ) : null}
-            <h1 className="mt-2 text-3xl font-black text-foreground-heading">
-              {campaign.title}
-            </h1>
+            <h1 className="mt-2 text-3xl font-black text-foreground-heading">{campaign.title}</h1>
             <p className="mt-3 whitespace-pre-wrap text-base leading-7 text-foreground-muted">
               {campaign.description}
             </p>
             <p className="mt-4 text-sm font-bold text-foreground-heading">
-              Offered by{" "}
-              <span className="text-primary">{campaign.providerName}</span>
+              Offered by <span className="text-primary">{campaign.providerName}</span>
             </p>
             {campaign.providerPhone ? (
               <p className="mt-2 inline-flex items-center gap-1.5 text-sm font-semibold text-foreground-muted">
@@ -230,29 +216,16 @@ export default function BuyerCampaignDetailPage() {
           </div>
         </section>
         <section className={`${cardCls} grid gap-5 sm:grid-cols-3`}>
-          <Metric
-            label="Reward"
-            value={`${campaign.points.toLocaleString("en-IN")} points`}
-          />
-          <Metric
-            label="Claims remaining"
-            value={String(Math.max(0, campaign.claimsRemaining))}
-          />
-          <Metric
-            label="Limit per buyer"
-            value={String(campaign.perBuyerLimit)}
-          />
+          <Metric label="Reward" value={`${campaign.points.toLocaleString("en-IN")} points`} />
+          <Metric label="Claims remaining" value={String(Math.max(0, campaign.claimsRemaining))} />
+          <Metric label="Limit per buyer" value={String(campaign.perBuyerLimit)} />
         </section>
         {claim && claim.status !== "cancelled" ? (
-          <section
-            className={`${cardCls} border-status-success/30 bg-status-success-surface`}
-          >
+          <section className={`${cardCls} border-status-success/30 bg-status-success-surface`}>
             <div className="flex items-start gap-3">
               <CheckCircle2 className="mt-0.5 h-6 w-6 text-status-success" />
               <div>
-                <h2 className="text-xl font-bold text-foreground-heading">
-                  Already applied
-                </h2>
+                <h2 className="text-xl font-bold text-foreground-heading">Already applied</h2>
                 <p className="mt-1 text-sm text-foreground-muted">
                   {claim.status === "claimed"
                     ? `Your ${claim.points.toLocaleString("en-IN")} points are locked while the Rewardor reviews this claim.`
@@ -264,7 +237,7 @@ export default function BuyerCampaignDetailPage() {
                         ? "The Rewardor marked this reward as delivered. Confirm once you have received it."
                         : claim.status === "confirmed"
                           ? "You confirmed receiving this reward."
-                      : `Your claim is ${claim.status}.`}
+                          : `Your claim is ${claim.status}.`}
                 </p>
                 <p className="mt-4 rounded-xl bg-surface-muted px-4 py-3 font-mono text-2xl font-bold tracking-wider text-primary">
                   {claim.claimCode}
@@ -307,14 +280,18 @@ export default function BuyerCampaignDetailPage() {
                 {upcoming ? "Upcoming offer" : "Apply for this offer"}
               </h2>
               <p className="mt-1 text-sm text-foreground-muted">
-                {upcoming && campaign.startsAt
-                  ? `This offer opens on ${formatDate(campaign.startsAt)}. You can apply after it starts.`
-                  : <>The Rewardor has selected <strong>{fulfillmentLabel(fulfillmentMethod)}</strong> for this offer.</>}
+                {upcoming && campaign.startsAt ? (
+                  `This offer opens on ${formatDate(campaign.startsAt)}. You can apply after it starts.`
+                ) : (
+                  <>
+                    The Rewardor has selected <strong>{fulfillmentLabel(fulfillmentMethod)}</strong>{" "}
+                    for this offer.
+                  </>
+                )}
               </p>
               {fulfillmentMethod === "home_delivery" && !hasDeliveryAddress ? (
                 <p className="mt-2 text-sm font-semibold text-red-700">
-                  Add your complete delivery address in your profile before
-                  applying.
+                  Add your complete delivery address in your profile before applying.
                 </p>
               ) : null}
             </div>
@@ -350,14 +327,13 @@ export default function BuyerCampaignDetailPage() {
                   ? "Already applied"
                   : upcoming && campaign.startsAt
                     ? `Starts ${formatDate(campaign.startsAt)}`
-                  : campaign.buyerClaimsRemaining <= 0
-                    ? "Claim limit reached"
-                    : fulfillmentMethod === "home_delivery" &&
-                        !hasDeliveryAddress
-                      ? "Add delivery address first"
-                      : canClaim
-                        ? "Apply for offer"
-                        : "Unavailable"}
+                    : campaign.buyerClaimsRemaining <= 0
+                      ? "Claim limit reached"
+                      : fulfillmentMethod === "home_delivery" && !hasDeliveryAddress
+                        ? "Add delivery address first"
+                        : canClaim
+                          ? "Apply for offer"
+                          : "Unavailable"}
             </button>
           </section>
         )}
@@ -367,7 +343,11 @@ export default function BuyerCampaignDetailPage() {
 }
 
 function isUpcoming(campaign: BuyerCampaign) {
-  return campaign.status === "published" && Boolean(campaign.startsAt) && new Date(campaign.startsAt!).getTime() > Date.now();
+  return (
+    campaign.status === "published" &&
+    Boolean(campaign.startsAt) &&
+    new Date(campaign.startsAt!).getTime() > Date.now()
+  );
 }
 
 function Metric({ label, value }: { label: string; value: string }) {
@@ -398,13 +378,7 @@ function fulfillmentLabel(method: BuyerFulfillmentMethod): string {
 function formatAddress(address?: Record<string, string>) {
   if (!address) return "Add a complete address in your profile";
   return (
-    [
-      address.line1,
-      address.line2,
-      address.city,
-      address.state,
-      address.postalCode,
-    ]
+    [address.line1, address.line2, address.city, address.state, address.postalCode]
       .filter(Boolean)
       .join(", ") || "Add a complete address in your profile"
   );

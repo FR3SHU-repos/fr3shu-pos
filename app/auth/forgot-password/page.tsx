@@ -38,14 +38,10 @@ export default function ForgotPasswordPage() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-surface px-4">
       <div className={`${cardCls} w-full max-w-sm`}>
-        <h1 className="text-lg font-semibold text-foreground-heading">
-          Reset your password
-        </h1>
+        <h1 className="text-lg font-semibold text-foreground-heading">Reset your password</h1>
         <form onSubmit={onSubmit} className="mt-5 space-y-3">
           <div>
-            <label className="mb-1 block text-xs font-medium text-foreground-body">
-              Email
-            </label>
+            <label className="mb-1 block text-xs font-medium text-foreground-body">Email</label>
             <input
               type="email"
               autoComplete="username"
@@ -60,11 +56,7 @@ export default function ForgotPasswordPage() {
             disabled={busy || cooldown > 0}
             className={`${primaryBtnCls} w-full`}
           >
-            {busy
-              ? "Sending…"
-              : cooldown > 0
-                ? `Resend in ${cooldown}s`
-                : "Send reset link"}
+            {busy ? "Sending…" : cooldown > 0 ? `Resend in ${cooldown}s` : "Send reset link"}
           </button>
         </form>
         {sent && (

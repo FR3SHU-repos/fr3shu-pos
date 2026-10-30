@@ -26,10 +26,13 @@ export function useBuyerLookup() {
     toast.success("Buyer attached to this sale");
   }, []);
 
-  const attachScannedBuyer = useCallback((code: string) => {
-    dispatch({ type: "scanned", code });
-    void resolveBuyer(code);
-  }, [resolveBuyer]);
+  const attachScannedBuyer = useCallback(
+    (code: string) => {
+      dispatch({ type: "scanned", code });
+      void resolveBuyer(code);
+    },
+    [resolveBuyer],
+  );
 
   return {
     customer,

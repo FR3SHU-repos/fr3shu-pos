@@ -2,7 +2,10 @@
 
 import { AlertTriangle, CheckCircle2, CloudOff, RefreshCw, ShieldAlert } from "lucide-react";
 import { useEffect, useState } from "react";
-import { OFFLINE_SALES_SYNC_EVENT, type OfflineSalesSyncDetail } from "@/shared/components/pos/OfflineSalesSyncWorker";
+import {
+  OFFLINE_SALES_SYNC_EVENT,
+  type OfflineSalesSyncDetail,
+} from "@/shared/components/pos/OfflineSalesSyncWorker";
 
 type ConnectionState = "online" | "offline" | "server" | "sync" | "auth";
 
@@ -45,28 +48,53 @@ export function PwaStatusBar() {
     };
   }, []);
 
-  const connectionState: ConnectionState = !online ? "offline" : state ?? "online";
+  const connectionState: ConnectionState = !online ? "offline" : (state ?? "online");
   const content = {
     online: { icon: CheckCircle2, label: "Online", className: "text-status-success" },
-    offline: { icon: CloudOff, label: "Offline · local data only", className: "text-status-warning" },
-    server: { icon: AlertTriangle, label: "Server unavailable · retrying later", className: "text-status-danger" },
-    sync: { icon: RefreshCw, label: "Online · pending sync needs attention", className: "text-status-warning" },
-    auth: { icon: ShieldAlert, label: "Sign in again to sync pending sales", className: "text-status-danger" },
+    offline: {
+      icon: CloudOff,
+      label: "Offline · local data only",
+      className: "text-status-warning",
+    },
+    server: {
+      icon: AlertTriangle,
+      label: "Server unavailable · retrying later",
+      className: "text-status-danger",
+    },
+    sync: {
+      icon: RefreshCw,
+      label: "Online · pending sync needs attention",
+      className: "text-status-warning",
+    },
+    auth: {
+      icon: ShieldAlert,
+      label: "Sign in again to sync pending sales",
+      className: "text-status-danger",
+    },
   }[connectionState];
   const Icon = content.icon;
 
   return (
     <div className="mb-4 space-y-2">
       {updateReady ? (
-        <div className="flex items-center justify-between gap-3 rounded-xl border border-primary/30 bg-primary/5 px-3 py-2 text-xs text-foreground-body" role="status">
+        <div
+          className="flex items-center justify-between gap-3 rounded-xl border border-primary/30 bg-primary/5 px-3 py-2 text-xs text-foreground-body"
+          role="status"
+        >
           <span>A new KOMOLA POS version is ready.</span>
-          <button type="button" onClick={() => window.dispatchEvent(new Event("komola:pwa-activate-update"))} className="shrink-0 rounded-lg bg-primary px-3 py-1.5 font-semibold text-primary-foreground hover:bg-primary-hover">
+          <button
+            type="button"
+            onClick={() => window.dispatchEvent(new Event("komola:pwa-activate-update"))}
+            className="shrink-0 rounded-lg bg-primary px-3 py-1.5 font-semibold text-primary-foreground hover:bg-primary-hover"
+          >
             Refresh
           </button>
         </div>
       ) : null}
       <div className="flex items-center justify-end" role="status" aria-live="polite">
-        <span className={`inline-flex items-center gap-1.5 rounded-full bg-surface-card px-3 py-1.5 text-xs font-medium shadow-sm ${content.className}`}>
+        <span
+          className={`inline-flex items-center gap-1.5 rounded-full bg-surface-card px-3 py-1.5 text-xs font-medium shadow-sm ${content.className}`}
+        >
           <Icon className="h-3.5 w-3.5" aria-hidden="true" />
           {content.label}
         </span>
