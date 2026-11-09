@@ -79,24 +79,26 @@ export default function BuyerShell({ children }: { children: React.ReactNode }) 
           Support
         </Link>
         {user ? (
-          <div className="mt-2 flex items-center gap-3 rounded-2xl bg-surface-muted p-3">
-            <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-primary/15 text-sm font-bold text-primary">
-              {initials}
-            </span>
-            <span className="min-w-0 flex-1 leading-tight">
-              <span className="block truncate text-sm font-semibold text-foreground-heading">
-                {user.name || "My account"}
+          <div className="mt-2 flex items-center gap-2 rounded-2xl bg-surface-muted p-3">
+            <Link href="/buyer/profile" className="flex min-w-0 flex-1 items-center gap-3">
+              <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-primary/15 text-sm font-bold text-primary">
+                {initials}
               </span>
-              <span className="block truncate text-xs text-foreground-muted">{user.email}</span>
-            </span>
+              <span className="min-w-0 leading-tight">
+                <span className="block truncate text-sm font-semibold text-foreground-heading">
+                  {user.name || "My account"}
+                </span>
+                <span className="block truncate text-xs text-foreground-muted">{user.email}</span>
+              </span>
+            </Link>
             <button
               type="button"
-              aria-label="Sign out"
               onClick={async () => {
                 await logout();
                 window.location.replace("/login");
               }}
-              className="grid h-10 w-10 place-items-center rounded-full text-foreground-muted hover:text-foreground-heading"
+              aria-label="Sign out"
+              className="grid h-10 w-10 shrink-0 place-items-center rounded-full text-foreground-muted hover:bg-background hover:text-foreground-heading"
             >
               <LogOut className="h-5 w-5" />
             </button>
