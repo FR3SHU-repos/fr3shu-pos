@@ -341,3 +341,11 @@ Before changing this app:
 ## CI
 
 `.github/workflows/ci.yml` runs on pull requests and pushes to `staging` and `main`: `npm run lint`, `typecheck`, `npm test`, `npm run build` (placeholder public env vars only). The API repo has the same file running gofmt (advisory), `go vet ./...`, `go test ./...` and `go build ./cmd/api`; database tests skip without `FR3SH_TEST_POSTGRES_URL`.
+
+## Formatting, tests and shared UI
+
+- Prettier config is `.prettierrc.json` (width 100, double quotes, trailing commas); `npm run format` / `format:check` (exact-pinned `prettier` devDependency). CI runs `format:check`.
+- `shared/components/Pagination.tsx` is the single paging control (page-count or cursor mode).
+- Sales period/summary logic is in `shared/lib/pos/sales-period.ts` with tests in `tests/sales-period.test.ts`.
+- Playwright smoke tests live in `e2e/` (opt-in, see `e2e/README.md`); they are typechecked and linted like the rest of the app.
+- Hard-coded colours that remain are intentional: Google logo brand colours, PWA `themeColor`/manifest and `global-error.tsx` (CSS variables are unavailable there).

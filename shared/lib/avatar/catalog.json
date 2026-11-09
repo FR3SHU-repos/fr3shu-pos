@@ -1,0 +1,378 @@
+{
+  "version": 1,
+  "defaults": {
+    "pose": "arms",
+    "fur": "classic",
+    "bandana": "brand",
+    "suit": "none",
+    "head": "none",
+    "face": "none",
+    "bg": "sky"
+  },
+  "parts": {
+    "pose": [
+      {
+        "key": "arms",
+        "name": "Open arms"
+      },
+      {
+        "key": "wave",
+        "name": "Wave",
+        "price": 10
+      },
+      {
+        "key": "wink",
+        "name": "Wink",
+        "price": 10
+      }
+    ],
+    "fur": [
+      {
+        "key": "classic",
+        "name": "Classic",
+        "swatch": "#f2601f"
+      },
+      {
+        "key": "golden",
+        "name": "Golden",
+        "swatch": "#f2a22c",
+        "price": 10
+      },
+      {
+        "key": "ember",
+        "name": "Ember",
+        "swatch": "#e53d2c",
+        "price": 10
+      },
+      {
+        "key": "cocoa",
+        "name": "Cocoa",
+        "swatch": "#b3501f",
+        "price": 10
+      },
+      {
+        "key": "frost",
+        "name": "Snow",
+        "swatch": "#f6c7a6",
+        "price": 20
+      }
+    ],
+    "bandana": [
+      {
+        "key": "brand",
+        "name": "Komo",
+        "swatch": "#ff8a47"
+      },
+      {
+        "key": "leaf",
+        "name": "Leaf",
+        "swatch": "#5db83d",
+        "price": 10
+      },
+      {
+        "key": "turmeric",
+        "name": "Turmeric",
+        "swatch": "#f7c53c",
+        "price": 10
+      },
+      {
+        "key": "sky",
+        "name": "Sky",
+        "swatch": "#5aaae8",
+        "price": 10
+      },
+      {
+        "key": "berry",
+        "name": "Berry",
+        "swatch": "#c9488f",
+        "price": 10
+      },
+      {
+        "key": "cream",
+        "name": "Cream",
+        "swatch": "#fff3e0",
+        "price": 10
+      }
+    ],
+    "suit": [
+      {
+        "key": "none",
+        "name": "None"
+      },
+      {
+        "key": "farmer",
+        "name": "Harvest",
+        "price": 10
+      },
+      {
+        "key": "rain",
+        "name": "Monsoon",
+        "price": 10
+      },
+      {
+        "key": "chef",
+        "name": "Chef",
+        "price": 10
+      },
+      {
+        "key": "winter",
+        "name": "Cozy",
+        "price": 20
+      },
+      {
+        "key": "holi",
+        "name": "Holi",
+        "price": 20
+      },
+      {
+        "key": "diwali",
+        "name": "Diwali",
+        "sparkle": true,
+        "price": 30
+      },
+      {
+        "key": "hero",
+        "name": "Veggie Hero",
+        "sparkle": true,
+        "cape": true,
+        "price": 30
+      },
+      {
+        "key": "match",
+        "name": "Match Day",
+        "price": 20
+      }
+    ],
+    "head": [
+      {
+        "key": "none",
+        "name": "None"
+      },
+      {
+        "key": "straw",
+        "name": "Straw hat",
+        "price": 10
+      },
+      {
+        "key": "chef",
+        "name": "Chef hat",
+        "price": 10
+      },
+      {
+        "key": "rain",
+        "name": "Rain hat",
+        "price": 10
+      },
+      {
+        "key": "beanie",
+        "name": "Beanie",
+        "price": 20
+      },
+      {
+        "key": "cap",
+        "name": "Team cap",
+        "price": 20
+      },
+      {
+        "key": "crown",
+        "name": "Gold crown",
+        "sparkle": true,
+        "price": 30
+      },
+      {
+        "key": "marigold",
+        "name": "Marigolds",
+        "price": 30
+      }
+    ],
+    "face": [
+      {
+        "key": "none",
+        "name": "None"
+      },
+      {
+        "key": "glasses",
+        "name": "Round glasses",
+        "price": 10
+      },
+      {
+        "key": "stars",
+        "name": "Gold stars",
+        "price": 10
+      },
+      {
+        "key": "shades",
+        "name": "Shades",
+        "price": 20
+      },
+      {
+        "key": "mask",
+        "name": "Hero mask",
+        "price": 30
+      },
+      {
+        "key": "holi",
+        "name": "Holi colours",
+        "price": 20
+      }
+    ],
+    "bg": [
+      {
+        "key": "sky",
+        "name": "Sky",
+        "c1": "#4a93e0",
+        "c2": "#2a5fa8"
+      },
+      {
+        "key": "leaf",
+        "name": "Leaf",
+        "c1": "#4fb04c",
+        "c2": "#2c7d34",
+        "price": 10
+      },
+      {
+        "key": "sun",
+        "name": "Sun",
+        "c1": "#f6bf4a",
+        "c2": "#d98a1d",
+        "price": 10
+      },
+      {
+        "key": "plum",
+        "name": "Plum",
+        "c1": "#9a69de",
+        "c2": "#5e3a9e",
+        "price": 10
+      },
+      {
+        "key": "clay",
+        "name": "Clay",
+        "c1": "#d97a56",
+        "c2": "#9f4529",
+        "price": 10
+      },
+      {
+        "key": "night",
+        "name": "Night",
+        "c1": "#43548a",
+        "c2": "#222c4b",
+        "price": 20
+      },
+      {
+        "key": "rose",
+        "name": "Rose",
+        "c1": "#ec7fa8",
+        "c2": "#b14870",
+        "price": 10
+      },
+      {
+        "key": "teal",
+        "name": "Teal",
+        "c1": "#38b4ad",
+        "c2": "#1b7571",
+        "price": 10
+      }
+    ]
+  },
+  "presets": {
+    "farmer": {
+      "head": "straw"
+    },
+    "rain": {
+      "head": "rain"
+    },
+    "chef": {
+      "head": "chef"
+    },
+    "winter": {
+      "head": "beanie"
+    },
+    "holi": {
+      "face": "holi"
+    },
+    "diwali": {
+      "head": "marigold"
+    },
+    "hero": {
+      "face": "mask"
+    },
+    "match": {
+      "head": "cap"
+    }
+  },
+  "looks": [
+    {
+      "name": "Market day",
+      "avatar": {
+        "pose": "arms",
+        "fur": "classic",
+        "bandana": "brand",
+        "suit": "farmer",
+        "head": "straw",
+        "face": "none",
+        "bg": "leaf"
+      }
+    },
+    {
+      "name": "Monsoon run",
+      "avatar": {
+        "pose": "wave",
+        "fur": "classic",
+        "bandana": "turmeric",
+        "suit": "rain",
+        "head": "rain",
+        "face": "none",
+        "bg": "night"
+      }
+    },
+    {
+      "name": "Kitchen star",
+      "avatar": {
+        "pose": "wink",
+        "fur": "golden",
+        "bandana": "leaf",
+        "suit": "chef",
+        "head": "chef",
+        "face": "glasses",
+        "bg": "sun"
+      }
+    },
+    {
+      "name": "Winter cosy",
+      "avatar": {
+        "pose": "arms",
+        "fur": "frost",
+        "bandana": "cream",
+        "suit": "winter",
+        "head": "beanie",
+        "face": "none",
+        "bg": "plum"
+      }
+    },
+    {
+      "name": "Festival of colours",
+      "avatar": {
+        "pose": "wave",
+        "fur": "classic",
+        "bandana": "berry",
+        "suit": "holi",
+        "head": "none",
+        "face": "holi",
+        "bg": "rose"
+      }
+    },
+    {
+      "name": "Veggie Hero",
+      "avatar": {
+        "pose": "arms",
+        "fur": "ember",
+        "bandana": "brand",
+        "suit": "hero",
+        "head": "none",
+        "face": "mask",
+        "bg": "teal"
+      }
+    }
+  ],
+  "minPrice": 10
+}

@@ -7,7 +7,7 @@ describe("buyer QR payload", () => {
   });
 
   it("extracts a buyer code from a shared URL", () => {
-    expect(extractBuyerCode("https://pos.komola.in/buyer/BYR-2738AC942B")).toBe("BYR-2738AC942B");
+    expect(extractBuyerCode("https://komola.in/b/BYR-2738AC942B")).toBe("BYR-2738AC942B");
   });
 
   it("rejects unrelated QR payloads", () => {

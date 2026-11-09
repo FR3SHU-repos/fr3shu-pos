@@ -1,4 +1,5 @@
 import { request, type ApiResult } from "./client";
+import type { AvatarItem, BuyerAvatar } from "@/shared/lib/avatar/avatar";
 
 export interface VerifiedContact {
   id: string;
@@ -20,6 +21,8 @@ export interface PersonProfile {
   locationId?: string;
   locationCode?: string;
   locationName?: string;
+  /** The buyer's saved Komo look, or null/absent when never customised. */
+  avatar?: BuyerAvatar | null;
 }
 
 export interface UserAddress {
@@ -104,6 +107,22 @@ export const updateProfile = (
     method: "PUT",
     body: { displayName, buyer, phoneE164, locationCode, address },
   });
+/** The buyer's Komo look, the items they bought with reward points and their spendable points. */
+export interface AvatarState {
+  avatar: BuyerAvatar | null;
+  owned: AvatarItem[];
+  availableCoins: number;
+  minPrice: number;
+}
+export const avatar = (): Promise<ApiResult<AvatarState>> => request("me/avatar");
+export const saveAvatar = (next: BuyerAvatar): Promise<ApiResult<AvatarState>> =>
+  request("me/avatar", { method: "PUT", body: next });
+/** Buys items with reward points and saves the look in one transaction. */
+export const unlockAvatar = (
+  items: AvatarItem[],
+  next: BuyerAvatar,
+): Promise<ApiResult<AvatarState>> =>
+  request("me/avatar/unlock", { method: "POST", body: { items, avatar: next } });
 export const locations = (): Promise<ApiResult<{ items: PlatformLocation[] }>> =>
   request("locations");
 export const discoveryCode = (): Promise<ApiResult<DiscoveryCode>> => request("me/discovery-code");

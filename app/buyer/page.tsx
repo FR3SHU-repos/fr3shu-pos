@@ -15,22 +15,22 @@ import {
   Check,
   ChevronLeft,
   ChevronRight,
-  Copy,
   Download,
   Eye,
   Gift,
   Loader2,
   Lock,
   ReceiptText,
-  Share2,
   UsersRound,
 } from "lucide-react";
-import { QRCodeSVG } from "qrcode.react";
 import type { BuyerCampaign } from "@/shared/lib/api/campaigns";
 import Link from "next/link";
 import toast from "react-hot-toast";
-import { copyText } from "@/shared/lib/clipboard";
 import { KomoEmptyState } from "@/shared/components/mascot";
+import { KomoAvatar } from "@/shared/components/avatar/KomoAvatar";
+import { normaliseAvatar } from "@/shared/lib/avatar/avatar";
+import type { BuyerAvatar } from "@/shared/lib/avatar/avatar";
+import { QRCodeSVG } from "qrcode.react";
 import {
   buyerCampaignsReady,
   buyerProfileReady,
@@ -42,6 +42,7 @@ const PAGE_SIZE = 5;
 export default function BuyerDashboardPage() {
   const [profile, setProfile] = useState<PersonProfile | null>(null);
   const [code, setCode] = useState<DiscoveryCode | null>(null);
+  const [avatar, setAvatar] = useState<BuyerAvatar | null>(null);
   const [summary, setSummary] = useState<RewardSummary | null>(null);
   const [entries, setEntries] = useState<RewardLedgerEntry[]>([]);
   const [receipts, setReceipts] = useState<BuyerReceiptSummary[]>([]);
@@ -59,7 +60,6 @@ export default function BuyerDashboardPage() {
   const [campaignItems, setCampaignItems] = useState<BuyerCampaign[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     void identityApi.profile().then(async (person) => {
@@ -78,14 +78,18 @@ export default function BuyerDashboardPage() {
         setLoading(false);
         return;
       }
-      const [discovery, rewards, history, purchases, claimable] = await Promise.all([
+      const [discovery, avatarResult, rewards, history, purchases, claimable] = await Promise.all([
         identityApi.discoveryCode(),
+        identityApi.avatar(),
         rewardsApi.summary(),
         rewardsApi.ledger(undefined, PAGE_SIZE),
         receiptsApi.list(PAGE_SIZE),
         receiptsApi.claimable(),
       ]);
       if (discovery.success) setCode(discovery.data);
+      if (avatarResult.success && avatarResult.data) {
+        setAvatar(normaliseAvatar(avatarResult.data.avatar));
+      }
       if (rewards.success) setSummary(rewards.data);
       else setError(rewards.message);
       if (history.success) {
@@ -160,29 +164,6 @@ export default function BuyerDashboardPage() {
     });
   }
 
-  async function shareCode() {
-    if (!code) return;
-    if (navigator.share)
-      await navigator.share({
-        title: "My KOMOLA buyer code",
-        text: `Use my buyer code ${code.code}`,
-        url: code.url,
-      });
-    else if (await copyText(code.url)) toast.success("Buyer-code link copied");
-    else toast.error("Could not copy the buyer-code link");
-  }
-
-  async function copyCode() {
-    if (!code) return;
-    if (!(await copyText(code.code))) {
-      toast.error("Could not copy the buyer code");
-      return;
-    }
-    setCopied(true);
-    toast.success("Buyer code copied");
-    window.setTimeout(() => setCopied(false), 2000);
-  }
-
   if (loading)
     return (
       <main className="mx-auto min-h-screen max-w-4xl space-y-4 bg-background p-4 pb-32 sm:p-8 sm:pb-32 xl:pb-8">
@@ -196,12 +177,6 @@ export default function BuyerDashboardPage() {
   const campaignsReady = buyerCampaignsReady(profile);
   const missingDetails = missingBuyerDetails(profile);
 
-  const initials = (profile?.displayName || "B")
-    .split(" ")
-    .map((w) => w[0])
-    .join("")
-    .slice(0, 2)
-    .toUpperCase();
   const lockedCoins = summary?.reservedCampaignCoins ?? 0;
   const typeLabel: Record<BuyerCampaign["campaignType"], string> = {
     product: "Product reward",
@@ -246,59 +221,57 @@ export default function BuyerDashboardPage() {
 
   const codeCard = (
     <section
-      className="rounded-3xl bg-surface-card p-6 text-center"
+      className="rounded-3xl bg-surface-card p-6"
       aria-labelledby="buyer-code-title"
     >
-      <h2 id="buyer-code-title" className="text-sm font-medium text-foreground-muted">
-        Show this at any KOMOLA seller to collect rewards
-      </h2>
-      {!profileReady ? (
-        <div className="mt-5 rounded-2xl bg-status-warning-surface p-4 text-sm text-status-warning">
-          Your buyer code will appear after you enter your phone number, location, and address.{" "}
-          <Link href="/buyer/setup" className="font-semibold underline">
-            Enter buyer details
-          </Link>
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h2 id="buyer-code-title" className="text-base font-semibold text-foreground-heading">
+            Your buyer code
+          </h2>
+          <p className="mt-1 text-sm text-foreground-muted">
+            Show this at any KOMOLA seller to collect rewards.
+          </p>
+        </div>
+        <Link href="/buyer/profile" className="text-sm font-semibold text-primary">
+          Profile
+        </Link>
+      </div>
+      {profileReady && code ? (
+        <div className="mt-4 flex justify-center rounded-2xl bg-white p-3">
+          <QRCodeSVG value={code.code} size={220} level="M" marginSize={1} title="Buyer code QR" />
         </div>
       ) : (
-        <>
-          <div className="mx-auto mt-5 w-fit rounded-3xl bg-white p-4">
-            {code ? (
-              <QRCodeSVG
-                value={code.code}
-                size={208}
-                level="M"
-                marginSize={1}
-                title="Buyer code QR"
-              />
-            ) : (
-              <div className="h-52 w-52" />
-            )}
-          </div>
-          <p className="my-5 break-all font-mono text-xl font-bold tracking-[0.08em] text-foreground-heading">
-            {code?.code ?? "Unavailable"}
-          </p>
-          <div className="grid grid-cols-2 gap-3">
-            <button
-              type="button"
-              disabled={!code}
-              onClick={copyCode}
-              className="flex min-h-12 items-center justify-center gap-2 rounded-full bg-surface-muted text-sm font-semibold text-foreground-heading disabled:opacity-50"
-            >
-              {copied ? <Check className="h-5 w-5" /> : <Copy className="h-5 w-5" />}
-              {copied ? "Copied" : "Copy"}
-            </button>
-            <button
-              type="button"
-              disabled={!code}
-              onClick={shareCode}
-              className="flex min-h-12 items-center justify-center gap-2 rounded-full bg-primary text-sm font-semibold text-primary-foreground disabled:opacity-50"
-            >
-              <Share2 className="h-5 w-5" />
-              Share
-            </button>
-          </div>
-        </>
+        <Link href="/buyer/setup" className="mt-4 block rounded-2xl bg-status-warning-surface p-4 text-sm text-status-warning">
+          Enter your buyer details to generate your QR code.
+        </Link>
       )}
+      {profileReady && code ? (
+        <p className="mt-3 text-center font-mono text-sm font-bold tracking-[0.08em] text-foreground-heading">
+          {code.code}
+        </p>
+      ) : null}
+    </section>
+  );
+
+  const avatarCard = (
+    <section className="flex items-center gap-3 rounded-3xl bg-surface-card p-4">
+      <KomoAvatar
+        avatar={avatar}
+        view="head"
+        className="h-16 w-16 shrink-0 rounded-2xl"
+        label="Your Komo avatar"
+      />
+      <div className="min-w-0 flex-1">
+        <h2 className="text-base font-semibold text-foreground-heading">Customize your Komo</h2>
+        <p className="mt-1 text-sm text-foreground-muted">Choose looks, outfits and colours.</p>
+      </div>
+      <Link
+        href="/buyer/avatar"
+        className="inline-flex min-h-10 shrink-0 items-center rounded-full bg-primary px-4 text-sm font-semibold text-primary-foreground"
+      >
+        Avatars
+      </Link>
     </section>
   );
 
@@ -409,12 +382,17 @@ export default function BuyerDashboardPage() {
             {profile?.displayName ? `Hello, ${profile.displayName}` : "Your rewards"}
           </h1>
         </div>
-        <span
-          className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-primary/15 text-sm font-bold text-primary lg:hidden"
-          aria-hidden="true"
+        <Link
+          href="/buyer/profile"
+          aria-label="Open buyer profile"
+          className="block h-14 w-14 shrink-0 overflow-hidden rounded-full ring-2 ring-surface-card transition hover:ring-primary"
         >
-          {initials}
-        </span>
+          <KomoAvatar
+            avatar={avatar}
+            view="head"
+            className="h-full w-full"
+          />
+        </Link>
       </header>
       <div className="flex flex-col gap-4 lg:grid lg:grid-cols-[26rem_minmax(0,1fr)] lg:items-start">
         <div className="order-0 lg:order-none lg:col-span-2">
@@ -455,9 +433,14 @@ export default function BuyerDashboardPage() {
             </p>
           )}
         </div>
-        <div className="contents lg:sticky lg:top-6 lg:flex lg:flex-col lg:gap-4">
-          <div className="order-2 lg:order-none">{codeCard}</div>
-          <div className="order-3 lg:order-none">
+        <div className="order-1 grid gap-4 lg:order-none lg:col-span-2 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] lg:items-start">
+          <div>{codeCard}</div>
+          <div>{hero}</div>
+        </div>
+        <div className="contents lg:sticky lg:top-6 lg:col-start-1 lg:row-start-2 lg:flex lg:flex-col lg:gap-4">
+          <div className="hidden">{codeCard}</div>
+          <div className="order-3 lg:order-none lg:col-start-1 lg:row-start-3">{avatarCard}</div>
+          <div className="order-4 lg:order-none lg:col-start-1 lg:row-start-4">
             {claimableReceipts.length > 0 ? (
               <section
                 className={`${cardCls} border-primary/30 bg-primary/5`}
@@ -516,10 +499,10 @@ export default function BuyerDashboardPage() {
           </div>
         </div>
         <div className="contents lg:col-start-2 lg:row-start-2 lg:flex lg:flex-col lg:gap-4">
-          <div className="order-1 lg:order-none">{hero}</div>
-          <div className="order-4 lg:order-none">{offersStrip}</div>
-          <div className="order-5 lg:order-none">{inviteRow}</div>
-          <div className="order-6 lg:order-none">
+          <div className="hidden">{hero}</div>
+          <div className="order-5 lg:order-none lg:col-start-2 lg:row-start-3">{offersStrip}</div>
+          <div className="order-6 lg:order-none lg:col-start-2 lg:row-start-4">{inviteRow}</div>
+          <div className="order-7 lg:order-none lg:col-start-2 lg:row-start-5">
             <section className="grid grid-cols-2 gap-3" aria-label="Purchase totals">
               <div className={cardCls}>
                 <p className="text-sm text-foreground-muted">Total spend</p>
@@ -537,7 +520,7 @@ export default function BuyerDashboardPage() {
               </div>
             </section>
           </div>
-          <div className="order-7 lg:order-none">
+          <div className="order-8 lg:order-none lg:col-start-2 lg:row-start-6">
             <section className={`${cardCls}`} aria-labelledby="reward-history-title">
               <div className="mb-4 flex items-center gap-2">
                 <ReceiptText className="h-6 w-6 text-primary" />
@@ -600,7 +583,7 @@ export default function BuyerDashboardPage() {
               )}
             </section>
           </div>
-          <div className="order-8 lg:order-none">
+          <div className="order-9 lg:order-none lg:col-start-2 lg:row-start-7">
             <section className={`${cardCls}`} aria-labelledby="receipts-title">
               <div className="mb-4 flex items-center gap-2">
                 <Download className="h-6 w-6 text-primary" />
