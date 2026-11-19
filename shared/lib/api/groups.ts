@@ -48,8 +48,6 @@ export interface CreateGroupBody {
   name: string;
   legalName?: string;
   sellerType?: string;
-  locationCode: string;
-  locationName: string;
   timezone?: string;
   address?: Record<string, string>;
 }

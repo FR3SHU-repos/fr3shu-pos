@@ -8,7 +8,7 @@ import { groupsApi } from "@/shared/lib/api";
 import type { GroupInvitation, GroupJoinRequest, GroupMember, GroupSummary } from "@/shared/lib/api/groups";
 import { cardCls, ghostBtnCls, inputCls, primaryBtnCls, StatusBadge } from "@/shared/components/ui";
 
-type FormState = { name: string; legalName: string; locationCode: string; locationName: string };
+type FormState = { name: string };
 
 export default function GroupsPage() {
   const [groups, setGroups] = useState<GroupSummary[]>([]);
@@ -19,7 +19,7 @@ export default function GroupsPage() {
   const [sellerCode, setSellerCode] = useState("");
   const [inviteCode, setInviteCode] = useState("");
   const [showCreate, setShowCreate] = useState(false);
-  const [form, setForm] = useState<FormState>({ name: "", legalName: "", locationCode: "", locationName: "" });
+  const [form, setForm] = useState<FormState>({ name: "" });
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
 
@@ -65,17 +65,17 @@ export default function GroupsPage() {
   }
 
   async function createGroup() {
-    if (!form.name.trim() || !form.locationCode.trim() || !form.locationName.trim()) {
-      toast.error("Enter the Group name, place-of-work code, and place-of-work name.");
+    if (!form.name.trim()) {
+      toast.error("Enter the Group name.");
       return;
     }
     setBusy(true);
-    const result = await groupsApi.create({ ...form, name: form.name.trim(), legalName: form.legalName.trim() || undefined });
+    const result = await groupsApi.create({ name: form.name.trim() });
     setBusy(false);
     if (!result.success || !result.data) return toast.error(result.message || "Could not create Group.");
     toast.success("Group created.");
     setShowCreate(false);
-    setForm({ name: "", legalName: "", locationCode: "", locationName: "" });
+    setForm({ name: "" });
     await loadGroups();
   }
 
@@ -116,7 +116,7 @@ export default function GroupsPage() {
         <button className={primaryBtnCls} onClick={() => setShowCreate((value) => !value)}><Plus className="h-4 w-4" />Create Group</button>
       </header>
 
-      {showCreate ? <section className={`${cardCls} space-y-4`}><h2 className="text-lg font-semibold text-foreground-heading">Create a Group</h2><p className="text-sm text-foreground-muted">The Group will contain its own place of work and register context.</p><div className="grid gap-3 sm:grid-cols-2">{([['name','Group name'],['legalName','Business/legal name'],['locationCode','Place-of-work code'],['locationName','Place-of-work name']] as const).map(([key,label]) => <label key={key} className="space-y-1 text-sm font-medium text-foreground-body">{label}<input className={inputCls} value={form[key]} onChange={(event) => setForm((current) => ({ ...current, [key]: event.target.value }))} /></label>)}</div><div className="flex flex-wrap gap-2"><button className={primaryBtnCls} disabled={busy} onClick={() => void createGroup()}>Create Group</button><button className={ghostBtnCls} onClick={() => setShowCreate(false)}>Cancel</button></div></section> : null}
+      {showCreate ? <section className={`${cardCls} space-y-4`}><h2 className="text-lg font-semibold text-foreground-heading">Create a Group</h2><p className="text-sm text-foreground-muted">The location code will be generated automatically.</p><label className="block space-y-1 text-sm font-medium text-foreground-body">Group name<input className={inputCls} value={form.name} onChange={(event) => setForm({ name: event.target.value })} /></label><div className="flex flex-wrap gap-2"><button className={primaryBtnCls} disabled={busy} onClick={() => void createGroup()}>Create Group</button><button className={ghostBtnCls} onClick={() => setShowCreate(false)}>Cancel</button></div></section> : null}
 
       {groups.length === 0 ? <section className={cardCls}><h2 className="text-lg font-semibold text-foreground-heading">No Groups yet</h2><p className="mt-2 text-sm text-foreground-muted">Create your first Group to manage its products, register, sellers, and sales.</p></section> : <>
         <section className={`${cardCls} space-y-3`}><div className="flex items-center justify-between gap-3"><div><p className="text-xs uppercase tracking-wide text-foreground-muted">Active Group</p><h2 className="text-lg font-semibold text-foreground-heading">{selected?.name}</h2></div><button className={ghostBtnCls} onClick={() => void loadGroups()}><RefreshCw className="h-4 w-4" />Refresh</button></div><select className={inputCls} value={selected?.groupId ?? ""} onChange={(event) => switchGroup(event.target.value)}>{groups.map((group) => <option key={group.groupId} value={group.groupId}>{group.name} · {group.roles.join(", ")}</option>)}</select><p className="text-sm text-foreground-muted">Selling for: <span className="font-semibold text-foreground-body">{selected?.name}</span>. Products and sales stay inside the selected Group.</p></section>
