@@ -10,6 +10,7 @@ import type { AuthIntent } from "@/shared/lib/auth/intent";
 import { reconcileIdentity } from "@/shared/lib/auth/gin";
 import { normalizeIndianMobile } from "@/shared/lib/auth/phone";
 import { authCallbackRedirect, rememberAuthIntent } from "@/shared/lib/auth/providers";
+import { getGoogleWebIdToken } from "@/shared/lib/auth/google-web";
 import { KomoMessage } from "@/shared/components/mascot";
 
 function registrationErrorMessage(message: string): string {
@@ -67,14 +68,15 @@ export function RegisterForm({ intent }: { intent: AuthIntent }) {
     setGoogleBusy(true);
     setError("");
     rememberAuthIntent(intent);
-    const redirectTo = authCallbackRedirect(window.location.origin, { intent });
-    const { error } = await createAuthBrowserClient().auth.signInWithOAuth({
-      provider: "google",
-      options: { redirectTo },
-    });
-    if (error) {
+    try {
+      const supabase = createAuthBrowserClient();
+      const idToken = await getGoogleWebIdToken();
+      const { error } = await supabase.auth.signInWithIdToken({ provider: "google", token: idToken });
+      if (error) throw error;
+      window.location.assign(authCallbackRedirect(window.location.origin, { intent }));
+    } catch {
       setGoogleBusy(false);
-      setError("Google registration is temporarily unavailable.");
+      setError("Google registration could not be completed. Try again.");
     }
   }
   async function submit(e: React.FormEvent) {

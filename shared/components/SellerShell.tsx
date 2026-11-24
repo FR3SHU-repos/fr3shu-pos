@@ -19,6 +19,7 @@ import {
   Sun,
   Moon,
   ChevronRight,
+  Users,
 } from "lucide-react";
 // Boxes now labels "Stock"; the old warehouse-style "Inventory & lots" screen is gone.
 import { cx } from "@/shared/lib/utils";
@@ -37,6 +38,7 @@ const NAV = [
   { href: "/register-sessions", label: "Register", icon: Calculator },
   { href: "/products", label: "Products", icon: Package },
   { href: "/stock", label: "Stock", icon: Boxes },
+  { href: "/groups", label: "Groups", icon: Users },
   { href: "/offline-operations", label: "Offline", icon: CloudOff },
   { href: "/settings", label: "Settings", icon: Settings },
   { href: "/support", label: "Support", icon: HelpCircle },

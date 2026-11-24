@@ -144,6 +144,9 @@ async function requestAt<T>(
             ...(body !== undefined ? { "Content-Type": "application/json" } : {}),
             ...(idempotencyKey ? { "Idempotency-Key": idempotencyKey } : {}),
             ...(token ? { Authorization: `Bearer ${token}` } : {}),
+            ...(typeof window !== "undefined" && localStorage.getItem("komola-active-group-id")
+              ? { "X-Organization-ID": localStorage.getItem("komola-active-group-id") as string }
+              : {}),
             ...headers,
           },
           body: body !== undefined ? JSON.stringify(body) : undefined,

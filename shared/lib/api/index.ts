@@ -13,6 +13,7 @@ export * as rewardsApi from "./rewards";
 export * as campaignsApi from "./campaigns";
 export * as receiptsApi from "./receipts";
 export * as bootstrapApi from "./bootstrap";
+export * as groupsApi from "./groups";
 export * as customersApi from "./customers";
 export { request } from "./client";
 export type { ApiResult } from "./client";
