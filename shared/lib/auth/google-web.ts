@@ -95,8 +95,12 @@ export async function getGoogleWebIdToken(): Promise<string> {
       reject(new Error("Google sign-in timed out or was cancelled."));
     }, 60_000);
     pendingToken = { resolve, reject, timeout };
-    // Do not inspect prompt notification status here. Those deprecated status
-    // methods produce FedCM migration warnings in current Google browsers.
-    google.accounts.id.prompt();
+    google.accounts.id.prompt((notification) => {
+      if (!notification.isNotDisplayed() && !notification.isSkippedMoment()) return;
+      if (!pendingToken) return;
+      clearTimeout(pendingToken.timeout);
+      pendingToken = null;
+      reject(new Error("Google sign-in prompt was not displayed. Check the authorized origin and browser settings."));
+    });
   });
 }
