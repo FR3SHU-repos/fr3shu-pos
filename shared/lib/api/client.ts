@@ -1,3 +1,5 @@
+import { workspaceForRequest } from "../seller-workspace";
+
 /** Typed HTTP boundary. All browser application data goes through the same-origin
  * /api/v1 proxy to Go. Supabase is used solely to obtain the Auth bearer token. */
 
@@ -77,6 +79,7 @@ export interface RequestOptions {
   headers?: Record<string, string>;
   /** Sent as the `Idempotency-Key` header on mutations. */
   idempotencyKey?: string;
+  workspace?: "personal";
 }
 
 const inFlightGets = new Map<string, Promise<ApiResult<unknown>>>();
@@ -114,6 +117,12 @@ async function requestAt<T>(
   opts: RequestOptions = {},
 ): Promise<ApiResult<T>> {
   const { method = "GET", body, query, signal, headers, idempotencyKey } = opts;
+  const route = path.replace(/^\/+/, "");
+  const workspace =
+    opts.workspace !== "personal" && /^(pos\/|seller-organizations\/me(?:\/|$))/.test(route)
+      ? workspaceForRequest()
+      : null;
+  const scopedHeaders = { ...(workspace ? { "X-Organization-ID": workspace } : {}), ...headers };
 
   let target = apiURL(path, base);
   if (query) {
@@ -128,7 +137,7 @@ async function requestAt<T>(
   const bearer = await supabaseBearer();
 
   const isCacheableGet = method === "GET" && !signal;
-  const cacheKey = isCacheableGet ? `${target}|${bearer ?? "anonymous"}` : "";
+  const cacheKey = isCacheableGet ? JSON.stringify([target, bearer, scopedHeaders]) : "";
   if (cacheKey) {
     const existing = inFlightGets.get(cacheKey);
     if (existing) return existing as Promise<ApiResult<T>>;
@@ -144,7 +153,7 @@ async function requestAt<T>(
             ...(body !== undefined ? { "Content-Type": "application/json" } : {}),
             ...(idempotencyKey ? { "Idempotency-Key": idempotencyKey } : {}),
             ...(token ? { Authorization: `Bearer ${token}` } : {}),
-            ...headers,
+            ...scopedHeaders,
           },
           body: body !== undefined ? JSON.stringify(body) : undefined,
           signal,
@@ -155,6 +164,9 @@ async function requestAt<T>(
         if (refreshedBearer && refreshedBearer !== bearer) {
           res = await requestWithBearer(refreshedBearer);
         }
+      }
+      if ([401, 403, 404].includes(res.status) && workspace && !headers?.["X-Organization-ID"]) {
+        window.dispatchEvent(new Event("komola:workspace-access-check"));
       }
       return normalize<T>(res);
     } catch (err) {

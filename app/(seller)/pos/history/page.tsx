@@ -240,6 +240,11 @@ export default function SalesHistoryPage() {
                       <div className="min-w-0 flex-1">
                         <p className="truncate text-sm font-semibold text-foreground-heading">
                           {s.receiptNo}
+                          {s.operatorName ? (
+                            <span className="block text-xs text-foreground-muted">
+                              {s.operatorName}
+                            </span>
+                          ) : null}
                         </p>
                         <p className="truncate text-xs text-foreground-muted">
                           {new Date(s.soldAt).toLocaleTimeString("en-IN", {

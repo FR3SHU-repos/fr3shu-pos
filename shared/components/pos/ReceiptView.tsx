@@ -146,7 +146,7 @@ export function ReceiptView({
       <div className="rcpt-footer">
         <div className="rcpt-thanks">Thank you!</div>
         <div className="rcpt-footer-sub">Keep this receipt for returns &middot; komola.in</div>
-        {cashierName ? <div className="rcpt-footer-sub">Served by {cashierName}</div> : null}
+        {sale.operatorName || cashierName ? <div className="rcpt-footer-sub">Served by {sale.operatorName || cashierName}</div> : null}
       </div>
     </div>
   );

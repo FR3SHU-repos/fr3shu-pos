@@ -38,6 +38,24 @@ export const overview = async (): Promise<ApiResult<RegisterSessionsView>> => {
   };
 };
 
+export interface ShiftSellerTotal {
+  sellerId: string;
+  sellerName: string;
+  totalMinor: number;
+  salesCount: number;
+}
+
+export const sellerTotals = (registerId: string, shiftId: string) =>
+  goRequest<{ items: ShiftSellerTotal[] }>(
+    `registers/${encodeURIComponent(registerId)}/shifts/${encodeURIComponent(shiftId)}/seller-totals`,
+  );
+
+export const closedShifts = (organizationId: string) =>
+  goRequest<{ items: GoShift[] }>("shifts", {
+    headers: { "X-Organization-ID": organizationId },
+    query: { status: "closed", limit: 50 },
+  });
+
 export const open = async (body: {
   registerId: string;
   openingCashPaise: number;

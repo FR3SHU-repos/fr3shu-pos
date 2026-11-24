@@ -1,7 +1,13 @@
 "use client";
 
 import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
-import { authApi, bootstrapApi } from "@/shared/lib/api";
+import { authApi, bootstrapApi, groupsApi } from "@/shared/lib/api";
+import {
+  clearWorkspace,
+  selectedWorkspace,
+  setPersonalWorkspace,
+  switchWorkspace,
+} from "@/shared/lib/seller-workspace";
 import type { SessionUser } from "@/shared/lib/api/auth";
 import type { Capabilities } from "@/shared/lib/api/identity";
 import { createAuthBrowserClient } from "@/shared/lib/supabase/auth-client";
@@ -54,6 +60,8 @@ export function PosUserProvider({ children }: { children: React.ReactNode }) {
         data: { session },
       } = await createAuthBrowserClient().auth.getSession();
       if (!session) {
+        clearWorkspace();
+        setPersonalWorkspace(null);
         if (userRef.current) lockOfflineScope(toOfflineScope(userRef.current));
         setOfflineActiveScope(null);
         setProductScope(null);
@@ -64,7 +72,21 @@ export function PosUserProvider({ children }: { children: React.ReactNode }) {
         return;
       }
 
-      const result = await bootstrapApi.load();
+      const selected = selectedWorkspace();
+      const result = await bootstrapApi.load(selected ? undefined : "personal");
+      if (
+        selected &&
+        (result.data?.organization?.isClosed ||
+          (result.status > 0 &&
+            result.status < 500 &&
+            result.status !== 401 &&
+            result.data?.user.orgId !== selected))
+      ) {
+        switchWorkspace(null);
+        return;
+      }
+      if (!selected && result.success)
+        setPersonalWorkspace(result.data?.organization?.organizationId ?? null);
       // A connection loss must not evict an already open seller workspace.
       if (result.status === 0 || result.status >= 500) {
         setLoading(false);
@@ -108,6 +130,8 @@ export function PosUserProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const logout = useCallback(async () => {
+    clearWorkspace();
+    setPersonalWorkspace(null);
     if (userRef.current) lockOfflineScope(toOfflineScope(userRef.current));
     setOfflineActiveScope(null);
     setProductScope(null);
@@ -125,6 +149,8 @@ export function PosUserProvider({ children }: { children: React.ReactNode }) {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((event) => {
       if (event === "SIGNED_OUT") {
+        clearWorkspace();
+        setPersonalWorkspace(null);
         if (userRef.current) lockOfflineScope(toOfflineScope(userRef.current));
         setOfflineActiveScope(null);
         setProductScope(null);
@@ -147,6 +173,28 @@ export function PosUserProvider({ children }: { children: React.ReactNode }) {
 
     return () => subscription.unsubscribe();
   }, [refresh]);
+
+  useEffect(() => {
+    async function recheck() {
+      const id = selectedWorkspace();
+      if (!id) return;
+      const result = await groupsApi.list();
+      if (
+        result.success &&
+        result.data &&
+        selectedWorkspace() === id &&
+        !result.data.items.some((group) => group.groupId === id)
+      ) {
+        switchWorkspace(null);
+      }
+    }
+    window.addEventListener("focus", recheck);
+    window.addEventListener("komola:workspace-access-check", recheck);
+    return () => {
+      window.removeEventListener("focus", recheck);
+      window.removeEventListener("komola:workspace-access-check", recheck);
+    };
+  }, []);
 
   return (
     <PosUserContext.Provider

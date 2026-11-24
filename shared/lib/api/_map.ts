@@ -295,6 +295,7 @@ export interface GoSaleLine {
 }
 
 export interface GoSale {
+  operatorName?: string;
   id: string;
   receiptNo: string;
   status: string;
@@ -358,6 +359,7 @@ export interface SaleDTO {
   customerName?: string;
   customerPhone?: string;
   cashierId: string;
+  operatorName?: string;
   registerId: string;
   sessionId: string;
   locationId: string;
@@ -403,6 +405,7 @@ export function mapSale(s: GoSale): SaleDTO {
     customerName: s.customerName || undefined,
     customerPhone: s.customerPhone || undefined,
     cashierId: s.operatorId,
+    operatorName: s.operatorName || undefined,
     registerId: s.registerId,
     sessionId: s.shiftId,
     locationId: s.sellingLocationId,

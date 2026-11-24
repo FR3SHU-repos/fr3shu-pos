@@ -7,4 +7,5 @@ export interface PosBootstrap {
   capabilities: Capabilities;
   organization?: MyOrganization;
 }
-export const load = (): Promise<ApiResult<PosBootstrap>> => request<PosBootstrap>("pos/bootstrap");
+export const load = (workspace?: "personal"): Promise<ApiResult<PosBootstrap>> =>
+  request<PosBootstrap>("pos/bootstrap", { workspace });

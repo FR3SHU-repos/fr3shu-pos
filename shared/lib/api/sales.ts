@@ -77,21 +77,27 @@ export interface CreateSaleBody {
   deviceId?: string;
 }
 
-export const list = async (params?: {
-  page?: number;
-  limit?: number;
-  receiptNo?: string;
-  phone?: string;
-  /** RFC3339 instant, inclusive. */
-  from?: string;
-  /** RFC3339 instant, exclusive. */
-  to?: string;
-}): Promise<ApiResult<SaleListResult>> => {
+export const list = async (
+  params?: {
+    page?: number;
+    limit?: number;
+    receiptNo?: string;
+    phone?: string;
+    /** RFC3339 instant, inclusive. */
+    from?: string;
+    /** RFC3339 instant, exclusive. */
+    to?: string;
+  },
+  organizationId?: string,
+): Promise<ApiResult<SaleListResult>> => {
   const res = await goRequest<{
     items: GoSale[];
     meta: PageMeta;
     summary?: { completedCount: number; totalMinor: number };
-  }>("sales", { query: params });
+  }>("sales", {
+    query: params,
+    headers: organizationId ? { "X-Organization-ID": organizationId } : undefined,
+  });
   return {
     ...res,
     data: res.data
@@ -137,8 +143,13 @@ export const daily = async (days = 6): Promise<ApiResult<DailySalesTotal[]>> => 
   };
 };
 
-export const get = async (id: string): Promise<ApiResult<SaleDetail>> => {
-  const res = await goRequest<GoSale & { tenders?: GoTender[] }>(`sales/${id}`);
+export const get = async (id: string, organizationId?: string): Promise<ApiResult<SaleDetail>> => {
+  const res = await goRequest<GoSale & { tenders?: GoTender[] }>(
+    `sales/${encodeURIComponent(id)}`,
+    {
+      headers: organizationId ? { "X-Organization-ID": organizationId } : undefined,
+    },
+  );
   return {
     ...res,
     data: res.data
@@ -368,6 +379,7 @@ export async function syncPendingOfflineSales(
   const res = await goRequest<{ results: OfflineSaleSyncResult[] }>("sync/sales", {
     method: "POST",
     body: syncPayload,
+    headers: { "X-Organization-ID": scope.orgId },
     idempotencyKey: `offline-sync:${batch.map((sale) => sale.operationId).join(",")}`,
   });
   recordOfflineSyncAttempt(

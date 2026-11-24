@@ -13,9 +13,11 @@ import { formatPaise } from "@/shared/lib/money";
 import { buildWhatsAppReceiptUrl } from "@/shared/lib/whatsapp-share";
 import { printReceipt } from "@/shared/lib/offline/receipt-print";
 import { normalizeIndianMobile } from "@/shared/lib/auth/phone";
+import { usePosUser } from "@/shared/context/PosUserContext";
 
 export default function SaleDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
+  const { organization } = usePosUser();
   const {
     data: detail,
     error: loadError,
@@ -298,7 +300,7 @@ export default function SaleDetailPage({ params }: { params: Promise<{ id: strin
         ) : null}
       </div>
 
-      <ReceiptView sale={sale} payments={receiptPayments} />
+      <ReceiptView sale={sale} payments={receiptPayments} orgName={organization?.displayName} />
 
       <div className="rounded-xl border border-border bg-surface-card p-4 text-sm no-print">
         <h2 className="mb-2 font-semibold text-foreground-heading">Payments</h2>

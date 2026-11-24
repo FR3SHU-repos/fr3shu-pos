@@ -6,7 +6,8 @@ import toast from "react-hot-toast";
 import { Loader2 } from "lucide-react";
 import { registersApi } from "@/shared/lib/api";
 import { usePosUser } from "@/shared/context/PosUserContext";
-import type { RegisterDTO, SessionDTO } from "@/shared/lib/api/registers";
+import type { RegisterDTO, SessionDTO, ShiftSellerTotal } from "@/shared/lib/api/registers";
+import { copyText } from "@/shared/lib/clipboard";
 import {
   cardCls,
   ghostBtnCls,
@@ -28,7 +29,23 @@ import {
 
 export default function RegisterSessionsPage() {
   const PAGE_SIZE = 10;
-  const { user } = usePosUser();
+  const { user, organization } = usePosUser();
+  const role = user?.role.toLowerCase();
+  const owner =
+    organization?.membership?.roles.includes("SellerOwner") ||
+    role === "owner" ||
+    role === "sellerowner";
+  const canOpen =
+    !organization?.isGroup ||
+    owner ||
+    organization.membership?.roles.includes("Manager") ||
+    role === "manager";
+  const canClose = !organization?.isGroup || owner;
+  const [closed, setClosed] = useState<{
+    shift: SessionDTO;
+    sellers: ShiftSellerTotal[] | null;
+  } | null>(null);
+  const [loadError, setLoadError] = useState("");
   const [registers, setRegisters] = useState<RegisterDTO[]>([]);
   const [current, setCurrent] = useState<SessionDTO | null>(null);
   const [recent, setRecent] = useState<SessionDTO[]>([]);
@@ -55,6 +72,12 @@ export default function RegisterSessionsPage() {
       setCurrent(res.data.currentSession);
       setRecent(res.data.recentSessions);
       if (!registerId && res.data.registers[0]) setRegisterId(res.data.registers[0]._id);
+      setLoadError("");
+    } else {
+      setLoadError(res.message);
+      setRegisters([]);
+      setCurrent(null);
+      setRecent([]);
     }
     setOfflineSales(local);
     setLoading(false);
@@ -69,7 +92,7 @@ export default function RegisterSessionsPage() {
 
   async function openRegister(e: React.FormEvent) {
     e.preventDefault();
-    if (busy) return;
+    if (busy || !canOpen) return;
     setBusy(true);
     const res = await registersApi.open({
       registerId,
@@ -84,18 +107,26 @@ export default function RegisterSessionsPage() {
 
   async function closeRegister(e: React.FormEvent) {
     e.preventDefault();
-    if (!current || busy) return;
+    if (!current || busy || !canClose) return;
     setBusy(true);
     const res = await registersApi.close(current.registerId, {
       countedCashPaise: rupeesToPaise(Number(countedCash || 0)),
       varianceNote: note.trim() || undefined,
     });
-    setBusy(false);
-    if (!res.success) return toast.error(res.message);
+    if (!res.success) {
+      setBusy(false);
+      return toast.error(res.message);
+    }
+    setCurrent(null);
     toast.success("Register closed");
+    if (res.data) {
+      const totals = await registersApi.sellerTotals(res.data.registerId, res.data._id);
+      setClosed({ shift: res.data, sellers: totals.success ? (totals.data?.items ?? []) : null });
+    }
     setCountedCash("");
     setNote("");
-    void load();
+    await load();
+    setBusy(false);
   }
 
   const t = current?.totals;
@@ -132,6 +163,54 @@ export default function RegisterSessionsPage() {
           Cash in the drawer and online (UPI) money, counted separately.
         </p>
       </header>
+
+      {loadError ? <p role="alert">{loadError}</p> : null}
+      {closed ? (
+        <section className={cardCls + " space-y-3"}>
+          <h2 className="font-semibold">Shift closed</h2>
+          <p>
+            Expected {formatPaise(closed.shift.expectedCashPaise)} · Counted{" "}
+            {formatPaise(closed.shift.countedCashPaise)} · Variance{" "}
+            {formatPaise(closed.shift.cashVariancePaise)}
+          </p>
+          <p>
+            Cash sales {formatPaise(closed.shift.totals.cashSalesPaise)} · UPI{" "}
+            {formatPaise(closed.shift.totals.upiSalesPaise)}
+          </p>
+          <h3 className="font-semibold">Sales by seller</h3>
+          {closed.sellers === null ? (
+            <p>Seller totals are unavailable.</p>
+          ) : closed.sellers.length === 0 ? (
+            <p>No seller sales.</p>
+          ) : (
+            <ul>
+              {closed.sellers.map((seller) => (
+                <li key={seller.sellerId}>
+                  {seller.sellerName} · {seller.salesCount} sales · {formatPaise(seller.totalMinor)}
+                </li>
+              ))}
+            </ul>
+          )}
+          <button
+            className={ghostBtnCls}
+            onClick={async () => {
+              const summary = [
+                `KOMOLA shift summary · ${organization?.displayName ?? "Seller workspace"}`,
+                `Cash sales: ${formatPaise(closed.shift.totals.cashSalesPaise)} · UPI: ${formatPaise(closed.shift.totals.upiSalesPaise)}`,
+                `Expected: ${formatPaise(closed.shift.expectedCashPaise)} · Counted: ${formatPaise(closed.shift.countedCashPaise)} · Variance: ${formatPaise(closed.shift.cashVariancePaise)}`,
+                ...(closed.sellers?.map(
+                  (seller) =>
+                    `${seller.sellerName}: ${formatPaise(seller.totalMinor)} (${seller.salesCount} sales)`,
+                ) ?? []),
+              ].join("\n");
+              if (await copyText(summary)) toast.success("Shift summary copied.");
+              else toast.error("Could not copy the shift summary.");
+            }}
+          >
+            Copy shift summary
+          </button>
+        </section>
+      ) : null}
 
       {current ? (
         <section className={cardCls}>
@@ -196,63 +275,75 @@ export default function RegisterSessionsPage() {
             </div>
           ) : null}
 
-          <form onSubmit={closeRegister} className="mt-5 space-y-4">
-            <div>
-              <label className="mb-1 block text-xs font-medium text-foreground-body">
-                Counted cash (₹)
-              </label>
-              <input
-                type="number"
-                min="0"
-                step="0.01"
-                required
-                value={countedCash}
-                onChange={(e) => setCountedCash(e.target.value)}
-                className={inputCls}
-              />
-              {combinedVariancePaise !== null ? (
-                <p className="mt-2 flex items-center gap-2 text-xs text-foreground-muted">
-                  <span
-                    className={`rounded-full px-2.5 py-1 font-semibold ${
-                      combinedVariancePaise === 0
-                        ? "bg-status-success-surface text-status-success"
+          {canClose ? (
+            <form onSubmit={closeRegister} className="mt-5 space-y-4">
+              <div>
+                <label className="mb-1 block text-xs font-medium text-foreground-body">
+                  Counted cash (₹)
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  required
+                  value={countedCash}
+                  onChange={(e) => setCountedCash(e.target.value)}
+                  className={inputCls}
+                />
+                {combinedVariancePaise !== null ? (
+                  <p className="mt-2 flex items-center gap-2 text-xs text-foreground-muted">
+                    <span
+                      className={`rounded-full px-2.5 py-1 font-semibold ${
+                        combinedVariancePaise === 0
+                          ? "bg-status-success-surface text-status-success"
+                          : combinedVariancePaise > 0
+                            ? "bg-status-info-surface text-status-info"
+                            : "bg-status-danger-surface text-status-danger"
+                      }`}
+                    >
+                      {combinedVariancePaise === 0
+                        ? "Balanced"
                         : combinedVariancePaise > 0
-                          ? "bg-status-info-surface text-status-info"
-                          : "bg-status-danger-surface text-status-danger"
-                    }`}
-                  >
-                    {combinedVariancePaise === 0
-                      ? "Balanced"
-                      : combinedVariancePaise > 0
-                        ? "Over"
-                        : "Short"}
-                  </span>
-                  Variance vs expected cash with offline: {formatPaise(combinedVariancePaise)}
-                </p>
-              ) : null}
-              <NoteCounter onTotal={(rupees) => setCountedCash(rupees > 0 ? String(rupees) : "")} />
-            </div>
-            <div>
-              <label className="mb-1 block text-xs font-medium text-foreground-body">
-                Variance note (required if variance is large)
-              </label>
-              <input
-                type="text"
-                value={note}
-                onChange={(e) => setNote(e.target.value)}
-                className={inputCls}
-              />
-            </div>
-            <button type="submit" disabled={busy} className={primaryBtnCls}>
-              {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-              Close register
-            </button>
-          </form>
+                          ? "Over"
+                          : "Short"}
+                    </span>
+                    Variance vs expected cash with offline: {formatPaise(combinedVariancePaise)}
+                  </p>
+                ) : null}
+                <NoteCounter
+                  onTotal={(rupees) => setCountedCash(rupees > 0 ? String(rupees) : "")}
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-medium text-foreground-body">
+                  Variance note (required if variance is large)
+                </label>
+                <input
+                  type="text"
+                  value={note}
+                  onChange={(e) => setNote(e.target.value)}
+                  className={inputCls}
+                />
+              </div>
+              <button type="submit" disabled={busy} className={primaryBtnCls}>
+                {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                Close register
+              </button>
+            </form>
+          ) : (
+            <p className="mt-4 text-sm text-foreground-muted">
+              A group owner must close the register.
+            </p>
+          )}
         </section>
       ) : (
         <section className={cardCls}>
           <h2 className="mb-3 text-sm font-semibold text-foreground-heading">Open a register</h2>
-          {registers.length === 0 ? (
+          {!canOpen ? (
+            <p className="text-sm text-foreground-muted">
+              A group owner or manager must open the register.
+            </p>
+          ) : registers.length === 0 ? (
             <p className="text-sm text-foreground-muted">
               No registers configured for your location. Ask an Owner to add one (seeded by
               default).

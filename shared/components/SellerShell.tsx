@@ -39,6 +39,7 @@ const NAV = [
   { href: "/stock", label: "Stock", icon: Boxes },
   { href: "/offline-operations", label: "Offline", icon: CloudOff },
   { href: "/settings", label: "Settings", icon: Settings },
+  { href: "/groups", label: "Groups", icon: Boxes },
   { href: "/support", label: "Support", icon: HelpCircle },
 ];
 
@@ -92,6 +93,10 @@ export default function SellerShell({ children }: { children: React.ReactNode })
   useEffect(() => {
     if (loading || !user) return;
     if (!organization) {
+      if (capabilities?.seller) {
+        if (pathname !== "/groups") router.replace("/groups");
+        return;
+      }
       if (capabilities?.buyer && !capabilities.seller) {
         if (pathname !== "/buyer") router.replace("/buyer");
       } else if (user.role === "Admin") {
@@ -134,6 +139,12 @@ export default function SellerShell({ children }: { children: React.ReactNode })
 
   const mobilePrimaryNav = NAV.slice(0, 4);
   const mobileMoreNav = NAV.slice(4);
+  const workspaceReady = Boolean(
+    !loading &&
+    user &&
+    (organization?.approvalStatus === "Approved" ||
+      (pathname === "/groups" && !organization && capabilities?.seller)),
+  );
 
   return (
     <div className="flex min-h-screen bg-background">
@@ -153,6 +164,11 @@ export default function SellerShell({ children }: { children: React.ReactNode })
 
       {/* Application shell */}
       <div className="flex min-w-0 flex-1 flex-col">
+        {organization ? (
+          <Link href="/groups" className="bg-surface-muted px-4 py-2 text-sm text-foreground-body">
+            Selling in <strong>{organization.displayName}</strong> · Switch workspace
+          </Link>
+        ) : null}
         <header className="sticky top-0 z-30 flex items-center justify-between gap-3 bg-background/90 px-4 py-3 backdrop-blur lg:hidden">
           <div className="min-w-0">
             <Brand compact />
@@ -168,12 +184,12 @@ export default function SellerShell({ children }: { children: React.ReactNode })
         </header>
 
         <main className="min-w-0 flex-1 bg-background px-4 pb-32 pt-4 sm:p-6 sm:pb-32 lg:p-8 lg:pb-8">
-          {user ? (
+          {workspaceReady && user?.orgId ? (
             <OfflineSalesSyncWorker
               key={`sales-sync:${user.id}:${user.orgId}:${user.locationId}`}
             />
           ) : null}
-          {user ? (
+          {workspaceReady && user?.orgId ? (
             <OfflineCatalogue
               key={`catalogue:${user.id}:${user.orgId}:${user.locationId}`}
               compact
@@ -182,7 +198,7 @@ export default function SellerShell({ children }: { children: React.ReactNode })
             />
           ) : null}
           {user ? <PwaStatusBar /> : null}
-          {children}
+          {workspaceReady ? children : <Skeleton className="h-48 w-full" />}
         </main>
 
         <div className="fixed inset-x-0 bottom-0 z-40 lg:hidden">

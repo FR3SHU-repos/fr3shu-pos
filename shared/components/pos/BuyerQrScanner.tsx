@@ -14,9 +14,13 @@ export function extractBuyerCode(value: string): string | null {
 export function BuyerQrScanner({
   disabled,
   onScan,
+  label = "buyer",
+  parseCode = extractBuyerCode,
 }: {
   disabled?: boolean;
   onScan: (code: string) => void;
+  label?: "buyer" | "seller";
+  parseCode?: (value: string) => string | null;
 }) {
   const [open, setOpen] = useState(false);
   const [starting, setStarting] = useState(false);
@@ -37,9 +41,9 @@ export function BuyerQrScanner({
         videoRef.current!,
         (result) => {
           if (!result || acceptedRef.current) return;
-          const code = extractBuyerCode(result.getText());
+          const code = parseCode(result.getText());
           if (!code) {
-            setError("This is not a valid KOMOLA buyer QR code.");
+            setError(`This is not a valid KOMOLA ${label} QR code.`);
             return;
           }
           acceptedRef.current = true;
@@ -55,7 +59,7 @@ export function BuyerQrScanner({
       })
       .catch(() => {
         setStarting(false);
-        setError("Camera unavailable. Allow camera access or enter the buyer code manually.");
+        setError(`Camera unavailable. Allow camera access or enter the ${label} code manually.`);
       });
 
     return () => {
@@ -63,7 +67,7 @@ export function BuyerQrScanner({
       controlsRef.current?.stop();
       controlsRef.current = null;
     };
-  }, [open, onScan]);
+  }, [open, onScan, label, parseCode]);
 
   return (
     <>
@@ -76,8 +80,8 @@ export function BuyerQrScanner({
         }}
         disabled={disabled}
         className={`${ghostBtnCls} shrink-0 px-3`}
-        aria-label="Scan buyer QR code"
-        title="Scan buyer QR code"
+        aria-label={`Scan ${label} QR code`}
+        title={`Scan ${label} QR code`}
       >
         <QrCode className="h-4 w-4" />
         <span className="sr-only sm:not-sr-only">Scan</span>
@@ -97,10 +101,10 @@ export function BuyerQrScanner({
                   id="buyer-scanner-title"
                   className="text-lg font-semibold text-foreground-heading"
                 >
-                  Scan buyer QR code
+                  Scan {label} QR code
                 </h2>
                 <p className="text-sm text-foreground-muted">
-                  Point the camera at the QR code on the buyer&apos;s screen.
+                  Point the camera at the QR code on the {label}&apos;s screen.
                 </p>
               </div>
               <button
