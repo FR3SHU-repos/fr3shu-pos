@@ -16,7 +16,6 @@ import { getMyOrganization, sellerDestination } from "@/shared/lib/api/sellerOrg
 import { destinationForCapabilities, type AuthIntent } from "@/shared/lib/auth/intent";
 import { Divider, GoogleButton, PasswordField } from "@/shared/components/auth/parts";
 import { authCallbackRedirect, rememberAuthIntent } from "@/shared/lib/auth/providers";
-import { getGoogleWebIdToken } from "@/shared/lib/auth/google-web";
 import { normalizeAuthIdentifier } from "@/shared/lib/auth/identifier";
 
 function safeNext(n: string | null): string {
@@ -111,12 +110,15 @@ export function LoginForm({ intent }: { intent: AuthIntent }) {
     setGoogleBusy(true);
     rememberAuthIntent(intent);
     try {
-      const idToken = await getGoogleWebIdToken();
-      const { error } = await supabase.auth.signInWithIdToken({ provider: "google", token: idToken });
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: {
+          redirectTo: authCallbackRedirect(window.location.origin, { intent, next }),
+        },
+      });
       if (error) throw error;
-      // Keep intent in the server callback so the existing role/org routing
-      // runs after the browser client stores the Supabase session.
-      window.location.assign(authCallbackRedirect(window.location.origin, { intent, next }));
+      if (!data.url) throw new Error("Google OAuth did not return a redirect URL.");
+      window.location.assign(data.url);
     } catch (error) {
       console.error("[auth] Google sign-in failed", error);
       setGoogleBusy(false);

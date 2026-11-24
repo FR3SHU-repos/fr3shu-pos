@@ -10,7 +10,6 @@ import type { AuthIntent } from "@/shared/lib/auth/intent";
 import { reconcileIdentity } from "@/shared/lib/auth/gin";
 import { normalizeIndianMobile } from "@/shared/lib/auth/phone";
 import { authCallbackRedirect, rememberAuthIntent } from "@/shared/lib/auth/providers";
-import { getGoogleWebIdToken } from "@/shared/lib/auth/google-web";
 import { KomoMessage } from "@/shared/components/mascot";
 
 function registrationErrorMessage(message: string): string {
@@ -70,10 +69,15 @@ export function RegisterForm({ intent }: { intent: AuthIntent }) {
     rememberAuthIntent(intent);
     try {
       const supabase = createAuthBrowserClient();
-      const idToken = await getGoogleWebIdToken();
-      const { error } = await supabase.auth.signInWithIdToken({ provider: "google", token: idToken });
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: {
+          redirectTo: authCallbackRedirect(window.location.origin, { intent }),
+        },
+      });
       if (error) throw error;
-      window.location.assign(authCallbackRedirect(window.location.origin, { intent }));
+      if (!data.url) throw new Error("Google OAuth did not return a redirect URL.");
+      window.location.assign(data.url);
     } catch (error) {
       console.error("[auth] Google registration failed", error);
       setGoogleBusy(false);
