@@ -1,6 +1,7 @@
 "use client";
 
 import { useParams } from "next/navigation";
+import { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { ArrowLeft, Download, Printer } from "lucide-react";
@@ -8,13 +9,23 @@ import { receiptsApi } from "@/shared/lib/api";
 import { useApi } from "@/shared/hooks/useApi";
 import { formatPaise } from "@/shared/lib/money";
 import { formatBaseQuantity, type SaleUnit } from "@/shared/lib/units";
-import { ghostBtnCls, primaryBtnCls, Skeleton } from "@/shared/components/ui";
+import { cardCls, ghostBtnCls, inputCls, primaryBtnCls, Skeleton } from "@/shared/components/ui";
+import type { ReceiptIssueReason } from "@/shared/lib/api/receipts";
 import { downloadBuyerReceiptPdf } from "@/shared/lib/receipt-pdf";
 import { printReceipt } from "@/shared/lib/offline/receipt-print";
 
 export default function BuyerReceiptPage() {
   const { id } = useParams<{ id: string }>();
-  const { data: receipt, error } = useApi(() => receiptsApi.get(id), [id], { keepData: false });
+  const {
+    data: receipt,
+    error,
+    mutate,
+  } = useApi(() => receiptsApi.get(id), [id], { keepData: false });
+  const [reporting, setReporting] = useState(false);
+  const [reason, setReason] = useState<ReceiptIssueReason>("wrong_amount");
+  const [note, setNote] = useState("");
+  const [reportError, setReportError] = useState("");
+  const [busy, setBusy] = useState(false);
 
   if (error)
     return (
@@ -40,7 +51,7 @@ export default function BuyerReceiptPage() {
   return (
     <main className="mx-auto max-w-2xl p-4 pb-32 sm:p-8 sm:pb-32 xl:pb-8">
       <div className="no-print mb-5 flex flex-wrap items-center justify-between gap-3">
-        <Link href="/buyer" className={ghostBtnCls}>
+        <Link href="/buyer/receipts" className={ghostBtnCls}>
           <ArrowLeft className="h-4 w-4" />
           Back
         </Link>
@@ -119,6 +130,67 @@ export default function BuyerReceiptPage() {
           <div className="rcpt-footer-sub">Completed KOMOLA purchase</div>
         </div>
       </article>
+      <section className={cardCls + " no-print mt-5 space-y-3"}>
+        <h2 className="font-semibold">Receipt help</h2>
+        {receipt.issue ? (
+          <p role="status">Reported issue · {receipt.issue.status}</p>
+        ) : reporting ? (
+          <form
+            className="space-y-3"
+            onSubmit={async (event) => {
+              event.preventDefault();
+              if (busy) return;
+              setBusy(true);
+              setReportError("");
+              const result = await receiptsApi.reportIssue(id, reason, note);
+              setBusy(false);
+              if (result.success && result.data) {
+                mutate({ ...receipt, issue: result.data });
+                setReporting(false);
+              } else setReportError(result.message);
+            }}
+          >
+            <label className="block">
+              Reason
+              <select
+                className={inputCls}
+                value={reason}
+                onChange={(event) => setReason(event.target.value as ReceiptIssueReason)}
+              >
+                <option value="wrong_amount">Wrong amount</option>
+                <option value="items_wrong">Incorrect items</option>
+                <option value="not_my_bill">This isn’t my receipt</option>
+                <option value="other">Other</option>
+              </select>
+            </label>
+            <label className="block">
+              Details (optional)
+              <textarea
+                className={inputCls}
+                maxLength={500}
+                value={note}
+                onChange={(event) => setNote(event.target.value)}
+              />
+            </label>
+            {reportError ? <p role="alert">{reportError}</p> : null}
+            <button className={primaryBtnCls} disabled={busy}>
+              Submit report
+            </button>{" "}
+            <button
+              type="button"
+              className={ghostBtnCls}
+              disabled={busy}
+              onClick={() => setReporting(false)}
+            >
+              Cancel
+            </button>
+          </form>
+        ) : (
+          <button className={ghostBtnCls} onClick={() => setReporting(true)}>
+            Report a problem
+          </button>
+        )}
+      </section>
     </main>
   );
 }

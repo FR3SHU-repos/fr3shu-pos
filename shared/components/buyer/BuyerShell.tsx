@@ -4,12 +4,21 @@ import Image from "next/image";
 import React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Gift, HelpCircle, LogOut, Megaphone, UsersRound, WalletCards } from "lucide-react";
+import {
+  Gift,
+  HelpCircle,
+  LogOut,
+  Megaphone,
+  ReceiptText,
+  UsersRound,
+  WalletCards,
+} from "lucide-react";
 import { usePosUser } from "@/shared/context/PosUserContext";
 import { cx } from "@/shared/lib/utils";
 
 export const BUYER_NAV = [
   { href: "/buyer", label: "Rewards", icon: Gift },
+  { href: "/buyer/receipts", label: "Receipts", icon: ReceiptText },
   { href: "/buyer/campaigns", label: "Offers", icon: Megaphone },
   { href: "/buyer/wallet", label: "Wallet", icon: WalletCards },
   { href: "/buyer/referrals", label: "Referrals", icon: UsersRound },

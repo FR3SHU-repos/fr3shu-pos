@@ -590,6 +590,7 @@ export default function BuyerDashboardPage() {
                 <h2 id="receipts-title" className="text-xl font-semibold">
                   My e-receipts
                 </h2>
+              <Link href="/buyer/receipts" className="text-sm font-semibold text-primary">View all receipts</Link>
               </div>
               {receipts.length === 0 ? (
                 <KomoEmptyState

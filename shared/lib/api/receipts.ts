@@ -22,6 +22,7 @@ export interface BuyerReceiptLine {
 }
 
 export interface BuyerReceiptDetail extends BuyerReceiptSummary {
+  issue?: ReceiptIssue;
   subtotalMinor: number;
   discountMinor: number;
   taxMinor: number;
@@ -29,6 +30,28 @@ export interface BuyerReceiptDetail extends BuyerReceiptSummary {
   lines: BuyerReceiptLine[];
   payments: Array<{ method: string; amountMinor: number; reference?: string }>;
 }
+
+export type ReceiptIssueReason = "wrong_amount" | "items_wrong" | "not_my_bill" | "other";
+export type ReceiptIssue = {
+  id: string;
+  reason: ReceiptIssueReason;
+  status: "open" | "resolved" | "dismissed";
+};
+export type ReceiptMatches = {
+  verifiedPhone: boolean;
+  linkedCount: number;
+  pendingCount: number;
+  storeCount: number;
+};
+
+export const matches = () => request<ReceiptMatches>("buyer/receipt-matches");
+export const decline = (id: string) =>
+  request(`buyer/receipt-claims/${encodeURIComponent(id)}/decline`, { method: "POST", body: {} });
+export const reportIssue = (id: string, reason: ReceiptIssueReason, note: string) =>
+  request<ReceiptIssue>(`buyer/receipts/${encodeURIComponent(id)}/issues`, {
+    method: "POST",
+    body: { reason, note: note.trim() || undefined },
+  });
 
 export interface ReceiptClaimCandidate {
   id: string;

@@ -105,7 +105,7 @@ export default function BuyerProfilePage() {
           </section>
 
           <Link
-            href="/buyer/setup"
+            href="/buyer/profile/edit"
             className="block rounded-3xl bg-surface-card p-5 text-sm font-semibold text-primary hover:underline"
           >
             Edit profile details

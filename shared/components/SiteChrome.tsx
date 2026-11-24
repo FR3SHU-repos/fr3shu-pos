@@ -9,6 +9,7 @@ import {
   LogOut,
   Megaphone,
   QrCode,
+  ReceiptText,
   UsersRound,
   WalletCards,
 } from "lucide-react";
@@ -151,6 +152,7 @@ export function SiteMobileNavigation() {
 
   const items = [
     { href: "/buyer", label: "Rewards", icon: Gift },
+    { href: "/buyer/receipts", label: "Receipts", icon: ReceiptText },
     { href: "/buyer/campaigns", label: "Offers", icon: Megaphone },
     { href: "/buyer/wallet", label: "Wallet", icon: WalletCards },
     { href: "/buyer/referrals", label: "Referrals", icon: UsersRound },
@@ -160,7 +162,7 @@ export function SiteMobileNavigation() {
     <div className="fixed inset-x-0 bottom-0 z-40 lg:hidden">
       <nav
         aria-label="Buyer navigation"
-        className="safe-area-bottom grid grid-cols-4 bg-surface-card/95 px-2 pt-2 backdrop-blur"
+        className="safe-area-bottom grid grid-cols-5 bg-surface-card/95 px-2 pt-2 backdrop-blur"
       >
         {items.map(({ href, label, icon: Icon }) => {
           const active =
