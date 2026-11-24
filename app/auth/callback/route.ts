@@ -16,13 +16,13 @@ export async function GET(request: NextRequest) {
   const requestedIntent =
     url.searchParams.get("as") ?? request.cookies.get("komola_auth_intent")?.value;
 
-  if (errorParam || !code) {
+  if (errorParam) {
     return NextResponse.redirect(`${origin}/login?error=oauth_denied`);
   }
 
   const supabase = await createSupabaseServerClient();
-  const { error } = await supabase.auth.exchangeCodeForSession(code);
-  if (error) {
+  const { error } = code ? await supabase.auth.exchangeCodeForSession(code) : { error: null };
+  if (error || !code) {
     // The browser client can finish a recovered PKCE exchange before this
     // server callback receives the redirected code. In that case the code is
     // single-use and exchangeCodeForSession fails, while the session itself is
