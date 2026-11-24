@@ -16,6 +16,7 @@ import { getMyOrganization, sellerDestination } from "@/shared/lib/api/sellerOrg
 import { destinationForCapabilities, type AuthIntent } from "@/shared/lib/auth/intent";
 import { Divider, GoogleButton, PasswordField } from "@/shared/components/auth/parts";
 import { authCallbackRedirect, rememberAuthIntent } from "@/shared/lib/auth/providers";
+import { getGoogleWebIdToken } from "@/shared/lib/auth/google-web";
 import { normalizeAuthIdentifier } from "@/shared/lib/auth/identifier";
 
 function safeNext(n: string | null): string {
@@ -106,18 +107,19 @@ export function LoginForm({ intent }: { intent: AuthIntent }) {
   }
 
   async function onGoogle() {
+    if (googleBusy) return;
     setGoogleBusy(true);
     rememberAuthIntent(intent);
-    // Keep intent in the OAuth redirect itself. Safari can be stricter about
-    // short-lived client cookies across an external-provider round trip.
-    const redirectTo = authCallbackRedirect(window.location.origin, { intent, next });
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: "google",
-      options: { redirectTo },
-    });
-    if (error) {
+    try {
+      const idToken = await getGoogleWebIdToken();
+      const { error } = await supabase.auth.signInWithIdToken({ provider: "google", token: idToken });
+      if (error) throw error;
+      // Keep intent in the server callback so the existing role/org routing
+      // runs after the browser client stores the Supabase session.
+      window.location.assign(authCallbackRedirect(window.location.origin, { intent, next }));
+    } catch {
       setGoogleBusy(false);
-      toast.error("Google sign-in is unavailable right now.");
+      toast.error("Google sign-in could not be completed. Try again.");
     }
   }
   return (
