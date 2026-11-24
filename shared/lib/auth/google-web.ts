@@ -25,6 +25,13 @@ declare global {
   }
 }
 
+let initializedClientId: string | null = null;
+let pendingToken: {
+  resolve: (token: string) => void;
+  reject: (error: Error) => void;
+  timeout: ReturnType<typeof setTimeout>;
+} | null = null;
+
 function loadGoogleIdentityScript(): Promise<void> {
   if (window.google?.accounts.id) return Promise.resolve();
   return new Promise((resolve, reject) => {
@@ -57,17 +64,39 @@ export async function getGoogleWebIdToken(): Promise<string> {
   const google = window.google;
   if (!google) throw new Error("Google Identity Services is unavailable.");
 
-  return new Promise((resolve, reject) => {
+  if (initializedClientId !== clientId) {
+    if (pendingToken) {
+      clearTimeout(pendingToken.timeout);
+      pendingToken.reject(new Error("Google sign-in was restarted."));
+      pendingToken = null;
+    }
     google.accounts.id.initialize({
       client_id: clientId,
       cancel_on_tap_outside: true,
       use_fedcm_for_prompt: true,
-      callback: (response) => resolve(response.credential),
+      callback: (response) => {
+        if (!pendingToken) return;
+        clearTimeout(pendingToken.timeout);
+        pendingToken.resolve(response.credential);
+        pendingToken = null;
+      },
     });
-    google.accounts.id.prompt((notification) => {
-      if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
-        reject(new Error("Google sign-in was cancelled or could not be displayed."));
-      }
-    });
+    initializedClientId = clientId;
+  }
+
+  if (pendingToken) {
+    return Promise.reject(new Error("Google sign-in is already in progress."));
+  }
+
+  return new Promise((resolve, reject) => {
+    const timeout = setTimeout(() => {
+      if (!pendingToken) return;
+      pendingToken = null;
+      reject(new Error("Google sign-in timed out or was cancelled."));
+    }, 60_000);
+    pendingToken = { resolve, reject, timeout };
+    // Do not inspect prompt notification status here. Those deprecated status
+    // methods produce FedCM migration warnings in current Google browsers.
+    google.accounts.id.prompt();
   });
 }
