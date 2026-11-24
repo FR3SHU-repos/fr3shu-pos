@@ -2,9 +2,15 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { registerSeller, sellerDestination, type SellerOrgType } from "@/shared/lib/api/sellerOrgs";
+import {
+  checkSellerPhone,
+  enabledLocations,
+  registerSeller,
+  sellerDestination,
+  type PlatformLocation,
+  type SellerOrgType,
+} from "@/shared/lib/api/sellerOrgs";
 import { identityApi } from "@/shared/lib/api";
-import { LOCALITIES } from "@/shared/lib/localities";
 import { newUuid } from "@/shared/lib/uuid";
 import { normalizeIndianMobile } from "@/shared/lib/auth/phone";
 import { cardCls, inputCls, primaryBtnCls } from "@/shared/components/ui";
@@ -44,15 +50,58 @@ export default function SellerOnboarding() {
     referralCode: draft.referralCode || "",
     line1: "",
     line2: "",
-    city: LOCALITIES[0]?.name ?? "",
+    city: "",
     state: "",
     postalCode: "",
   });
-  const locations = LOCALITIES;
-  const [locationCode, setLocationCode] = useState(LOCALITIES[0]?.code ?? "");
+  const [locations, setLocations] = useState<PlatformLocation[]>([]);
+  const [locationCode, setLocationCode] = useState("");
+  const [locationError, setLocationError] = useState("");
+  const [phoneCheck, setPhoneCheck] = useState<{ phone: string; message: string } | null>(null);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const errorRef = useRef<HTMLParagraphElement>(null);
+
+  async function loadLocations() {
+    setLocationError("");
+    const result = await enabledLocations();
+    if (!result.success || !result.data) {
+      setLocationError(result.message);
+      return;
+    }
+    const items = result.data.items;
+    setLocations(items);
+    setLocationCode((current) =>
+      items.some((location) => location.code === current) ? current : (items[0]?.code ?? ""),
+    );
+    setForm((current) => ({ ...current, city: current.city || items[0]?.name || "" }));
+  }
+
+  useEffect(() => {
+    void loadLocations();
+  }, []);
+
+  useEffect(() => {
+    const phone = normalizeIndianMobile(form.phone);
+    if (!phone) return;
+    const controller = new AbortController();
+    const timer = window.setTimeout(async () => {
+      const result = await checkSellerPhone(phone, controller.signal);
+      if (controller.signal.aborted) return;
+      setPhoneCheck({
+        phone,
+        message: !result.success
+          ? "Could not check this number."
+          : result.data?.valid && result.data.available
+            ? "Mobile number is available."
+            : "This mobile number is unavailable.",
+      });
+    }, 350);
+    return () => {
+      window.clearTimeout(timer);
+      controller.abort();
+    };
+  }, [form.phone]);
 
   useEffect(() => {
     if (error) errorRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
@@ -134,6 +183,15 @@ export default function SellerOnboarding() {
       const accessToken = session?.access_token;
       if (!accessToken) {
         setError("Your login session is not ready. Please sign in again and retry.");
+        return;
+      }
+      const availability = await checkSellerPhone(phoneE164);
+      if (!availability.success || !availability.data?.valid || !availability.data.available) {
+        setError(
+          availability.success
+            ? "This mobile number is unavailable."
+            : "Could not check the mobile number. Please try again.",
+        );
         return;
       }
       const address = {
@@ -294,7 +352,9 @@ export default function SellerOnboarding() {
               required
             />
             <p className="mt-1.5 text-xs text-foreground-muted">
-              Enter the 10-digit Indian mobile number.
+              {phoneCheck?.phone === normalizeIndianMobile(form.phone)
+                ? phoneCheck?.message
+                : "Enter the 10-digit Indian mobile number."}
             </p>
           </div>
           <div>
@@ -363,6 +423,14 @@ export default function SellerOnboarding() {
               <p className="mt-1.5 text-xs text-foreground-muted">
                 Only locations enabled by KOMOLA can accept seller applications.
               </p>
+              {locationError ? (
+                <p role="alert" className="text-sm text-status-danger">
+                  {locationError}{" "}
+                  <button type="button" className="underline" onClick={() => void loadLocations()}>
+                    Retry
+                  </button>
+                </p>
+              ) : null}
             </div>
             {field("state", "State", { autoComplete: "address-level1" })}
           </div>

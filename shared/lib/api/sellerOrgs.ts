@@ -12,6 +12,14 @@
 
 import { request, type ApiResult } from "./client";
 
+export type PlatformLocation = { code: string; name: string; timezone: string };
+export const enabledLocations = () => request<{ items: PlatformLocation[] }>("locations");
+export const checkSellerPhone = (phone: string, signal?: AbortSignal) =>
+  request<{ valid: boolean; available: boolean }>("seller-organizations/phone-availability", {
+    query: { phoneE164: phone.replace(/^\+91/, "") },
+    signal,
+  });
+
 export type SellerOrgType = "Farmer" | "FPO" | "Retailer" | "Brand" | "Rewardor";
 export type SellerOrgStatus = "Pending" | "Approved" | "Rejected" | "Suspended";
 export type OnboardingState = "provisioning" | "linked" | "complete";
@@ -100,6 +108,8 @@ export interface OnboardingResult {
 }
 
 export interface MyOrganization {
+  isGroup?: boolean;
+  isClosed?: boolean;
   organizationId: string;
   displayName: string;
   sellerType: SellerOrgType;

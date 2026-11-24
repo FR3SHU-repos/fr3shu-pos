@@ -349,3 +349,20 @@ Before changing this app:
 - Sales period/summary logic is in `shared/lib/pos/sales-period.ts` with tests in `tests/sales-period.test.ts`.
 - Playwright smoke tests live in `e2e/` (opt-in, see `e2e/README.md`); they are typechecked and linted like the rest of the app.
 - Hard-coded colours that remain are intentional: Google logo brand colours, PWA `themeColor`/manifest and `global-error.tsx` (CSS variables are unavailable there).
+
+## Seller Groups and buyer receipts
+
+The seller **Groups** route supports personal and group workspace selection,
+membership requests, invitations, and closed-group history. The browser sends
+the selected organization on seller requests. Selection is tab-local and
+switching reloads the workspace. Account-level group discovery and buyer APIs
+remain independent of the seller selection. Closed history uses explicit scoped
+reads and exposes no selling or register actions.
+
+Group register controls follow the current membership roles. A closed shift
+can show the backend's seller totals and a copyable drawer summary.
+
+Buyer receipt review and issue reporting are available under **My receipts**.
+Receipt search covers loaded pages. Buyer setup shows only the matched counts
+returned for the verified phone. Seller onboarding loads enabled locations and
+checks number availability before submitting.
