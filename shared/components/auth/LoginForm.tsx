@@ -117,7 +117,8 @@ export function LoginForm({ intent }: { intent: AuthIntent }) {
       // Keep intent in the server callback so the existing role/org routing
       // runs after the browser client stores the Supabase session.
       window.location.assign(authCallbackRedirect(window.location.origin, { intent, next }));
-    } catch {
+    } catch (error) {
+      console.error("[auth] Google sign-in failed", error);
       setGoogleBusy(false);
       toast.error("Google sign-in could not be completed. Try again.");
     }

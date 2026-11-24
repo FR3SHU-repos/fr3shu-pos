@@ -74,7 +74,8 @@ export function RegisterForm({ intent }: { intent: AuthIntent }) {
       const { error } = await supabase.auth.signInWithIdToken({ provider: "google", token: idToken });
       if (error) throw error;
       window.location.assign(authCallbackRedirect(window.location.origin, { intent }));
-    } catch {
+    } catch (error) {
+      console.error("[auth] Google registration failed", error);
       setGoogleBusy(false);
       setError("Google registration could not be completed. Try again.");
     }
